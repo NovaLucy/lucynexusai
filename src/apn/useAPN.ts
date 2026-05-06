@@ -73,7 +73,7 @@ export function useAPN() {
   const streamFromGateway = useCallback(
     async (userInput: string, history: Message[], onDelta: (chunk: string) => void) => {
       const ctxMessages = [
-        ...history.slice(-10).map((m) => ({ role: m.role, content: m.content })),
+        ...history.slice(-20).map((m) => ({ role: m.role, content: m.content })),
         { role: "user", content: userInput },
       ];
 
@@ -173,7 +173,7 @@ export function useAPN() {
         let full = "";
         let started = false;
         const assistantId = crypto.randomUUID();
-        await streamFromGateway(text, messages, (chunk) => {
+        await streamFromGateway(text, messages.slice(-20), (chunk) => {
           full += chunk;
           if (!started) {
             started = true;
