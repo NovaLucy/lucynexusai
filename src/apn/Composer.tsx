@@ -27,13 +27,6 @@ export default function Composer({ onSend, onMic, onPhoto, micActive, sttSupport
   };
 
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!value.trim() || disabled) return;
-    onSend(value);
-    setValue("");
-  };
-
   return (
     <form
       onSubmit={submit}
