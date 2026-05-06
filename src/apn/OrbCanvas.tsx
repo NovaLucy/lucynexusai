@@ -200,6 +200,7 @@ export default function OrbCanvas({ state, mood, intensity = 1.0, pixelRatioCap 
       uniforms,
       transparent: true,
       depthWrite: false,
+      extensions: { derivatives: true } as any,
     });
     const geometry = new THREE.PlaneGeometry(2, 2);
     const mesh = new THREE.Mesh(geometry, material);
