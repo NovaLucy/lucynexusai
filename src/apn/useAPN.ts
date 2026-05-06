@@ -173,7 +173,7 @@ export function useAPN() {
         let full = "";
         let started = false;
         const assistantId = crypto.randomUUID();
-        await streamFromGateway(text, messages, (chunk) => {
+        await streamFromGateway(text, messages.slice(-20), (chunk) => {
           full += chunk;
           if (!started) {
             started = true;
