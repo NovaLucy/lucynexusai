@@ -118,10 +118,10 @@ interface Props {
   state: AgentState;
   mood: Mood;
   intensity?: number;     // 0.5–1.5
-  pixelRatioCap?: number; // default 1.75
+  pixelRatioCap?: number; // default 4 (4K-ready)
 }
 
-export default function OrbCanvas({ state, mood, intensity = 1.0, pixelRatioCap = 1.75 }: Props) {
+export default function OrbCanvas({ state, mood, intensity = 1.0, pixelRatioCap = 4 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef(state);
   const moodRef = useRef(mood);
