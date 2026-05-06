@@ -23,7 +23,7 @@ export default function Composer({ onSend, onMic, micActive, sttSupported, disab
     <form
       onSubmit={submit}
       className="glass mood-ring rounded-full flex items-center gap-1 pl-5 pr-1.5 py-1.5 transition-shadow"
-      style={{ width: "min(620px, 92vw)" }}
+      style={{ width: "min(620px, 96vw)" }}
     >
       <input
         type="text"
@@ -31,7 +31,10 @@ export default function Composer({ onSend, onMic, micActive, sttSupported, disab
         onChange={(e) => setValue(e.target.value)}
         placeholder="Parle-moi…"
         aria-label="Message à APN"
-        className="flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground text-[15px] font-mono"
+        autoComplete="off"
+        autoCapitalize="sentences"
+        enterKeyHint="send"
+        className="flex-1 min-w-0 bg-transparent outline-none text-foreground placeholder:text-muted-foreground font-mono"
         disabled={disabled}
       />
       {sttSupported && (
@@ -39,21 +42,21 @@ export default function Composer({ onSend, onMic, micActive, sttSupported, disab
           type="button"
           onClick={onMic}
           aria-label={micActive ? "Arrêter l'écoute" : "Parler à APN"}
-          className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${
+          className={`shrink-0 h-11 w-11 rounded-full flex items-center justify-center transition-colors ${
             micActive ? "bg-emerald-500/30 text-emerald-200" : "hover:bg-white/5 text-foreground/70"
           }`}
         >
-          {micActive ? <MicOff size={18} /> : <Mic size={18} />}
+          {micActive ? <MicOff size={20} /> : <Mic size={20} />}
         </button>
       )}
       <button
         type="submit"
         disabled={!value.trim() || disabled}
         aria-label="Envoyer"
-        className="h-10 w-10 rounded-full mood-bg text-background flex items-center justify-center disabled:opacity-30 transition-opacity"
+        className="shrink-0 h-11 w-11 rounded-full mood-bg flex items-center justify-center disabled:opacity-30 transition-opacity"
         style={{ color: "hsl(var(--background))" }}
       >
-        <ArrowUp size={18} />
+        <ArrowUp size={20} />
       </button>
     </form>
   );
