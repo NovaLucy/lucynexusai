@@ -7,6 +7,7 @@ import ChatLog from "@/apn/ChatLog";
 import ControlsDrawer from "@/apn/ControlsDrawer";
 import { useAPN } from "@/apn/useAPN";
 import { useVoice } from "@/apn/useVoice";
+import { tapLight, tapMedium } from "@/native";
 
 export default function Index() {
   const apn = useAPN();
@@ -22,6 +23,7 @@ export default function Index() {
   const handleSend = async (text: string) => {
     if (busy) return;
     setBusy(true);
+    tapLight();
     voice.stop();
     await apn.send(text, {
       onAssistantStart: () => {},
@@ -43,6 +45,7 @@ export default function Index() {
       apn.setListeningState(false);
       return;
     }
+    tapMedium();
     apn.setListeningState(true);
     const ok = voice.startListening((text) => {
       apn.setListeningState(false);
@@ -114,10 +117,12 @@ export default function Index() {
         </p>
       </div>
 
-      {/* Composer — bottom, safe-area aware */}
+      {/* Composer — bottom, safe-area + keyboard aware */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 z-20 w-full flex justify-center px-3 pb-safe"
-        style={{ bottom: "max(env(safe-area-inset-bottom), 12px)" }}
+        className="absolute left-1/2 -translate-x-1/2 z-20 w-full flex justify-center px-3 transition-[bottom] duration-200"
+        style={{
+          bottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 12px))",
+        }}
       >
         <Composer
           onSend={handleSend}
