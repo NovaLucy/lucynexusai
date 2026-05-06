@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  nativeSpeak, nativeStopTTS,
+  nativeStartListening, nativeStopListening, nativeSttSupported,
+} from "./nativeVoice";
+import { Capacitor } from "@capacitor/core";
 
 const STORAGE_KEY = "apn:voice";
+const isNative = Capacitor.isNativePlatform();
 
 type VoicePrefs = {
   enabled: boolean;
@@ -55,16 +61,21 @@ export function useVoice() {
   }, [prefs]);
 
   const stop = useCallback(() => {
-    if (!supported) return;
-    window.speechSynthesis.cancel();
+    nativeStopTTS();
+    if (supported) window.speechSynthesis.cancel();
   }, [supported]);
 
   const speak = useCallback(
     (text: string, onEnd?: () => void): void => {
-      if (!supported || !prefs.enabled || !text.trim()) {
+      if (!prefs.enabled || !text.trim()) {
         onEnd?.();
         return;
       }
+      if (isNative) {
+        nativeSpeak(text, { rate: prefs.rate, pitch: prefs.pitch }).then(() => onEnd?.());
+        return;
+      }
+      if (!supported) { onEnd?.(); return; }
       stop();
       const chunks = chunkText(text);
       let i = 0;
@@ -87,11 +98,33 @@ export function useVoice() {
     [supported, prefs, voices, stop],
   );
 
-  // STT
+  // STT — native plugin first, Web Speech API fallback
   const recognitionRef = useRef<any>(null);
   const [listening, setListening] = useState(false);
+  const [nativeStt, setNativeStt] = useState(false);
+
+  useEffect(() => {
+    if (isNative) nativeSttSupported().then(setNativeStt);
+  }, []);
 
   const startListening = useCallback((onResult: (text: string) => void) => {
+    if (isNative && nativeStt) {
+      let last = "";
+      setListening(true);
+      nativeStartListening((text) => { last = text; }).then((ok) => {
+        if (!ok) {
+          setListening(false);
+          return;
+        }
+        // Auto-stop after 6s of speech window
+        setTimeout(async () => {
+          await nativeStopListening();
+          setListening(false);
+          if (last.trim()) onResult(last);
+        }, 6000);
+      });
+      return true;
+    }
     const Ctor: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!Ctor) return false;
     const r = new Ctor();
@@ -108,16 +141,18 @@ export function useVoice() {
     setListening(true);
     r.start();
     return true;
-  }, []);
+  }, [nativeStt]);
 
   const stopListening = useCallback(() => {
+    if (isNative) { nativeStopListening(); setListening(false); return; }
     recognitionRef.current?.stop?.();
     setListening(false);
   }, []);
 
   const sttSupported =
-    typeof window !== "undefined" &&
-    !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+    (isNative && nativeStt) ||
+    (typeof window !== "undefined" &&
+     !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
 
   return {
     prefs, setPrefs,

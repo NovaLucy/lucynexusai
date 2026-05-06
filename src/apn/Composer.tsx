@@ -1,15 +1,17 @@
 import { useState, type FormEvent } from "react";
-import { ArrowUp, Mic, MicOff } from "lucide-react";
+import { ArrowUp, Mic, MicOff, Camera as CameraIcon } from "lucide-react";
+import { cameraAvailable, pickPhoto } from "./camera";
 
 interface Props {
   onSend: (text: string) => void;
   onMic?: () => void;
+  onPhoto?: (dataUrl: string) => void;
   micActive?: boolean;
   sttSupported?: boolean;
   disabled?: boolean;
 }
 
-export default function Composer({ onSend, onMic, micActive, sttSupported, disabled }: Props) {
+export default function Composer({ onSend, onMic, onPhoto, micActive, sttSupported, disabled }: Props) {
   const [value, setValue] = useState("");
 
   const submit = (e: FormEvent) => {
@@ -18,6 +20,12 @@ export default function Composer({ onSend, onMic, micActive, sttSupported, disab
     onSend(value);
     setValue("");
   };
+
+  const handlePhoto = async () => {
+    const dataUrl = await pickPhoto();
+    if (dataUrl) onPhoto?.(dataUrl);
+  };
+
 
   return (
     <form
@@ -37,6 +45,16 @@ export default function Composer({ onSend, onMic, micActive, sttSupported, disab
         className="flex-1 min-w-0 bg-transparent outline-none text-foreground placeholder:text-muted-foreground font-mono"
         disabled={disabled}
       />
+      {cameraAvailable && (
+        <button
+          type="button"
+          onClick={handlePhoto}
+          aria-label="Envoyer une photo à APN"
+          className="shrink-0 h-11 w-11 rounded-full hover:bg-white/5 text-foreground/70 flex items-center justify-center transition-colors"
+        >
+          <CameraIcon size={20} />
+        </button>
+      )}
       {sttSupported && (
         <button
           type="button"
