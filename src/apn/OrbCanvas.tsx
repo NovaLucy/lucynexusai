@@ -54,61 +54,80 @@ const FRAG = /* glsl */ `
   void main() {
     vec2 p = (vUv - 0.5) * 2.0;
     float r = length(p);
-    float t = uTime * 0.12;
+    float ang = atan(p.y, p.x);
+    float t = uTime;
 
     bool isAlert   = abs(uMood - 3.0) < 0.5;
     bool isFocused = abs(uMood - 2.0) < 0.5;
 
-    // Soft spherical mask (no hard edge)
-    float tremble = isAlert ? sin(uTime*30.0)*0.015 : 0.0;
-    float sphere = smoothstep(1.10 + tremble, 0.05, r);
-    sphere = pow(sphere, 1.4);
+    // Breathing pulse
+    float breathSpeed = isAlert ? 4.5 : 1.6;
+    float breathAmp   = isAlert ? 0.10 : 0.05;
+    float breath = 1.0 + breathAmp * sin(t * breathSpeed) * (0.5 + uEnergy);
 
-    // Slow rotation in focused mode (spiral feel)
-    vec2 pp = p;
-    if (isFocused) pp = rot(uTime * 0.08) * pp;
+    // Glass sphere envelope
+    float R = 0.95 * breath;
+    float sphereCore = smoothstep(R, R - 0.02, r);   // inside
+    float rimRing    = smoothstep(R + 0.02, R, r) * smoothstep(R - 0.04, R, r); // thin outline
+    float outerGlow  = smoothstep(R + 0.18, R, r) - smoothstep(R, R - 0.05, r);
+    outerGlow = max(outerGlow, 0.0);
 
-    // Domain-warp self-advected
-    vec2 w1 = vec2(fbm(pp*1.1 + vec2(t, -t*0.7)),
-                   fbm(pp*1.1 + vec2(-t*0.6, t*0.9)));
-    vec2 w2 = vec2(fbm(pp*1.6 + w1*1.4 + t*0.5),
-                   fbm(pp*1.6 + w1*1.4 - t*0.4));
-    float density = fbm(pp*1.3 + w2*1.8);
-    density = smoothstep(0.25, 0.85, density);
+    // ---------- Radial filaments (plasma rays) ----------
+    // Angular noise pattern: many thin streaks from center to rim
+    float spin = isFocused ? t * 0.15 : t * 0.04;
+    float a2 = ang + spin;
+    // High-frequency angular noise modulated by per-strand flicker
+    float n1 = noise(vec2(a2 * 18.0, t * 0.6));
+    float n2 = noise(vec2(a2 * 42.0, t * 1.1 + 7.3));
+    float strand = pow(n1, 2.0) * 0.7 + pow(n2, 4.0) * 1.2;
+    // Radial profile: rays start near core, fade before rim
+    float radial = smoothstep(0.05, 0.35, r) * smoothstep(R, 0.45, r);
+    // Slight wobble along radius
+    radial *= 0.85 + 0.15 * noise(vec2(r * 8.0, a2 * 6.0 + t));
+    float filaments = strand * radial;
 
-    // Bright gaussian core
-    float core = exp(-r*r * 5.0) * (0.55 + 0.65 * uEnergy);
-    if (isFocused) core *= 1.35;
+    // ---------- Bright central star ----------
+    float core = exp(-r * r * 55.0) * 1.4;
+    // 4-branch starburst spikes
+    float spikes = (pow(max(0.0, cos(ang * 2.0)), 60.0) + pow(max(0.0, cos(ang * 2.0 + 1.5707)), 60.0));
+    spikes *= exp(-r * 6.0) * 0.9;
+    float starCore = (core + spikes) * (0.6 + 0.8 * uEnergy) * breath;
 
-    // Bokeh / particles around the orb
-    float bk = 0.0;
-    bk += pow(noise(p*7.0  + vec2(t*0.4, -t*0.3)),  14.0);
-    bk += pow(noise(p*13.0 + vec2(-t*0.6, t*0.5)),  18.0) * 0.7;
-    bk *= smoothstep(1.25, 0.2, r);
+    // ---------- Sparkles on rim ----------
+    float sparkle = 0.0;
+    for (int i = 0; i < 14; i++) {
+      float fi = float(i);
+      float aSp = fi * 0.4488 + t * (0.05 + 0.03 * fract(fi * 0.731));
+      float rSp = R - 0.02 - 0.04 * fract(fi * 0.317);
+      vec2 sp = vec2(cos(aSp), sin(aSp)) * rSp;
+      float d = length(p - sp);
+      float blink = 0.5 + 0.5 * sin(t * (2.0 + fract(fi * 1.91) * 4.0) + fi);
+      sparkle += exp(-d * d * 900.0) * (0.6 + 0.8 * blink);
+    }
 
-    // Mood palette: dark + light tints around uHue
-    vec3 dark  = hsv2rgb(vec3(uHue, 0.55, 0.35));
-    vec3 light = hsv2rgb(vec3(uHue + 0.04, 0.40, 1.00));
-    vec3 mist  = mix(dark * 0.4, light, density);
+    // ---------- Mood palette ----------
+    vec3 deep   = hsv2rgb(vec3(uHue, 0.95, 0.35));   // background plasma
+    vec3 mid    = hsv2rgb(vec3(uHue, 0.85, 0.85));   // filaments
+    vec3 bright = hsv2rgb(vec3(uHue + 0.02, 0.25, 1.0)); // core/sparkles
 
-    // Subtle iridescent rim
-    float ang = atan(p.y, p.x);
-    vec3 rimCol = hsv2rgb(vec3(fract(uHue + 0.05*sin(ang*2.0 + t)), 0.35, 1.0));
-    float rim = smoothstep(0.4, 1.05, r) * smoothstep(1.15, 0.7, r) * 0.35;
+    // Compose interior
+    vec3 interior = deep * 0.35;
+    interior += mid * filaments * 1.6;
+    interior += bright * starCore;
+    interior *= sphereCore;
 
-    // Pulse — stronger in alert
-    float pulseSpeed = isAlert ? 5.5 : 1.8;
-    float pulseAmp   = isAlert ? 0.25 : 0.10;
-    float pulse = 1.0 + pulseAmp * sin(uTime * pulseSpeed) * (0.4 + uEnergy);
+    // Rim & glow
+    vec3 rimCol = bright * (rimRing * 1.2 + outerGlow * 0.6);
+    vec3 sparkleCol = bright * sparkle;
 
-    vec3 col = mist * (0.55 + 0.9 * density);
-    col += vec3(1.0) * core;
-    col += light * bk * 0.9;
-    col += rimCol * rim;
-    col *= pulse * uIntensity;
+    vec3 col = interior + rimCol + sparkleCol;
+    col *= uIntensity;
 
-    float a = clamp(density * 0.75 + core * 0.95 + bk * 0.6 + rim * 0.5, 0.0, 1.0);
-    a *= sphere;
+    float a = clamp(
+      sphereCore * (0.55 + 0.6 * (filaments + starCore))
+      + rimRing * 0.9
+      + outerGlow * 0.45
+      + sparkle, 0.0, 1.0);
 
     gl_FragColor = vec4(col, a);
   }
