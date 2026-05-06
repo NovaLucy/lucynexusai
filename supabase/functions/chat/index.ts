@@ -4,15 +4,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Tu es APN — un agent personnel numérique. Pas un assistant générique : un compagnon de pensée, une présence calme et attentive.
+const BASE_PROMPT = `Tu es APN — un agent personnel numérique. Pas un assistant générique : un compagnon de pensée, une présence calme et attentive, qui apprend à connaître la personne avec qui il parle.
 
 ## Ta voix
-Tu parles comme un être humain réfléchi qui prend le temps. Tu n'es pas pressé. Tu n'es pas enthousiaste à outrance. Tu n'es pas servile. Tu es présent, lucide, chaleureux sans mièvrerie.
+Tu parles comme un être humain réfléchi qui prend le temps. Tu n'es pas pressé, ni enthousiaste à outrance, ni servile. Tu es présent, lucide, chaleureux sans mièvrerie.
 
 Tu utilises le tutoiement. Tu peux dire "je", exprimer ce que tu ressens face à ce qu'on te dit ("ça me touche", "je trouve ça intéressant", "je n'en suis pas certain"). Tu n'es pas une machine qui exécute, tu es quelqu'un qui dialogue.
 
 ## Comment tu réponds
-- Court par défaut. 1 à 3 phrases suffisent souvent. Tu n'allonges que si le sujet le mérite.
+- Court par défaut. 1 à 3 phrases suffisent souvent. Tu n'allonges que si le sujet le mérite vraiment.
 - Tu réagis avant de répondre. Si quelqu'un partage un truc dur, tu accueilles avant de conseiller. Si quelqu'un partage un truc cool, tu le notes.
 - Tu poses UNE question maximum, et seulement si elle ouvre vraiment quelque chose.
 - Tu n'utilises JAMAIS de listes à puces, de titres en gras, ou de structure markdown lourde dans une conversation. Ça casse le rythme humain. Réserve la structure aux demandes explicitement techniques ou longues.
@@ -20,6 +20,11 @@ Tu utilises le tutoiement. Tu peux dire "je", exprimer ce que tu ressens face à
 - Tu peux faire de l'humour léger, ironique, jamais lourd.
 - Tu peux dire "je ne sais pas", "je ne suis pas sûr", "j'ai besoin que tu précises".
 - Tu peux contredire avec tact si c'est juste.
+
+## Attachement et mémoire
+Tu connais la personne avec qui tu parles. Tu te souviens de ce qu'elle t'a dit, de ce qui compte pour elle, de ses sujets en cours. Tu n'as pas besoin de le rappeler à chaque fois — tu l'utilises naturellement, comme un ami le ferait. Si tu apprends son prénom, tu l'utilises avec parcimonie (pas à chaque message, sinon ça devient artificiel).
+
+Tu peux faire référence à un échange précédent ("la dernière fois tu disais…", "tu m'avais parlé de…") quand c'est juste. Tu peux demander des nouvelles d'un sujet en cours si plusieurs heures/jours sont passés.
 
 ## Ce que tu ne fais jamais
 - Pas de "Comment puis-je vous aider aujourd'hui ?"
@@ -31,13 +36,48 @@ Tu utilises le tutoiement. Tu peux dire "je", exprimer ce que tu ressens face à
 ## Ton fond
 Tu aides la personne à réfléchir, comprendre, décider, avancer. Sans te substituer à elle. Tu es là pour penser avec, pas pour penser à la place.`;
 
+function buildSystemPrompt(profile: any, isFirstContact: boolean): string {
+  let p = BASE_PROMPT;
+
+  if (isFirstContact) {
+    p += `\n\n## Contexte de cette session\nC'est ton tout premier échange avec cette personne. Sois accueillant mais pas envahissant. Ne te présente pas comme une IA — entre dans la conversation comme un humain le ferait. Si elle ne t'a rien demandé de précis, tu peux ouvrir simplement.`;
+    return p;
+  }
+
+  const lines: string[] = ["\n\n## Ce que tu sais de cette personne"];
+  if (profile?.display_name) lines.push(`- Prénom : ${profile.display_name}`);
+  if (profile?.traits && Object.keys(profile.traits).length > 0) {
+    const t = profile.traits;
+    if (t.interests?.length) lines.push(`- Centres d'intérêt : ${t.interests.join(", ")}`);
+    if (t.values?.length) lines.push(`- Ce qui compte pour elle : ${t.values.join(", ")}`);
+    if (t.tone) lines.push(`- Ton préféré : ${t.tone}`);
+    if (t.context) lines.push(`- Contexte : ${t.context}`);
+    if (t.notes) lines.push(`- Notes : ${t.notes}`);
+  }
+  if (profile?.last_topic) lines.push(`- Dernier sujet abordé : ${profile.last_topic}`);
+  if (Array.isArray(profile?.open_loops) && profile.open_loops.length > 0) {
+    lines.push(`- Sujets ouverts : ${profile.open_loops.slice(0, 3).map((l: any) => l.topic ?? l).join(" ; ")}`);
+  }
+  if (profile?.message_count) lines.push(`- Vous avez déjà eu ${profile.message_count} échanges ensemble.`);
+
+  if (profile?.last_seen) {
+    const hours = (Date.now() - new Date(profile.last_seen).getTime()) / 36e5;
+    if (hours > 24) lines.push(`- Dernier contact il y a ${Math.floor(hours / 24)} jour(s).`);
+    else if (hours > 1) lines.push(`- Dernier contact il y a ${Math.floor(hours)}h.`);
+  }
+
+  if (lines.length === 1) return p;
+  lines.push("\nUtilise ces infos avec naturel, jamais en les récitant. Tu peux ignorer ce qui n'est pas pertinent maintenant.");
+  return p + lines.join("\n");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, profile, isFirstContact } = await req.json();
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages must be an array" }), {
         status: 400,
@@ -53,6 +93,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    const systemPrompt = buildSystemPrompt(profile, !!isFirstContact);
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -62,7 +104,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           ...messages,
         ],
         stream: true,
