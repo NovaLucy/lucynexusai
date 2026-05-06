@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { applyMoodToRoot } from "./mood";
-import { inferMood, quickReply } from "./intent";
+import { inferMood } from "./intent";
 import type { AgentState, Message, Mood } from "./types";
 
 const SESSION_KEY = "apn:session_id";
@@ -16,26 +16,46 @@ function getSessionId() {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+const PROFILE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/profile-update`;
+
+type UserProfile = {
+  display_name?: string | null;
+  traits?: Record<string, any>;
+  last_topic?: string | null;
+  open_loops?: any[];
+  message_count?: number;
+  last_seen?: string;
+  first_seen?: string;
+};
 
 export function useAPN() {
   const sessionId = useRef<string>(getSessionId());
+  const profileRef = useRef<UserProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [state, setState] = useState<AgentState>("standby");
   const [mood, setMood] = useState<Mood>("calm");
   const [error, setError] = useState<string | null>(null);
   const [caption, setCaption] = useState<string>("Je suis prêt.");
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  // load last 5 exchanges
+  // Load history + profile
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from("apn_memory")
-        .select("user_msg, apn_msg, created_at, intent")
-        .eq("session_id", sessionId.current)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      if (error) { console.warn("load memory failed", error); return; }
-      const rows = (data ?? []).reverse();
+      const [{ data: memData }, { data: profData }] = await Promise.all([
+        supabase
+          .from("apn_memory")
+          .select("user_msg, apn_msg, created_at, intent")
+          .eq("session_id", sessionId.current)
+          .order("created_at", { ascending: false })
+          .limit(8),
+        supabase
+          .from("apn_user_profile")
+          .select("*")
+          .eq("session_id", sessionId.current)
+          .maybeSingle(),
+      ]);
+
+      const rows = (memData ?? []).reverse();
       const msgs: Message[] = [];
       for (const r of rows) {
         const t = new Date(r.created_at).getTime();
@@ -49,6 +69,12 @@ export function useAPN() {
         });
       }
       setMessages(msgs);
+
+      if (profData) {
+        const p = profData as UserProfile;
+        profileRef.current = p;
+        setProfile(p);
+      }
     })();
   }, []);
 
@@ -70,6 +96,38 @@ export function useAPN() {
     if (error) console.warn("persist failed", error);
   }, []);
 
+  // Fire-and-forget profile update
+  const updateProfileAsync = useCallback(async (userMsg: string, apnMsg: string) => {
+    try {
+      const recent = [
+        ...messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: userMsg },
+        { role: "assistant", content: apnMsg },
+      ];
+      const resp = await fetch(PROFILE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          sessionId: sessionId.current,
+          currentProfile: profileRef.current,
+          recentExchanges: recent,
+        }),
+      });
+      if (resp.ok) {
+        const j = await resp.json();
+        if (j?.profile) {
+          profileRef.current = j.profile;
+          setProfile(j.profile);
+        }
+      }
+    } catch (e) {
+      console.warn("profile-update failed", e);
+    }
+  }, [messages]);
+
   const streamFromGateway = useCallback(
     async (userInput: string, history: Message[], onDelta: (chunk: string) => void) => {
       const ctxMessages = [
@@ -77,13 +135,20 @@ export function useAPN() {
         { role: "user", content: userInput },
       ];
 
+      const isFirstContact =
+        !profileRef.current && history.length === 0;
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: ctxMessages }),
+        body: JSON.stringify({
+          messages: ctxMessages,
+          profile: profileRef.current,
+          isFirstContact,
+        }),
       });
 
       if (!resp.ok) {
@@ -152,28 +217,11 @@ export function useAPN() {
       setState("thinking");
       setCaption("Je réfléchis…");
 
-      // quick reply path (no LLM)
-      const quick = quickReply(text);
-      if (quick) {
-        const m = inferMood(quick.content);
-        setMoodAndApply(m);
-        const assistantMsg: Message = {
-          id: crypto.randomUUID(), role: "assistant", content: quick.content, mood: m, ts: Date.now(),
-        };
-        setMessages((p) => [...p, assistantMsg]);
-        setState("speaking");
-        setCaption("Je parle.");
-        hooks.onAssistantStart?.();
-        await persist(text, quick.content, m);
-        hooks.onAssistantEnd?.(quick.content, m);
-        return;
-      }
-
       try {
         let full = "";
         let started = false;
         const assistantId = crypto.randomUUID();
-        await streamFromGateway(text, messages.slice(-20), (chunk) => {
+        await streamFromGateway(text, messages, (chunk) => {
           full += chunk;
           if (!started) {
             started = true;
@@ -191,6 +239,8 @@ export function useAPN() {
         setMoodAndApply(m);
         setMessages((p) => p.map((mm) => (mm.id === assistantId ? { ...mm, mood: m } : mm)));
         await persist(text, full, m);
+        // Background — n'attend pas
+        updateProfileAsync(text, full);
         hooks.onAssistantEnd?.(full, m);
       } catch (e: any) {
         const msg = e?.message ?? "Erreur inconnue";
@@ -199,7 +249,7 @@ export function useAPN() {
         setCaption("Je suis prêt.");
       }
     },
-    [messages, persist, setMoodAndApply, streamFromGateway],
+    [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync],
   );
 
   const setStandby = useCallback(() => {
@@ -213,7 +263,7 @@ export function useAPN() {
 
   return {
     sessionId: sessionId.current,
-    messages, state, mood, caption, error,
+    messages, state, mood, caption, error, profile,
     send, setStandby, setListeningState,
   };
 }
