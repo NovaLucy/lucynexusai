@@ -14,7 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      apn_memory: {
+        Row: {
+          apn_msg: string
+          created_at: string
+          id: string
+          intent: Json
+          meta: Json
+          session_id: string
+          user_msg: string
+        }
+        Insert: {
+          apn_msg: string
+          created_at?: string
+          id?: string
+          intent?: Json
+          meta?: Json
+          session_id: string
+          user_msg: string
+        }
+        Update: {
+          apn_msg?: string
+          created_at?: string
+          id?: string
+          intent?: Json
+          meta?: Json
+          session_id?: string
+          user_msg?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
