@@ -8,6 +8,7 @@ import ControlsDrawer from "@/apn/ControlsDrawer";
 import { useAPN } from "@/apn/useAPN";
 import { useVoice } from "@/apn/useVoice";
 import { tapLight, tapMedium } from "@/native";
+import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
 
 export default function Index() {
   const apn = useAPN();
@@ -19,6 +20,28 @@ export default function Index() {
   useEffect(() => {
     if (apn.error) toast.error(apn.error);
   }, [apn.error]);
+
+  // Proactive nudge: après chaque échange, planifie une relance douce dans 4h
+  // si APN a un sujet ouvert. Annule les précédentes pour ne pas spammer.
+  useEffect(() => {
+    if (!apn.profile?.message_count) return;
+    const topic = apn.profile.last_topic ?? (apn.profile.open_loops?.[0] as any)?.topic;
+    if (!topic) return;
+    cancelAllAPNNotifs().then(() => {
+      scheduleAPNFollowup({
+        title: "APN",
+        body: `Tu pensais à "${topic}". Tu en es où ?`,
+        inMinutes: 60 * 4,
+      });
+    });
+  }, [apn.profile?.message_count, apn.profile?.last_topic]);
+
+  const handlePhoto = (dataUrl: string) => {
+    // On envoie un message texte décrivant qu'une photo est partagée.
+    // (Vision multimodale = chantier suivant — pour l'instant on signale juste le geste.)
+    void dataUrl;
+    handleSend("Je viens de te partager une photo. Qu'est-ce que tu en penses ?");
+  };
 
   const handleSend = async (text: string) => {
     if (busy) return;
@@ -127,6 +150,7 @@ export default function Index() {
         <Composer
           onSend={handleSend}
           onMic={handleMic}
+          onPhoto={handlePhoto}
           micActive={voice.listening}
           sttSupported={voice.sttSupported}
           disabled={busy}
