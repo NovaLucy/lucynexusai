@@ -41,74 +41,74 @@ const FRAG = /* glsl */ `
   }
   float fbm(vec2 p) {
     float v = 0.0, a = 0.5;
-    for (int i=0;i<6;i++) {
+    for (int i=0;i<5;i++) {
       v += a * noise(p);
-      p = p*2.03 + vec2(1.7, 9.2);
+      p = p*2.02 + vec2(1.7, 9.2);
       a *= 0.5;
     }
     return v;
   }
 
+  mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+
   void main() {
-    vec2 p = (vUv - 0.5) * 2.0; // -1..1
+    vec2 p = (vUv - 0.5) * 2.0;
     float r = length(p);
-    float t = uTime * 0.45;
+    float t = uTime * 0.12;
 
-    // tremble in alert mood
-    float tremble = (abs(uMood - 4.0) < 0.5) ? sin(uTime*38.0)*0.012 : 0.0;
+    bool isAlert   = abs(uMood - 3.0) < 0.5;
+    bool isFocused = abs(uMood - 2.0) < 0.5;
 
-    // Spherical mask with soft fresnel-ish edge
-    float sphere = smoothstep(0.96 + tremble, 0.78, r);
-    float rim    = smoothstep(0.78, 0.99, r) * smoothstep(1.02, 0.92, r);
+    // Soft spherical mask (no hard edge)
+    float tremble = isAlert ? sin(uTime*30.0)*0.015 : 0.0;
+    float sphere = smoothstep(1.10 + tremble, 0.05, r);
+    sphere = pow(sphere, 1.4);
 
-    // Domain-warped FBM for bubbly cell interior
-    vec2 q = vec2(fbm(p*1.6 + vec2(t, -t*0.7)),
-                  fbm(p*1.6 + vec2(-t*0.8, t*0.6)));
-    vec2 s = vec2(fbm(p*2.2 + q*2.0 + t*0.3),
-                  fbm(p*2.2 + q*2.0 - t*0.4));
-    float n = fbm(p*2.4 + s*2.4);
+    // Slow rotation in focused mode (spiral feel)
+    vec2 pp = p;
+    if (isFocused) pp = rot(uTime * 0.08) * pp;
 
-    // Cell blobs: threshold + smooth pockets
-    float blob = smoothstep(0.35, 0.78, n);
-    float hot  = pow(smoothstep(0.55, 0.92, n + 0.08*sin(t*1.7 + p.x*3.0)), 1.6);
+    // Domain-warp self-advected
+    vec2 w1 = vec2(fbm(pp*1.1 + vec2(t, -t*0.7)),
+                   fbm(pp*1.1 + vec2(-t*0.6, t*0.9)));
+    vec2 w2 = vec2(fbm(pp*1.6 + w1*1.4 + t*0.5),
+                   fbm(pp*1.6 + w1*1.4 - t*0.4));
+    float density = fbm(pp*1.3 + w2*1.8);
+    density = smoothstep(0.25, 0.85, density);
 
-    // Pseudo-3d shading: fake normal from gradient of n
-    float e = 0.01;
-    float nx = fbm((p+vec2(e,0))*2.4 + s*2.4) - n;
-    float ny = fbm((p+vec2(0,e))*2.4 + s*2.4) - n;
-    vec3 nrm = normalize(vec3(-nx, -ny, 0.6));
-    vec3 L = normalize(vec3(-0.4, 0.6, 0.7));
-    float lambert = clamp(dot(nrm, L), 0.0, 1.0);
-    float spec = pow(clamp(dot(reflect(-L, nrm), vec3(0,0,1)), 0.0, 1.0), 24.0);
+    // Bright gaussian core
+    float core = exp(-r*r * 5.0) * (0.55 + 0.65 * uEnergy);
+    if (isFocused) core *= 1.35;
 
-    float pulse = 0.85 + 0.15 * sin(uTime * 2.4) * uEnergy;
+    // Bokeh / particles around the orb
+    float bk = 0.0;
+    bk += pow(noise(p*7.0  + vec2(t*0.4, -t*0.3)),  14.0);
+    bk += pow(noise(p*13.0 + vec2(-t*0.6, t*0.5)),  18.0) * 0.7;
+    bk *= smoothstep(1.25, 0.2, r);
 
-    // Color palette — hot interior (red/orange/magenta) with cool cyan/teal pockets
-    vec3 deep   = hsv2rgb(vec3(uHue + 0.55, 0.85, 0.5));     // cyan/teal
-    vec3 mid    = hsv2rgb(vec3(uHue + 0.95, 0.95, 0.95));    // magenta/red
-    vec3 fire   = hsv2rgb(vec3(uHue + 0.07, 0.95, 1.10));    // orange/yellow
-    vec3 inside = mix(deep, mid, blob);
-    inside = mix(inside, fire, hot);
-    inside *= 0.45 + 0.85 * lambert;
-    inside += vec3(spec) * 0.5 * blob;
+    // Mood palette: dark + light tints around uHue
+    vec3 dark  = hsv2rgb(vec3(uHue, 0.55, 0.35));
+    vec3 light = hsv2rgb(vec3(uHue + 0.04, 0.40, 1.00));
+    vec3 mist  = mix(dark * 0.4, light, density);
 
-    // Iridescent rim — angle-based hue sweep
+    // Subtle iridescent rim
     float ang = atan(p.y, p.x);
-    vec3 iri = hsv2rgb(vec3(fract(ang/6.2831 + uHue + 0.1*sin(t)), 0.85, 1.0));
-    vec3 rimCol = iri * rim * 1.6;
+    vec3 rimCol = hsv2rgb(vec3(fract(uHue + 0.05*sin(ang*2.0 + t)), 0.35, 1.0));
+    float rim = smoothstep(0.4, 1.05, r) * smoothstep(1.15, 0.7, r) * 0.35;
 
-    // Outer halo / bloom
-    float halo = exp(-pow(max(r-0.95,0.0)*4.0, 2.0)) * 0.6 * uEnergy;
-    vec3 haloCol = iri * halo;
+    // Pulse — stronger in alert
+    float pulseSpeed = isAlert ? 5.5 : 1.8;
+    float pulseAmp   = isAlert ? 0.25 : 0.10;
+    float pulse = 1.0 + pulseAmp * sin(uTime * pulseSpeed) * (0.4 + uEnergy);
 
-    // Inner sparkle (high-freq grain that reads as plasma dust)
-    float sparkle = pow(noise(p*40.0 + t*3.0), 12.0) * 1.6;
-    inside += vec3(sparkle) * blob;
+    vec3 col = mist * (0.55 + 0.9 * density);
+    col += vec3(1.0) * core;
+    col += light * bk * 0.9;
+    col += rimCol * rim;
+    col *= pulse * uIntensity;
 
-    vec3 col = inside * sphere * pulse + rimCol + haloCol;
-    col *= uIntensity;
-
-    float a = clamp(sphere * (0.55 + 0.6*blob) + rim*0.9 + halo, 0.0, 1.0);
+    float a = clamp(density * 0.75 + core * 0.95 + bk * 0.6 + rim * 0.5, 0.0, 1.0);
+    a *= sphere;
 
     gl_FragColor = vec4(col, a);
   }
