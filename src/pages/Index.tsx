@@ -7,6 +7,7 @@ import ChatLog from "@/apn/ChatLog";
 import ControlsDrawer from "@/apn/ControlsDrawer";
 import { useAPN } from "@/apn/useAPN";
 import { useVoice } from "@/apn/useVoice";
+import { tapLight, tapMedium } from "@/native";
 
 export default function Index() {
   const apn = useAPN();
@@ -22,6 +23,7 @@ export default function Index() {
   const handleSend = async (text: string) => {
     if (busy) return;
     setBusy(true);
+    tapLight();
     voice.stop();
     await apn.send(text, {
       onAssistantStart: () => {},
@@ -43,6 +45,7 @@ export default function Index() {
       apn.setListeningState(false);
       return;
     }
+    tapMedium();
     apn.setListeningState(true);
     const ok = voice.startListening((text) => {
       apn.setListeningState(false);
