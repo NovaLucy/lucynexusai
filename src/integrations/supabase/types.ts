@@ -44,6 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      apn_user_profile: {
+        Row: {
+          display_name: string | null
+          first_seen: string
+          last_seen: string
+          last_topic: string | null
+          message_count: number
+          open_loops: Json
+          session_id: string
+          traits: Json
+          updated_at: string
+        }
+        Insert: {
+          display_name?: string | null
+          first_seen?: string
+          last_seen?: string
+          last_topic?: string | null
+          message_count?: number
+          open_loops?: Json
+          session_id: string
+          traits?: Json
+          updated_at?: string
+        }
+        Update: {
+          display_name?: string | null
+          first_seen?: string
+          last_seen?: string
+          last_topic?: string | null
+          message_count?: number
+          open_loops?: Json
+          session_id?: string
+          traits?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
