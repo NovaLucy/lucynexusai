@@ -13,7 +13,6 @@ const VERT = /* glsl */ `
 `;
 
 const FRAG = /* glsl */ `
-  #extension GL_OES_standard_derivatives : enable
   precision highp float;
   varying vec2 vUv;
   uniform float uTime;
