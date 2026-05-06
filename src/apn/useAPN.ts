@@ -73,7 +73,7 @@ export function useAPN() {
   const streamFromGateway = useCallback(
     async (userInput: string, history: Message[], onDelta: (chunk: string) => void) => {
       const ctxMessages = [
-        ...history.slice(-10).map((m) => ({ role: m.role, content: m.content })),
+        ...history.slice(-20).map((m) => ({ role: m.role, content: m.content })),
         { role: "user", content: userInput },
       ];
 
