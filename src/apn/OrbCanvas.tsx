@@ -51,85 +51,107 @@ const FRAG = /* glsl */ `
 
   mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
 
-  void main() {
-    vec2 p = (vUv - 0.5) * 2.0;
+  // Plasma sample at point p with given hue
+  vec4 sampleOrb(vec2 p, float t, float hue, float energy, bool isAlert, bool isFocused) {
     float r = length(p);
     float ang = atan(p.y, p.x);
-    float t = uTime;
 
-    bool isAlert   = abs(uMood - 3.0) < 0.5;
-    bool isFocused = abs(uMood - 2.0) < 0.5;
-
-    // Breathing pulse
+    // Breathing
     float breathSpeed = isAlert ? 4.5 : 1.6;
     float breathAmp   = isAlert ? 0.10 : 0.05;
-    float breath = 1.0 + breathAmp * sin(t * breathSpeed) * (0.5 + uEnergy);
+    float breath = 1.0 + breathAmp * sin(t * breathSpeed) * (0.5 + energy);
 
-    // Glass sphere envelope
-    float R = 0.95 * breath;
-    float sphereCore = smoothstep(R, R - 0.02, r);   // inside
-    float rimRing    = smoothstep(R + 0.02, R, r) * smoothstep(R - 0.04, R, r); // thin outline
-    float outerGlow  = smoothstep(R + 0.18, R, r) - smoothstep(R, R - 0.05, r);
-    outerGlow = max(outerGlow, 0.0);
+    float R = 0.92 * breath;
 
-    // ---------- Radial filaments (plasma rays) ----------
-    // Angular noise pattern: many thin streaks from center to rim
+    // Soft sphere envelope (anti-aliased)
+    float aa = 0.012;
+    float sphereCore = smoothstep(R + aa, R - aa, r);
+    // Rim ring (thin bright outline)
+    float rimRing = exp(-pow((r - R) / 0.018, 2.0));
+    // Outer atmospheric glow
+    float outerGlow = exp(-pow(max(r - R, 0.0) / 0.10, 1.4));
+
+    // ---------- Radial filaments ----------
     float spin = isFocused ? t * 0.15 : t * 0.04;
     float a2 = ang + spin;
-    // High-frequency angular noise modulated by per-strand flicker
-    float n1 = noise(vec2(a2 * 18.0, t * 0.6));
-    float n2 = noise(vec2(a2 * 42.0, t * 1.1 + 7.3));
-    float strand = pow(n1, 2.0) * 0.7 + pow(n2, 4.0) * 1.2;
-    // Radial profile: rays start near core, fade before rim
-    float radial = smoothstep(0.05, 0.35, r) * smoothstep(R, 0.45, r);
-    // Slight wobble along radius
-    radial *= 0.85 + 0.15 * noise(vec2(r * 8.0, a2 * 6.0 + t));
+    // multi-octave angular noise for finer strands
+    float n1 = noise(vec2(a2 * 22.0, t * 0.5));
+    float n2 = noise(vec2(a2 * 55.0, t * 0.9 + 7.3));
+    float n3 = noise(vec2(a2 * 110.0, t * 1.3 + 2.1));
+    float strand = pow(n1, 2.2) * 0.55 + pow(n2, 4.0) * 1.1 + pow(n3, 8.0) * 0.6;
+    // Radial profile
+    float radial = smoothstep(0.04, 0.30, r) * smoothstep(R, 0.42, r);
+    radial *= 0.82 + 0.18 * noise(vec2(r * 10.0, a2 * 7.0 + t));
     float filaments = strand * radial;
 
     // ---------- Bright central star ----------
-    float core = exp(-r * r * 55.0) * 1.4;
-    // 4-branch starburst spikes
-    float spikes = (pow(max(0.0, cos(ang * 2.0)), 60.0) + pow(max(0.0, cos(ang * 2.0 + 1.5707)), 60.0));
-    spikes *= exp(-r * 6.0) * 0.9;
-    float starCore = (core + spikes) * (0.6 + 0.8 * uEnergy) * breath;
+    float core = exp(-r * r * 65.0) * 1.5;
+    float spikes = pow(max(0.0, cos(ang * 2.0)), 80.0)
+                 + pow(max(0.0, cos(ang * 2.0 + 1.5707)), 80.0);
+    spikes *= exp(-r * 7.0) * 0.85;
+    float starCore = (core + spikes) * (0.6 + 0.85 * energy) * breath;
 
     // ---------- Sparkles on rim ----------
     float sparkle = 0.0;
-    for (int i = 0; i < 14; i++) {
+    for (int i = 0; i < 18; i++) {
       float fi = float(i);
-      float aSp = fi * 0.4488 + t * (0.05 + 0.03 * fract(fi * 0.731));
-      float rSp = R - 0.02 - 0.04 * fract(fi * 0.317);
+      float aSp = fi * 0.349 + t * (0.04 + 0.035 * fract(fi * 0.731));
+      float rSp = R - 0.015 - 0.035 * fract(fi * 0.317);
       vec2 sp = vec2(cos(aSp), sin(aSp)) * rSp;
       float d = length(p - sp);
       float blink = 0.5 + 0.5 * sin(t * (2.0 + fract(fi * 1.91) * 4.0) + fi);
-      sparkle += exp(-d * d * 900.0) * (0.6 + 0.8 * blink);
+      sparkle += exp(-d * d * 1400.0) * (0.5 + 0.9 * blink);
     }
 
-    // ---------- Mood palette ----------
-    vec3 deep   = hsv2rgb(vec3(uHue, 0.95, 0.35));   // background plasma
-    vec3 mid    = hsv2rgb(vec3(uHue, 0.85, 0.85));   // filaments
-    vec3 bright = hsv2rgb(vec3(uHue + 0.02, 0.25, 1.0)); // core/sparkles
+    // ---------- Palette ----------
+    vec3 deep   = hsv2rgb(vec3(hue, 0.95, 0.32));
+    vec3 mid    = hsv2rgb(vec3(hue, 0.85, 0.92));
+    vec3 bright = hsv2rgb(vec3(hue + 0.02, 0.22, 1.0));
 
-    // Compose interior
-    vec3 interior = deep * 0.35;
-    interior += mid * filaments * 1.6;
+    vec3 interior = deep * 0.32;
+    interior += mid * filaments * 1.7;
     interior += bright * starCore;
     interior *= sphereCore;
 
-    // Rim & glow
-    vec3 rimCol = bright * (rimRing * 1.2 + outerGlow * 0.6);
-    vec3 sparkleCol = bright * sparkle;
-
-    vec3 col = interior + rimCol + sparkleCol;
-    col *= uIntensity;
+    vec3 col = interior
+             + bright * (rimRing * 1.3 + outerGlow * 0.55)
+             + bright * sparkle;
 
     float a = clamp(
-      sphereCore * (0.55 + 0.6 * (filaments + starCore))
-      + rimRing * 0.9
+      sphereCore * (0.5 + 0.65 * (filaments + starCore))
+      + rimRing * 0.95
       + outerGlow * 0.45
       + sparkle, 0.0, 1.0);
 
-    gl_FragColor = vec4(col, a);
+    return vec4(col, a);
+  }
+
+  void main() {
+    vec2 p = (vUv - 0.5) * 2.0;
+    float t = uTime;
+    bool isAlert   = abs(uMood - 3.0) < 0.5;
+    bool isFocused = abs(uMood - 2.0) < 0.5;
+
+    // 2x2 rotated-grid supersampling for crisp edges
+    vec2 dx = dFdx(p) * 0.25;
+    vec2 dy = dFdy(p) * 0.25;
+    vec4 s0 = sampleOrb(p + vec2( dx.x + dy.x,  dx.y + dy.y), t, uHue, uEnergy, isAlert, isFocused);
+    vec4 s1 = sampleOrb(p + vec2(-dx.x + dy.x, -dx.y + dy.y), t, uHue, uEnergy, isAlert, isFocused);
+    // Slight chromatic aberration on the second pair (hue offset)
+    vec4 s2 = sampleOrb(p + vec2( dx.x - dy.x,  dx.y - dy.y), t, uHue + 0.01, uEnergy, isAlert, isFocused);
+    vec4 s3 = sampleOrb(p + vec2(-dx.x - dy.x, -dx.y - dy.y), t, uHue - 0.01, uEnergy, isAlert, isFocused);
+    vec4 s = (s0 + s1 + s2 + s3) * 0.25;
+
+    vec3 col = s.rgb * uIntensity;
+    // Tonemap (Reinhard) for highlight rolloff
+    col = col / (1.0 + col);
+    // Gamma
+    col = pow(col, vec3(1.0 / 2.2));
+    // Subtle dithering to kill banding
+    float d = (hash(gl_FragCoord.xy + t) - 0.5) / 255.0;
+    col += d;
+
+    gl_FragColor = vec4(col, s.a);
   }
 `;
 
