@@ -27,111 +27,88 @@ const FRAG = /* glsl */ `
     return c.z * mix(vec3(1.0), rgb, c.y);
   }
 
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453);
+  }
   float noise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
     f = f*f*(3.0-2.0*f);
-    float a = fract(sin(dot(i, vec2(127.1,311.7)))*43758.5453);
-    float b = fract(sin(dot(i+vec2(1.0,0.0), vec2(127.1,311.7)))*43758.5453);
-    float c2 = fract(sin(dot(i+vec2(0.0,1.0), vec2(127.1,311.7)))*43758.5453);
-    float d = fract(sin(dot(i+vec2(1.0,1.0), vec2(127.1,311.7)))*43758.5453);
-    return mix(mix(a,b,f.x), mix(c2,d,f.x), f.y);
+    float a = hash(i);
+    float b = hash(i+vec2(1.0,0.0));
+    float c = hash(i+vec2(0.0,1.0));
+    float d = hash(i+vec2(1.0,1.0));
+    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
   }
-
   float fbm(vec2 p) {
     float v = 0.0, a = 0.5;
     for (int i=0;i<6;i++) {
       v += a * noise(p);
-      p = p*2.0 + vec2(1.7, 9.2);
+      p = p*2.03 + vec2(1.7, 9.2);
       a *= 0.5;
     }
     return v;
   }
 
-  // Single vertical filament: thin Gaussian curve drifting & curling, clipped to sphere.
-  float strand(vec2 p, float seed, float t, float energy) {
-    // sphere clip: max |x| where strand can live
-    float maxY = sqrt(max(0.0, 0.25 - p.x*p.x));
-    if (abs(p.y) > maxY) return 0.0;
-
-    // base x position for this strand (already encoded in seed via caller)
-    // bend the strand horizontally as a function of y
-    float wob = fbm(vec2(seed * 13.1, p.y * 3.2 + t * 0.6));
-    float curl = sin(p.y * 9.0 + seed * 31.0 + t * 1.4) * 0.018;
-    float dx = (wob - 0.5) * 0.06 + curl;
-
-    // distance to the curved strand (in x)
-    float d = abs(p.x - (seed - 0.5) * 0.9 - dx);
-
-    // taper at poles (hair-like)
-    float taper = 1.0 - smoothstep(0.0, maxY, abs(p.y));
-    float thickness = mix(0.0035, 0.010, taper) * (0.8 + 0.4 * energy);
-
-    // gaussian core
-    float g = exp(-(d*d) / (thickness*thickness));
-
-    // per-strand flicker
-    float flick = 0.55 + 0.45 * sin(t * (6.0 + seed * 11.0) + seed * 47.0);
-    flick = mix(0.7, flick, 0.6);
-
-    return g * flick * taper;
-  }
-
   void main() {
-    vec2 p = vUv - 0.5;
+    vec2 p = (vUv - 0.5) * 2.0; // -1..1
     float r = length(p);
-    float t = uTime;
+    float t = uTime * 0.45;
 
-    // Listening micro-tremble
-    float tremble = 0.0;
-    if (abs(uMood - 4.0) < 0.5) {
-      tremble = sin(t*38.0)*0.010;
-    }
+    // tremble in alert mood
+    float tremble = (abs(uMood - 4.0) < 0.5) ? sin(uTime*38.0)*0.012 : 0.0;
 
-    // sphere mask
-    float sphere = smoothstep(0.5 + tremble, 0.495, r);
-    float inside = step(r, 0.5);
+    // Spherical mask with soft fresnel-ish edge
+    float sphere = smoothstep(0.96 + tremble, 0.78, r);
+    float rim    = smoothstep(0.78, 0.99, r) * smoothstep(1.02, 0.92, r);
 
-    // Dense filaments — 40 vertical strands w/ golden ratio jitter
-    float fil = 0.0;
-    const int N = 40;
-    for (int i = 0; i < N; i++) {
-      float fi = float(i);
-      // golden ratio distribution for natural irregular spacing
-      float seed = fract(fi * 0.61803398875 + 0.137);
-      fil += strand(p, seed, t + fi * 0.13, uEnergy);
-    }
-    fil = clamp(fil, 0.0, 2.4);
+    // Domain-warped FBM for bubbly cell interior
+    vec2 q = vec2(fbm(p*1.6 + vec2(t, -t*0.7)),
+                  fbm(p*1.6 + vec2(-t*0.8, t*0.6)));
+    vec2 s = vec2(fbm(p*2.2 + q*2.0 + t*0.3),
+                  fbm(p*2.2 + q*2.0 - t*0.4));
+    float n = fbm(p*2.4 + s*2.4);
 
-    // Crossings / hot spots — where filaments overlap, push white-pink core
-    float hot = pow(fil, 2.2);
+    // Cell blobs: threshold + smooth pockets
+    float blob = smoothstep(0.35, 0.78, n);
+    float hot  = pow(smoothstep(0.55, 0.92, n + 0.08*sin(t*1.7 + p.x*3.0)), 1.6);
 
-    // Dark core gradient (plasma globe has a dark electrode center)
-    float darkCore = 1.0 - exp(-r * 4.0) * 0.85;
+    // Pseudo-3d shading: fake normal from gradient of n
+    float e = 0.01;
+    float nx = fbm((p+vec2(e,0))*2.4 + s*2.4) - n;
+    float ny = fbm((p+vec2(0,e))*2.4 + s*2.4) - n;
+    vec3 nrm = normalize(vec3(-nx, -ny, 0.6));
+    vec3 L = normalize(vec3(-0.4, 0.6, 0.7));
+    float lambert = clamp(dot(nrm, L), 0.0, 1.0);
+    float spec = pow(clamp(dot(reflect(-L, nrm), vec3(0,0,1)), 0.0, 1.0), 24.0);
 
-    // Outer halo
-    float halo = exp(-r * 3.6) * 0.55 * uEnergy;
+    float pulse = 0.85 + 0.15 * sin(uTime * 2.4) * uEnergy;
 
-    float pulse = 0.7 + 0.3 * sin(t * 2.6) * uEnergy;
-    float breathe = 0.9 + 0.1 * sin(t * 0.7);
+    // Color palette — hot interior (red/orange/magenta) with cool cyan/teal pockets
+    vec3 deep   = hsv2rgb(vec3(uHue + 0.55, 0.85, 0.5));     // cyan/teal
+    vec3 mid    = hsv2rgb(vec3(uHue + 0.95, 0.95, 0.95));    // magenta/red
+    vec3 fire   = hsv2rgb(vec3(uHue + 0.07, 0.95, 1.10));    // orange/yellow
+    vec3 inside = mix(deep, mid, blob);
+    inside = mix(inside, fire, hot);
+    inside *= 0.45 + 0.85 * lambert;
+    inside += vec3(spec) * 0.5 * blob;
 
-    // Edge tint (mood hue) + hot white-pink center
-    vec3 edgeCol = hsv2rgb(vec3(uHue, 0.85, 1.0));
-    vec3 hotCol  = mix(vec3(1.0, 0.92, 0.98), edgeCol, 0.25);
+    // Iridescent rim — angle-based hue sweep
+    float ang = atan(p.y, p.x);
+    vec3 iri = hsv2rgb(vec3(fract(ang/6.2831 + uHue + 0.1*sin(t)), 0.85, 1.0));
+    vec3 rimCol = iri * rim * 1.6;
 
-    vec3 col = edgeCol * fil * darkCore * pulse * breathe;
-    col += hotCol * hot * 0.55 * darkCore;
-    col += hsv2rgb(vec3(uHue + 0.03, 0.7, 1.0)) * halo;
+    // Outer halo / bloom
+    float halo = exp(-pow(max(r-0.95,0.0)*4.0, 2.0)) * 0.6 * uEnergy;
+    vec3 haloCol = iri * halo;
 
-    // Specular sheen top-left (glass globe feel)
-    vec2 sp = p - vec2(-0.18, 0.20);
-    float spec = exp(-dot(sp, sp) * 38.0) * 0.18;
-    col += vec3(spec);
+    // Inner sparkle (high-freq grain that reads as plasma dust)
+    float sparkle = pow(noise(p*40.0 + t*3.0), 12.0) * 1.6;
+    inside += vec3(sparkle) * blob;
 
-    col *= sphere * uIntensity;
+    vec3 col = inside * sphere * pulse + rimCol + haloCol;
+    col *= uIntensity;
 
-    // Alpha: visible where strands or halo present, fading at edge
-    float a = clamp(fil * 0.9 + hot * 0.6 + halo * 0.8, 0.0, 1.0) * sphere;
-    a = max(a, halo * 0.6);
+    float a = clamp(sphere * (0.55 + 0.6*blob) + rim*0.9 + halo, 0.0, 1.0);
 
     gl_FragColor = vec4(col, a);
   }
