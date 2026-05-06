@@ -43,33 +43,6 @@
 
     --surface: 230 30% 6%;
     --surface-glass: 230 30% 6% / 0.42;
-
-    --bg-solid: #03040a;
-  }
-
-  .day {
-    --background: 38 30% 96%;
-    --foreground: 230 25% 12%;
-    --card: 38 30% 99%;
-    --card-foreground: 230 25% 12%;
-    --popover: 38 30% 99%;
-    --popover-foreground: 230 25% 12%;
-    --primary: 230 60% 30%;
-    --primary-foreground: 38 30% 98%;
-    --secondary: 38 25% 90%;
-    --secondary-foreground: 230 25% 12%;
-    --muted: 38 20% 88%;
-    --muted-foreground: 230 12% 38%;
-    --accent: 195 70% 40%;
-    --accent-foreground: 38 30% 98%;
-    --destructive: 0 70% 45%;
-    --destructive-foreground: 38 30% 98%;
-    --border: 38 18% 82%;
-    --input: 38 22% 90%;
-    --ring: 230 60% 40%;
-    --surface: 38 35% 97%;
-    --surface-glass: 38 35% 97% / 0.55;
-    --bg-solid: #f5f1ea;
   }
 }
 
@@ -84,7 +57,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background: var(--bg-solid, #03040a);
+    background: #03040a;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     overflow: hidden;
     /* Disable iOS pull-to-refresh & rubber-band */

@@ -9,13 +9,10 @@ import { useAPN } from "@/apn/useAPN";
 import { useVoice } from "@/apn/useVoice";
 import { tapLight, tapMedium } from "@/native";
 import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
-import { useTheme } from "@/apn/useTheme";
-import { Sun, Moon } from "lucide-react";
 
 export default function Index() {
   const apn = useAPN();
   const voice = useVoice();
-  const { theme, toggle: toggleTheme } = useTheme();
   const [intensity, setIntensity] = useState(1.0);
   const [pixelRatio, setPixelRatio] = useState(1.5);
   const [busy, setBusy] = useState(false);
@@ -87,8 +84,8 @@ export default function Index() {
 
   return (
     <main
-      className="relative w-screen overflow-hidden bg-background text-foreground transition-colors duration-500"
-      style={{ height: "100dvh" }}
+      className="relative w-screen overflow-hidden"
+      style={{ backgroundColor: "#03040a", height: "100dvh" }}
     >
       <h1 className="sr-only">APN — Agent Personnel Numérique</h1>
 
@@ -103,14 +100,6 @@ export default function Index() {
           )}
         </div>
         <div className="pt-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => { tapLight(); toggleTheme(); }}
-            aria-label={theme === "night" ? "Passer en mode jour" : "Passer en mode nuit"}
-            className="glass rounded-full h-9 w-9 flex items-center justify-center text-foreground/80 hover:text-foreground transition-colors"
-          >
-            {theme === "night" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
           <ChatLog messages={apn.messages} />
           <ControlsDrawer
             voiceEnabled={voice.prefs.enabled}
