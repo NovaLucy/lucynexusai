@@ -1,135 +1,90 @@
-# Refonte APN — Brutalist Mono / Terminal Riche
+## Plan d'améliorations APN
 
-Direction : terminal hacker chic. Noir pur, blanc, accent mono par humeur. Typo monospace partout. Lignes 1px nettes. Aucun glassmorphism, aucun glow flou. À la place : grilles, brackets `[ ]`, séparateurs `─────`, badges encadrés, indicateurs ASCII.
+Trois axes : **fiabiliser la voix**, **corriger en direct**, et **ouvrir un volet "pré-médecin"** pour collecter et restituer des informations de santé en vue d'une consultation humaine.
 
-## 1. Nouvelle orbe — `OrbCanvas.tsx`
+---
 
-Remplacer le shader plasma actuel par une **sphère wireframe** mi-3D mi-ASCII :
+### 1. STT serveur fiable (ElevenLabs Realtime)
 
-- Sphère filaire rotative (latitudes/longitudes) en lignes 1px monochromes
-- Surimpression de **caractères ASCII** (`. : ; + * # @`) mappés sur la profondeur, comme un renderer terminal — densité variant selon `uEnergy`
-- Trame de scan horizontale (CRT) qui défile lentement
-- Couleur unique = couleur d'humeur (cyan/rose/violet/ambre) sur fond noir
-- Respiration = légère pulsation du rayon + variation de densité ASCII
-- États :
-  - `standby` : rotation lente, ASCII clairsemé
-  - `thinking` : rotation accélère, glitch ponctuel (lignes décalées)
-  - `speaking` : ondes concentriques qui partent du centre
-  - `listening` : sphère qui "respire" + petites barres VU autour
-- Mood `alert` : trame de scan rouge plus dense + flicker
-- Mood `focused` : sphère devient un vortex ASCII spiralé
+Remplacer la Web Speech API du navigateur (qui plante en `network`) par **ElevenLabs Scribe Realtime** via WebSocket.
 
-Technique : on garde Three.js. Deux passes — `THREE.LineSegments` pour le wireframe + un canvas 2D overlay (texture) qui dessine les caractères ASCII, samplée dans le shader. Plus simple : tout en shader fragment qui simule l'ASCII via lookup d'un atlas (8 glyphes packés dans une texture). Je pencherais pour la deuxième : 1 seul plan, perf max.
+- Nouvelle edge function `elevenlabs-scribe-token` qui génère un token single-use côté serveur (clé `ELEVENLABS_API_KEY` à demander).
+- Refonte de `src/apn/useVoice.ts` autour du hook `useScribe` du SDK `@elevenlabs/react` :
+  - `commitStrategy: "vad"` → détection de silence native, envoi auto.
+  - `onPartialTranscript` → texte live dans le composer.
+  - `onCommittedTranscript` → déclenche l'envoi.
+  - Détection de langue auto (FR/EN) côté modèle.
+- Suppression du fallback Web Speech API (gardé en secours uniquement si pas de clé).
 
-## 2. Refonte interface complète
+### 2. Auto-correction & ponctuation IA en direct
 
-### Layout général
-- Fond `#000` pur (plus de `#03040a`)
-- Grille de fond invisible 8px (debug-friendly)
-- Marges franches, alignements stricts gauche/droite (pas de centrage flottant sauf l'orbe)
-- Tout en monospace : `JetBrains Mono` (display + body)
-- Accent par humeur via une seule variable `--mood` (déjà en place)
+Edge function `text-polish` (Lovable AI, `google/gemini-3-flash-preview`) qui :
+- Corrige fautes d'orthographe/grammaire.
+- Ajoute la ponctuation et les majuscules.
+- Préserve le sens, ne reformule pas.
 
-### Top bar (remplace le HUD actuel)
-```text
-[APN] ──────── STATE: SPEAKING ──── MOOD: FOCUSED ──── 14:23:07 ─── [LOG] [CFG]
-```
-- Une seule ligne, bordure bas 1px
-- Horloge live monospace
-- Boutons texte encadrés `[LOG]` `[CFG]` (pas d'icônes rondes)
+Intégration dans `Composer.tsx` :
+- **Pendant la dictée** : debounce 400 ms sur le texte interim → appel polish → réécriture du composer (animation discrète "✨ correction…").
+- **Saisie clavier** : même hook, déclenché sur pause de frappe (>700 ms).
+- Toggle on/off dans `ControlsDrawer` (préférence persistée `localStorage`).
 
-### Bandeau gauche — visualiseur audio (densité riche)
-- Colonne fine 60px à gauche
-- VU-meter vertical ASCII pendant `speaking`/`listening` :
-  ```
-  ▓▓▓▓▓▓▓░░░
-  ▓▓▓▓▓░░░░░
-  ▓▓▓▓▓▓▓▓░░
-  ```
-- Fréquences temps réel via `AnalyserNode` du Web Audio sur le micro/TTS
+### 3. Module "Pré-médecin" (santé)
 
-### Bandeau droit — mémoire & state
-- Colonne fine 60px à droite
-- Indicateurs ASCII verticaux :
-  - `MSG: 042`
-  - `MEM: ████░░░ 57%`
-  - `LOOP: 2`
-  - `TOPIC: travail`
-- Mises à jour live depuis `apn.profile`
+Nouveau mode "Santé" activable depuis la `TopBar` (badge `MED`).
 
-### Centre — orbe ASCII
-- Carré central avec bordure pointillée 1px : `┌─ NEURAL CORE ─┐`
-- Coordonnées coin sup-droit `[x: 0.42  y: -0.18]` (joli détail terminal)
-- Caption sous l'orbe en mono majuscules : `> THINKING ABOUT TRAVAIL...`
+**Collecte structurée**
+- Quand le mode est actif, l'IA (prompt système dédié dans une nouvelle edge function `apn-medical`) extrait à chaque message un JSON : `symptômes`, `durée`, `intensité (0-10)`, `antécédents`, `traitements en cours`, `allergies`, `signes d'alerte`.
+- Stockage dans une nouvelle table `apn_health_records` liée à `session_id`.
 
-### Particules ambiantes
-- Caractères ASCII flottants très subtils en background (`. ` `* ` `' `) qui dérivent lentement, opacité 5%
-- Ne perturbent pas la lisibilité
+**Restitution pour consultation humaine**
+- Bouton "📋 Compte-rendu" dans le drawer → génère un résumé médical structuré (motif, anamnèse, antécédents, drapeaux rouges, hypothèses non-diagnostiques) au format markdown.
+- Export `.pdf` ou copie presse-papier pour apporter au médecin.
+- Détection automatique de **drapeaux rouges** (douleur thoracique, dyspnée aiguë, etc.) → bandeau rouge "⚠ Consulter en urgence".
 
-### Composer (bas)
-- Plus de pilule ronde glassy. À la place :
-  ```
-  > _ |                                        [MIC] [CAM] [SEND ↵]
-  ─────────────────────────────────────────────────────────────────
-  ```
-- Bordure haute 1px, fond noir, prompt `>` clignotant
-- Boutons = texte entre crochets `[MIC]`, deviennent `[●REC]` rouge quand actif
-- Curseur block clignotant (CSS `animate-pulse`)
+**Disclaimer permanent** : "APN n'est pas un médecin. Ces informations sont une aide à la préparation, pas un diagnostic."
 
-### Chat log (drawer)
-- Plein écran overlay noir avec scanlines très légères
-- Chaque message préfixé : `[USR 14:22:01] >` ou `[APN 14:22:04] $`
-- Pas de bulles arrondies, juste du texte aligné gauche avec bordure gauche 2px couleur humeur pour user / blanche pour APN
-- En haut : `── JOURNAL ──────── 042 MESSAGES ───── [X CLOSE]`
+---
 
-### Controls drawer
-- Même esthétique : panneau noir, sliders ASCII style `[━━━━━●━━━] 0.75`
-- Toggles : `[X] VOICE ENABLED` / `[ ] VOICE DISABLED`
-- Section headers : `── VOICE ──`, `── RENDER ──`
+### Détails techniques
 
-## 3. Système de design
-
-### `index.css`
-- Variables : `--bg: 0 0% 0%`, `--fg: 0 0% 95%`, `--dim: 0 0% 50%`, `--line: 0 0% 20%`
-- `--mood-h/s/l` conservé (déjà là)
-- Font family : `'JetBrains Mono', monospace` partout
-- Nouvelles utilities : `.ascii-border`, `.scanlines`, `.cursor-blink`, `.bracket-btn`
-
-### `tailwind.config.ts`
-- Ajouter family `mono` = JetBrains Mono
-- Couleurs sémantiques : `bg`, `fg`, `dim`, `line`, `mood`
-- Désactiver tous les `rounded-*` arrondis dans les composants custom (on garde shadcn intact)
-
-### Suppression progressive
-- Classes `.glass`, `.mood-ring`, drop-shadows, blurs → remplacées par bordures 1px + couleurs plates
-
-## 4. Fichiers touchés
-
-```text
-src/apn/OrbCanvas.tsx          ← réécriture totale (wireframe + ASCII shader)
-src/apn/MicroHUD.tsx           ← devient TopBar pleine largeur
-src/apn/Composer.tsx           ← refonte terminal prompt
-src/apn/ChatLog.tsx            ← refonte log style
-src/apn/ControlsDrawer.tsx     ← refonte sliders ASCII
-src/apn/AsciiSidebarLeft.tsx   ← NOUVEAU (VU-meter)
-src/apn/AsciiSidebarRight.tsx  ← NOUVEAU (mémoire/state)
-src/apn/AmbientChars.tsx       ← NOUVEAU (particules ASCII fond)
-src/pages/Index.tsx            ← réagencement layout 3 colonnes
-src/index.css                  ← refonte tokens + utilities
-tailwind.config.ts             ← font mono, couleurs flat
-index.html                     ← preload JetBrains Mono
+**Schéma DB (migration)**
+```sql
+create table public.apn_health_records (
+  id uuid primary key default gen_random_uuid(),
+  session_id text not null,
+  created_at timestamptz not null default now(),
+  symptoms jsonb not null default '[]',
+  duration text,
+  intensity int,
+  history jsonb not null default '[]',
+  medications jsonb not null default '[]',
+  allergies jsonb not null default '[]',
+  red_flags jsonb not null default '[]',
+  raw_text text
+);
+alter table public.apn_health_records enable row level security;
+create policy "anyone read"   on public.apn_health_records for select using (true);
+create policy "anyone insert" on public.apn_health_records for insert with check (true);
 ```
 
-## 5. Conservé tel quel
+**Edge functions à créer**
+- `elevenlabs-scribe-token` — token STT realtime.
+- `text-polish` — correction live (Lovable AI, JSON tool-call `{ corrected: string }`).
+- `apn-medical` — extraction structurée + génération du compte-rendu.
 
-- Toute la logique : `useAPN`, `useVoice`, `intent.ts`, `notifications.ts`, edge functions
-- Types `Mood` / `AgentState` / `MOOD_HUE` / `MOOD_HSL`
-- Hooks haptics, photo, STT/TTS
+**Secret requis** : `ELEVENLABS_API_KEY` (sera demandée à l'approbation du plan).
 
-## 6. Question résiduelle
+**Fichiers front modifiés**
+- `src/apn/useVoice.ts` — réécriture autour de `useScribe`.
+- `src/apn/Composer.tsx` — hook polish + indicateur live.
+- `src/apn/TopBar.tsx` — toggle mode Santé.
+- `src/apn/ControlsDrawer.tsx` — toggles correction / mode Santé / bouton compte-rendu.
+- `src/pages/Index.tsx` — branchement mode Santé + flux extraction.
+- Nouveau `src/apn/MedicalReport.tsx` — affichage + export du compte-rendu.
 
-Pour l'orbe ASCII, deux variantes possibles — dis-moi laquelle tu préfères, sinon je pars sur la **B** :
+---
 
-- **A.** Wireframe pur (lignes lat/long visibles) + caractères ASCII clairsemés en surimpression
-- **B.** Pure ASCII : la sphère **est** faite de caractères (rendu terminal style donut.c rotatif), pas de lignes du tout
-- **C.** Hybride : wireframe en fond, ASCII dense devant qui forme la "matière" de la sphère
+### Hors scope (à voir plus tard)
+- Authentification utilisateur (le mode Santé reste en `session_id` anonyme pour l'instant).
+- Synchronisation multi-appareil.
+- Carnet de suivi longitudinal.
