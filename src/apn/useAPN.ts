@@ -99,6 +99,7 @@ export function useAPN() {
   useEffect(() => { applyMoodToRoot(mood); }, [mood]);
 
   const persist = useCallback(async (userMsg: string, apnMsg: string, m: Mood) => {
+    setSyncStatus("saving");
     const { error } = await supabase.from("apn_memory").insert({
       session_id: sessionId.current,
       user_msg: userMsg,
@@ -106,7 +107,13 @@ export function useAPN() {
       intent: { mood: m },
       meta: {},
     });
-    if (error) console.warn("persist failed", error);
+    if (error) {
+      console.warn("persist failed", error);
+      setSyncStatus("error");
+    } else {
+      setSyncStatus("saved");
+      setLastSyncAt(Date.now());
+    }
   }, []);
 
   // Fire-and-forget profile update
