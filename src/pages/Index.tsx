@@ -9,6 +9,9 @@ import AsciiSidebarLeft from "@/apn/AsciiSidebarLeft";
 import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
+import Face from "@/apn/Face";
+import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
+import { useIsMobile } from "@/hooks/use-mobile";
 import Onboarding from "@/apn/auth/Onboarding";
 import Lock from "@/apn/auth/Lock";
 import { useAuth } from "@/apn/auth/useAuth";
@@ -24,8 +27,9 @@ export default function Index() {
   const auth = useAuth();
   const apn = useAPN();
   const voice = useVoice();
+  const isMobile = useIsMobile();
   const [intensity, setIntensity] = useState(1.0);
-  const [pixelRatio, setPixelRatio] = useState(1.5);
+  const [pixelRatio, setPixelRatio] = useState(() => (typeof window !== "undefined" && window.innerWidth < 768 ? 1.25 : 1.5));
   const [busy, setBusy] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
@@ -37,6 +41,10 @@ export default function Index() {
   const [medicalMode, setMedicalMode] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem("apn:medical") ?? "false"); } catch { return false; }
   });
+  const [faceFrequency, setFaceFrequency] = useState<FaceFrequency>(() => {
+    try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
+  });
+  const faceVisible = useFaceApparition(faceFrequency, 3200);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
@@ -44,6 +52,9 @@ export default function Index() {
   useEffect(() => {
     try { localStorage.setItem("apn:medical", JSON.stringify(medicalMode)); } catch {}
   }, [medicalMode]);
+  useEffect(() => {
+    try { localStorage.setItem("apn:face", faceFrequency); } catch {}
+  }, [faceFrequency]);
 
   useEffect(() => {
     if (apn.error) toast.error(apn.error);
