@@ -7,6 +7,8 @@ interface Props {
   name?: string | null;
   onOpenLog: () => void;
   onOpenCfg: () => void;
+  medicalMode?: boolean;
+  onToggleMedical?: () => void;
 }
 
 function clock() {
@@ -15,7 +17,7 @@ function clock() {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg }: Props) {
+export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medicalMode, onToggleMedical }: Props) {
   const [time, setTime] = useState(clock());
   useEffect(() => {
     const id = setInterval(() => setTime(clock()), 1000);
@@ -49,6 +51,16 @@ export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg }: Prop
         </>
       )}
       <span className="text-foreground/80 tabular-nums">{time}</span>
+      {onToggleMedical && (
+        <button
+          onClick={onToggleMedical}
+          className={`bracket-btn ${medicalMode ? "bracket-btn-rec" : ""}`}
+          aria-label="Mode pré-médecin"
+          title="Mode pré-médecin"
+        >
+          [MED]
+        </button>
+      )}
       <button onClick={onOpenLog} className="bracket-btn">[LOG]</button>
       <button onClick={onOpenCfg} className="bracket-btn">[CFG]</button>
     </div>
