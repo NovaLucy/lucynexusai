@@ -1,90 +1,76 @@
-## Plan d'améliorations APN
+# Plan — Commandes vocales & authentification biométrique
 
-Trois axes : **fiabiliser la voix**, **corriger en direct**, et **ouvrir un volet "pré-médecin"** pour collecter et restituer des informations de santé en vue d'une consultation humaine.
+## 1. Commande vocale pour changer de mode
 
----
+Détecter dans le texte transcrit (voix) ou tapé des phrases déclencheurs et basculer les modes sans passer par les boutons.
 
-### 1. STT serveur fiable (ElevenLabs Realtime)
+**Modes ciblés**
+- `[MED]` Mode pré-médecin (on/off)
+- `[LOG]` Ouvrir le journal
+- `[CFG]` Ouvrir la config
+- `[VOICE]` Activer/couper la voix d'APN
+- `[POLISH]` Activer/couper l'auto-correction
 
-Remplacer la Web Speech API du navigateur (qui plante en `network`) par **ElevenLabs Scribe Realtime** via WebSocket.
+**Phrases reconnues (FR + EN)**
+- « APN, mode médecin » / « stop mode médecin »
+- « ouvre le journal » / « ouvre les réglages »
+- « coupe ta voix » / « parle moi »
+- « active la correction » / « désactive la correction »
+- Préfixe optionnel « APN, … » pour éviter les faux positifs
 
-- Nouvelle edge function `elevenlabs-scribe-token` qui génère un token single-use côté serveur (clé `ELEVENLABS_API_KEY` à demander).
-- Refonte de `src/apn/useVoice.ts` autour du hook `useScribe` du SDK `@elevenlabs/react` :
-  - `commitStrategy: "vad"` → détection de silence native, envoi auto.
-  - `onPartialTranscript` → texte live dans le composer.
-  - `onCommittedTranscript` → déclenche l'envoi.
-  - Détection de langue auto (FR/EN) côté modèle.
-- Suppression du fallback Web Speech API (gardé en secours uniquement si pas de clé).
+**Comportement**
+- Nouveau module `src/apn/voiceCommands.ts` : fonction `matchCommand(text)` → renvoie `{ action, value }` ou `null`.
+- Appel dans `Index.tsx` avant `handleSend` : si une commande est détectée, on l'exécute, on affiche un toast de confirmation et on **n'envoie pas** le message au LLM.
+- Indicateur visuel discret dans `Composer` quand une commande est détectée en live (badge « ⌘ commande »).
 
-### 2. Auto-correction & ponctuation IA en direct
+## 2. Authentification biométrique (visage + voix)
 
-Edge function `text-polish` (Lovable AI, `google/gemini-3-flash-preview`) qui :
-- Corrige fautes d'orthographe/grammaire.
-- Ajoute la ponctuation et les majuscules.
-- Préserve le sens, ne reformule pas.
+Verrouiller l'accès à APN derrière une double biométrie locale, sans compte ni mot de passe.
 
-Intégration dans `Composer.tsx` :
-- **Pendant la dictée** : debounce 400 ms sur le texte interim → appel polish → réécriture du composer (animation discrète "✨ correction…").
-- **Saisie clavier** : même hook, déclenché sur pause de frappe (>700 ms).
-- Toggle on/off dans `ControlsDrawer` (préférence persistée `localStorage`).
+### Enrôlement (1ère ouverture)
+Écran `Onboarding` plein écran :
+1. **Voix** : l'utilisateur prononce une phrase libre 2× → on capture l'empreinte vocale via ElevenLabs Voice (embedding) **ou** un fingerprint local (MFCC moyenné côté navigateur, fallback hors-ligne).
+2. **Visage** : capture 3 photos via `getUserMedia` → embeddings via `face-api.js` (modèle TinyFaceDetector + FaceNet, chargés depuis `/models`).
+3. Stockage **local uniquement** (`localStorage` chiffré via WebCrypto AES-GCM, clé dérivée d'un PIN à 4 chiffres choisi à l'enrôlement).
 
-### 3. Module "Pré-médecin" (santé)
+### Déverrouillage (à chaque ouverture)
+Écran `Lock` :
+- Caméra + micro actifs
+- Match visage (similarité cosine ≥ 0.6) **ET** voix (≥ 0.75) → `unlocked = true` → app affichée.
+- 3 échecs → fallback PIN.
+- Bouton « Réinitialiser » (efface tout, demande confirmation).
 
-Nouveau mode "Santé" activable depuis la `TopBar` (badge `MED`).
+### Confidentialité
+- Aucune donnée biométrique n'est envoyée à un serveur (ni Cloud, ni ElevenLabs).
+- Les embeddings sont des vecteurs numériques, pas des images.
+- Bandeau RGPD au premier lancement.
 
-**Collecte structurée**
-- Quand le mode est actif, l'IA (prompt système dédié dans une nouvelle edge function `apn-medical`) extrait à chaque message un JSON : `symptômes`, `durée`, `intensité (0-10)`, `antécédents`, `traitements en cours`, `allergies`, `signes d'alerte`.
-- Stockage dans une nouvelle table `apn_health_records` liée à `session_id`.
+## Détails techniques
 
-**Restitution pour consultation humaine**
-- Bouton "📋 Compte-rendu" dans le drawer → génère un résumé médical structuré (motif, anamnèse, antécédents, drapeaux rouges, hypothèses non-diagnostiques) au format markdown.
-- Export `.pdf` ou copie presse-papier pour apporter au médecin.
-- Détection automatique de **drapeaux rouges** (douleur thoracique, dyspnée aiguë, etc.) → bandeau rouge "⚠ Consulter en urgence".
+**Nouveaux fichiers**
+- `src/apn/voiceCommands.ts` — parser de commandes
+- `src/apn/auth/Onboarding.tsx` — enrôlement
+- `src/apn/auth/Lock.tsx` — écran de déverrouillage
+- `src/apn/auth/biometry.ts` — capture, embeddings, comparaison cosine, chiffrement WebCrypto
+- `src/apn/auth/useAuth.ts` — hook état (`locked` / `enrolled` / `unlock` / `reset`)
+- `public/models/*` — poids face-api.js (TinyFaceDetector, FaceLandmark68Net, FaceRecognitionNet)
 
-**Disclaimer permanent** : "APN n'est pas un médecin. Ces informations sont une aide à la préparation, pas un diagnostic."
+**Fichiers modifiés**
+- `src/pages/Index.tsx` — gate `<Lock />` / `<Onboarding />` avant le rendu principal ; hook commandes vocales dans `handleSend`
+- `src/apn/Composer.tsx` — badge « commande détectée »
+- `package.json` — ajout `face-api.js`
 
----
+**Dépendances**
+- `face-api.js` (~6 Mo de modèles, chargés à la demande, mis en cache)
+- WebCrypto (natif, pas d'install)
 
-### Détails techniques
+**Hors périmètre**
+- Multi-utilisateurs (1 seul profil local)
+- Sync cloud des biométries (volontairement absent)
+- Auth Lovable Cloud / Supabase Auth (pas pertinent ici, app mono-utilisateur locale)
+- Liveness detection avancée (anti-photo) — peut être ajouté plus tard via clignement des yeux
 
-**Schéma DB (migration)**
-```sql
-create table public.apn_health_records (
-  id uuid primary key default gen_random_uuid(),
-  session_id text not null,
-  created_at timestamptz not null default now(),
-  symptoms jsonb not null default '[]',
-  duration text,
-  intensity int,
-  history jsonb not null default '[]',
-  medications jsonb not null default '[]',
-  allergies jsonb not null default '[]',
-  red_flags jsonb not null default '[]',
-  raw_text text
-);
-alter table public.apn_health_records enable row level security;
-create policy "anyone read"   on public.apn_health_records for select using (true);
-create policy "anyone insert" on public.apn_health_records for insert with check (true);
-```
-
-**Edge functions à créer**
-- `elevenlabs-scribe-token` — token STT realtime.
-- `text-polish` — correction live (Lovable AI, JSON tool-call `{ corrected: string }`).
-- `apn-medical` — extraction structurée + génération du compte-rendu.
-
-**Secret requis** : `ELEVENLABS_API_KEY` (sera demandée à l'approbation du plan).
-
-**Fichiers front modifiés**
-- `src/apn/useVoice.ts` — réécriture autour de `useScribe`.
-- `src/apn/Composer.tsx` — hook polish + indicateur live.
-- `src/apn/TopBar.tsx` — toggle mode Santé.
-- `src/apn/ControlsDrawer.tsx` — toggles correction / mode Santé / bouton compte-rendu.
-- `src/pages/Index.tsx` — branchement mode Santé + flux extraction.
-- Nouveau `src/apn/MedicalReport.tsx` — affichage + export du compte-rendu.
-
----
-
-### Hors scope (à voir plus tard)
-- Authentification utilisateur (le mode Santé reste en `session_id` anonyme pour l'instant).
-- Synchronisation multi-appareil.
-- Carnet de suivi longitudinal.
+## Questions ouvertes
+- OK pour stocker la biométrie **uniquement en local** (impossible de récupérer si appareil perdu) ?
+- PIN 4 chiffres comme fallback OK, ou tu préfères pas de fallback du tout ?
+- Le préfixe « APN, … » est-il obligatoire ou optionnel pour les commandes vocales ?
