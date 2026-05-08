@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { cameraAvailable, pickPhoto } from "./camera";
 import { usePolish } from "./usePolish";
+import Face from "./Face";
+import type { Mood, AgentState } from "./types";
 
 interface Props {
   onSend: (text: string) => void;
@@ -12,11 +14,14 @@ interface Props {
   value?: string;
   onValueChange?: (v: string) => void;
   polishEnabled?: boolean;
+  mood?: Mood;
+  state?: AgentState;
 }
 
 export default function Composer({
   onSend, onMic, onPhoto, micActive, sttSupported, disabled,
   value: extValue, onValueChange, polishEnabled = true,
+  mood = "calm", state,
 }: Props) {
   const [internal, setInternal] = useState("");
   const value = extValue !== undefined ? extValue : internal;
@@ -59,12 +64,18 @@ export default function Composer({
     if (dataUrl) onPhoto?.(dataUrl);
   };
 
+  const showFace = (value.trim().length > 0) || micActive;
+
   return (
     <form
       onSubmit={submit}
-      className="w-full flex items-center gap-2 px-3 py-2 border-t ascii-border bg-black"
+      className="w-full flex items-center gap-2 px-2 sm:px-3 py-2 border-t ascii-border bg-black"
     >
-      <span className="mood-text shrink-0 select-none font-medium">{">"}</span>
+      {showFace ? (
+        <Face mood={mood} state={state ?? (micActive ? "listening" : undefined)} size="xs" blink={false} variant="inline" className="shrink-0" />
+      ) : (
+        <span className="mood-text shrink-0 select-none font-medium">{">"}</span>
+      )}
       <input
         type="text"
         value={value}
@@ -75,7 +86,7 @@ export default function Composer({
         autoCapitalize="sentences"
         enterKeyHint="send"
         spellCheck={false}
-        className="flex-1 min-w-0 bg-transparent outline-none text-foreground placeholder:text-foreground/30 font-mono caret-transparent"
+        className="flex-1 min-w-0 bg-transparent outline-none text-foreground placeholder:text-foreground/30 font-mono caret-transparent py-2"
         style={{ caretColor: "hsl(var(--mood))" }}
         disabled={disabled}
       />
@@ -105,7 +116,8 @@ export default function Composer({
         aria-label="Envoyer"
         className="bracket-btn bracket-btn-active disabled:bracket-btn"
       >
-        [SEND ↵]
+        <span className="hidden sm:inline">[SEND ↵]</span>
+        <span className="sm:hidden">[↵]</span>
       </button>
     </form>
   );

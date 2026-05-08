@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 const CHARS = ". . . . ' ' * + ` , : ;".split(" ");
+const FACES = ["( ◉◡◉ )", "( ^_^ )", "( -_- )", "( ◐.◑ )"];
 
 export default function AmbientChars() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -22,18 +23,24 @@ export default function AmbientChars() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       seed();
     };
-    type P = { x: number; y: number; vx: number; vy: number; ch: string; o: number };
+    type P = { x: number; y: number; vx: number; vy: number; ch: string; o: number; isFace: boolean };
     let parts: P[] = [];
     const seed = () => {
-      const n = Math.floor((W * H) / 6500);
-      parts = Array.from({ length: n }, () => ({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        vx: (Math.random() - 0.5) * 0.08,
-        vy: (Math.random() - 0.5) * 0.08,
-        ch: CHARS[Math.floor(Math.random() * CHARS.length)],
-        o: 0.04 + Math.random() * 0.06,
-      }));
+      const isMobile = W < 768;
+      const density = isMobile ? 11000 : 6500;
+      const n = Math.floor((W * H) / density);
+      parts = Array.from({ length: n }, () => {
+        const isFace = Math.random() < 0.04;
+        return {
+          x: Math.random() * W,
+          y: Math.random() * H,
+          vx: (Math.random() - 0.5) * 0.08,
+          vy: (Math.random() - 0.5) * 0.08,
+          ch: isFace ? FACES[Math.floor(Math.random() * FACES.length)] : CHARS[Math.floor(Math.random() * CHARS.length)],
+          o: isFace ? 0.08 + Math.random() * 0.05 : 0.04 + Math.random() * 0.06,
+          isFace,
+        };
+      });
     };
 
     resize();
