@@ -9,6 +9,10 @@ import AsciiSidebarLeft from "@/apn/AsciiSidebarLeft";
 import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
+import Onboarding from "@/apn/auth/Onboarding";
+import Lock from "@/apn/auth/Lock";
+import { useAuth } from "@/apn/auth/useAuth";
+import { matchCommand } from "@/apn/voiceCommands";
 import { useAPN } from "@/apn/useAPN";
 import { useVoice } from "@/apn/useVoice";
 import { tapLight, tapMedium } from "@/native";
@@ -17,6 +21,7 @@ import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
 const MEDICAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apn-medical`;
 
 export default function Index() {
+  const auth = useAuth();
   const apn = useAPN();
   const voice = useVoice();
   const [intensity, setIntensity] = useState(1.0);
