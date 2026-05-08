@@ -8,10 +8,20 @@ interface Props {
   micActive?: boolean;
   sttSupported?: boolean;
   disabled?: boolean;
+  value?: string;
+  onValueChange?: (v: string) => void;
 }
 
-export default function Composer({ onSend, onMic, onPhoto, micActive, sttSupported, disabled }: Props) {
-  const [value, setValue] = useState("");
+export default function Composer({
+  onSend, onMic, onPhoto, micActive, sttSupported, disabled,
+  value: extValue, onValueChange,
+}: Props) {
+  const [internal, setInternal] = useState("");
+  const value = extValue !== undefined ? extValue : internal;
+  const setValue = (v: string) => {
+    if (onValueChange) onValueChange(v);
+    else setInternal(v);
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
