@@ -28,6 +28,8 @@ type UserProfile = {
   first_seen?: string;
 };
 
+export type SyncStatus = "idle" | "loading" | "saving" | "saved" | "error";
+
 export function useAPN() {
   const sessionId = useRef<string>(getSessionId());
   const profileRef = useRef<UserProfile | null>(null);
@@ -37,6 +39,8 @@ export function useAPN() {
   const [error, setError] = useState<string | null>(null);
   const [caption, setCaption] = useState<string>("Je suis prêt.");
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
 
   // Load history + profile
   useEffect(() => {
