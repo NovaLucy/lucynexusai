@@ -18,6 +18,11 @@ interface Props {
   setPixelRatio: (n: number) => void;
   onTestVoice: () => void;
   onStopVoice: () => void;
+  polishEnabled: boolean;
+  setPolishEnabled: (v: boolean) => void;
+  medicalMode: boolean;
+  setMedicalMode: (v: boolean) => void;
+  onOpenReport: () => void;
 }
 
 function AsciiSlider({
@@ -102,6 +107,36 @@ export default function ControlsDrawer(p: Props) {
               <button onClick={p.onTestVoice} className="bracket-btn flex-1">[TEST]</button>
               <button onClick={p.onStopVoice} className="bracket-btn flex-1">[STOP]</button>
             </div>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── INPUT ──</h3>
+            <button
+              onClick={() => p.setPolishEnabled(!p.polishEnabled)}
+              className={`bracket-btn w-full text-left ${p.polishEnabled ? "bracket-btn-active" : ""}`}
+            >
+              [{p.polishEnabled ? "X" : " "}] AUTO-CORRECTION ✨
+            </button>
+            <p className="text-[10px] text-foreground/40">// corrige fautes & ponctuation pendant la saisie</p>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── PRÉ-MÉDECIN ──</h3>
+            <button
+              onClick={() => p.setMedicalMode(!p.medicalMode)}
+              className={`bracket-btn w-full text-left ${p.medicalMode ? "bracket-btn-active" : ""}`}
+            >
+              [{p.medicalMode ? "X" : " "}] MODE SANTÉ
+            </button>
+            <p className="text-[10px] text-foreground/40">
+              // collecte symptômes, antécédents, traitements pour préparer une consultation
+            </p>
+            <button onClick={p.onOpenReport} className="bracket-btn w-full text-left">
+              [📋 COMPTE-RENDU]
+            </button>
+            <p className="text-[10px] text-foreground/40 italic">
+              APN n'est pas un médecin. Aide à la préparation, pas un diagnostic.
+            </p>
           </section>
 
           <section className="space-y-4">
