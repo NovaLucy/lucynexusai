@@ -10,6 +10,7 @@ import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
 import Face from "@/apn/Face";
+import FaceMatrix from "@/apn/FaceMatrix";
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Onboarding from "@/apn/auth/Onboarding";
@@ -279,18 +280,15 @@ export default function Index() {
                 <OrbCanvas state={apn.state} mood={apn.mood} intensity={intensity} pixelRatioCap={pixelRatio} />
               </div>
 
-              {/* Face apparition overlay */}
+              {/* Face apparition overlay — Matrix-style realistic face */}
               {faceVisible && (
                 <div
                   key={`face-${speakingPinned ? "pin" : "apparition"}`}
-                  className={`absolute inset-0 flex items-center justify-center pointer-events-none ${speakingPinned ? "" : "face-apparition"}`}
+                  className={`absolute inset-0 pointer-events-none ${speakingPinned ? "" : "face-apparition"}`}
                 >
-                  <Face
+                  <FaceMatrix
                     mood={apn.mood}
                     state={apn.state}
-                    size={isMobile ? "md" : "lg"}
-                    blink
-                    variant="overlay"
                     speaking={speakingPinned}
                   />
                 </div>
