@@ -343,6 +343,8 @@ export default function Index() {
         medicalMode={medicalMode}
         setMedicalMode={setMedicalMode}
         onOpenReport={() => { setCfgOpen(false); setReportOpen(true); }}
+        faceFrequency={faceFrequency}
+        setFaceFrequency={setFaceFrequency}
       />
       <MedicalReport
         open={reportOpen}
