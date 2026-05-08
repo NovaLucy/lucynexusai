@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { STATE_LABEL, type AgentState, type Mood } from "@/apn/types";
 import Face from "@/apn/Face";
+import SyncIndicator from "@/apn/SyncIndicator";
+import type { SyncStatus } from "@/apn/useAPN";
 
 interface Props {
   state: AgentState;
@@ -11,6 +13,9 @@ interface Props {
   onOpenCfg: () => void;
   medicalMode?: boolean;
   onToggleMedical?: () => void;
+  syncStatus: SyncStatus;
+  lastSyncAt: number | null;
+  sessionId: string;
 }
 
 function clock() {
