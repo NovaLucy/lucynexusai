@@ -136,14 +136,25 @@ export default function FaceMatrix({ mood, state, opacity = 1, speaking, intensi
         hasMask = true;
       }
 
+      const isReveal = intensityRef.current === "reveal";
       const pulse = sp ? 1 + 0.04 * Math.sin(t * 8) : 1;
-      const speedMul = sp ? 1.4 : st === "thinking" ? 1.2 : st === "listening" ? 0.9 : 1;
+      const speedMul = (sp ? 1.4 : st === "thinking" ? 1.2 : st === "listening" ? 0.9 : 1) * (isReveal ? 1.15 : 1);
+      const trail = isReveal ? 22 : 14;
+      const gamma = isReveal ? 0.6 : 0.85;
+      const lumGain = isReveal ? 1.6 : 1.15;
+      const baseDim = isReveal ? 0.1 : 0.18;
+
+      // Shockwave: radial pulse expanding from face center over ~900ms
+      const shockAge = (now - shockStartRef.current) / 1000;
+      const shockActive = shockAge < 0.9;
+      const shockRadius = shockAge * Math.max(W, H) * 1.1;
+      const shockWidth = Math.max(W, H) * 0.18;
+
+      const cx = W / 2, cy = H / 2 - H * 0.02;
 
       for (let c = 0; c < cols; c++) {
         const x = c * cellW + cellW / 2;
         const headRow = drops[c];
-        // Trail length depends on column
-        const trail = 14;
 
         for (let k = 0; k < trail; k++) {
           const row = Math.floor(headRow - k);
@@ -151,7 +162,7 @@ export default function FaceMatrix({ mood, state, opacity = 1, speaking, intensi
           const y = row * cellH;
 
           // Face-mask brightness lookup
-          let m = 0.18; // default very dim
+          let m = baseDim;
           if (hasMask && mask) {
             const px = x - fx0;
             const py = y - fy0;
@@ -159,32 +170,42 @@ export default function FaceMatrix({ mood, state, opacity = 1, speaking, intensi
               const mx = Math.min(mask.w - 1, Math.max(0, Math.floor((px / fW) * mask.w)));
               const my = Math.min(mask.h - 1, Math.max(0, Math.floor((py / fH) * mask.h)));
               const lum = mask.data[my * mask.w + mx] / 255;
-              // Boost contrast so face features (highlights) really pop.
-              m = Math.pow(lum, 0.85) * 1.15;
+              m = Math.pow(lum, gamma) * lumGain;
               m = Math.min(1, Math.max(0.04, m));
+            }
+          }
+
+          // Shockwave boost
+          let shockBoost = 0;
+          if (shockActive) {
+            const dx = x - cx, dy = y - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const d = Math.abs(dist - shockRadius);
+            if (d < shockWidth) {
+              const ramp = 1 - d / shockWidth;
+              shockBoost = ramp * (1 - shockAge / 0.9) * 0.9;
             }
           }
 
           const isHead = k === 0;
           const ch = GLYPHS[(Math.floor((row + c * 7 + t * 6) % GLYPHS.length) + GLYPHS.length) % GLYPHS.length];
 
-          // Brightness: mask × trail falloff × pulse
           const fall = 1 - k / trail;
-          const bright = m * (0.35 + 0.65 * fall) * pulse;
+          const bright = Math.min(1.4, m * (0.35 + 0.65 * fall) * pulse + shockBoost);
+
+          const sat = isReveal ? Math.min(100, moodHSL.s + 10) : moodHSL.s;
 
           if (isHead) {
-            // Head glyph: near-white with mood tint
-            const lig = Math.min(95, 70 + bright * 25);
-            ctx.fillStyle = `hsla(${moodHSL.h}, ${moodHSL.s}%, ${lig}%, ${op})`;
+            const lig = Math.min(98, 70 + bright * 28);
+            ctx.fillStyle = `hsla(${moodHSL.h}, ${sat}%, ${lig}%, ${op})`;
           } else {
-            const lig = Math.max(8, Math.min(70, 18 + bright * 60));
-            const a = Math.min(1, 0.25 + bright * 0.85) * op;
-            ctx.fillStyle = `hsla(${moodHSL.h}, ${moodHSL.s}%, ${lig}%, ${a})`;
+            const lig = Math.max(8, Math.min(80, 18 + bright * 65));
+            const a = Math.min(1, 0.25 + bright * 0.95) * op;
+            ctx.fillStyle = `hsla(${moodHSL.h}, ${sat}%, ${lig}%, ${a})`;
           }
           ctx.fillText(ch, x - cellW / 2 + 1, y);
         }
 
-        // Advance the drop
         drops[c] += speeds[c] * speedMul;
         if (drops[c] * cellH > H + Math.random() * 200) {
           drops[c] = -Math.random() * 20;
@@ -192,10 +213,12 @@ export default function FaceMatrix({ mood, state, opacity = 1, speaking, intensi
         }
       }
 
-      // Subtle vignette overlay to focus the face
-      const grad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.6);
+      // Vignette — tighter when revealing
+      const innerR = Math.min(W, H) * (isReveal ? 0.18 : 0.25);
+      const outerR = Math.max(W, H) * (isReveal ? 0.5 : 0.6);
+      const grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
       grad.addColorStop(0, "rgba(0,0,0,0)");
-      grad.addColorStop(1, `rgba(0,0,0,${0.55 * op})`);
+      grad.addColorStop(1, `rgba(0,0,0,${(isReveal ? 0.7 : 0.55) * op})`);
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
 
