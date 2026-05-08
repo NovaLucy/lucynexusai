@@ -82,6 +82,11 @@ export default function Index() {
       (partial) => {
         setComposerText(partial);
       },
+      (errMsg) => {
+        apn.setListeningState(false);
+        setComposerText("");
+        toast.error(errMsg);
+      },
     );
     if (!ok) {
       apn.setListeningState(false);
