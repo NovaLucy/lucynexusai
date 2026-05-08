@@ -107,63 +107,124 @@ export function useVoice() {
     if (isNative) nativeSttSupported().then(setNativeStt);
   }, []);
 
+  // Stable refs to avoid stale closures when auto-restarting
+  const onResultRef = useRef<(t: string) => void>();
+  const onPartialRef = useRef<((t: string) => void) | undefined>();
+  const onErrorRef = useRef<((msg: string) => void) | undefined>();
+  const wantListenRef = useRef(false);
+  const finalTextRef = useRef("");
+
   const startListening = useCallback(
-    (onResult: (text: string) => void, onPartial?: (text: string) => void) => {
+    (
+      onResult: (text: string) => void,
+      onPartial?: (text: string) => void,
+      onError?: (msg: string) => void,
+    ) => {
+      onResultRef.current = onResult;
+      onPartialRef.current = onPartial;
+      onErrorRef.current = onError;
+
       if (isNative && nativeStt) {
         let last = "";
         setListening(true);
+        wantListenRef.current = true;
         nativeStartListening((text) => {
           last = text;
-          onPartial?.(text);
+          onPartialRef.current?.(text);
         }).then((ok) => {
           if (!ok) {
             setListening(false);
+            wantListenRef.current = false;
+            onErrorRef.current?.("Micro indisponible");
             return;
           }
           setTimeout(async () => {
             await nativeStopListening();
             setListening(false);
-            if (last.trim()) onResult(last);
+            wantListenRef.current = false;
+            if (last.trim()) onResultRef.current?.(last);
           }, 6000);
         });
         return true;
       }
+
       const Ctor: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!Ctor) return false;
+      if (!Ctor) {
+        onError?.("Reconnaissance vocale non supportée par ce navigateur");
+        return false;
+      }
       const r = new Ctor();
       r.lang = "fr-FR";
       r.interimResults = true;
-      r.continuous = false;
-      let finalText = "";
+      r.continuous = true; // keep listening across pauses
+      finalTextRef.current = "";
+      wantListenRef.current = true;
+
       r.onresult = (e: any) => {
         let interim = "";
-        let finals = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const res = e.results[i];
-          if (res.isFinal) finals += res[0].transcript;
+          if (res.isFinal) finalTextRef.current += res[0].transcript + " ";
           else interim += res[0].transcript;
         }
-        if (finals) finalText += finals;
-        const live = (finalText + " " + interim).trim();
-        if (live) onPartial?.(live);
+        const live = (finalTextRef.current + interim).trim();
+        if (live) onPartialRef.current?.(live);
       };
       r.onend = () => {
+        // Auto-restart if user is still listening (continuous chunks)
+        if (wantListenRef.current) {
+          try {
+            r.start();
+            return;
+          } catch (err) {
+            console.warn("STT restart failed", err);
+          }
+        }
         setListening(false);
-        if (finalText.trim()) onResult(finalText.trim());
+        const text = finalTextRef.current.trim();
+        if (text) onResultRef.current?.(text);
       };
-      r.onerror = () => setListening(false);
+      r.onerror = (e: any) => {
+        const code = e?.error || "unknown";
+        console.warn("STT error:", code);
+        if (code === "no-speech") {
+          // benign — let onend handle restart
+          return;
+        }
+        wantListenRef.current = false;
+        setListening(false);
+        if (code === "not-allowed" || code === "service-not-allowed") {
+          onErrorRef.current?.("Accès au micro refusé. Autorise-le dans les réglages du navigateur.");
+        } else if (code === "audio-capture") {
+          onErrorRef.current?.("Aucun micro détecté.");
+        } else if (code !== "aborted") {
+          onErrorRef.current?.(`Reconnaissance vocale: ${code}`);
+        }
+      };
       recognitionRef.current = r;
       setListening(true);
-      r.start();
+      try {
+        r.start();
+      } catch (err) {
+        console.warn("STT start failed", err);
+        wantListenRef.current = false;
+        setListening(false);
+        onError?.("Impossible de démarrer le micro");
+        return false;
+      }
       return true;
     },
     [nativeStt],
   );
 
   const stopListening = useCallback(() => {
+    wantListenRef.current = false;
     if (isNative) { nativeStopListening(); setListening(false); return; }
-    recognitionRef.current?.stop?.();
+    try { recognitionRef.current?.stop?.(); } catch {}
     setListening(false);
+    // Trigger final delivery
+    const text = finalTextRef.current.trim();
+    if (text) onResultRef.current?.(text);
   }, []);
 
   const sttSupported =
