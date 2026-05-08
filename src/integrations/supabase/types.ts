@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      apn_health_records: {
+        Row: {
+          allergies: Json
+          created_at: string
+          duration: string | null
+          history: Json
+          id: string
+          intensity: number | null
+          medications: Json
+          raw_text: string | null
+          red_flags: Json
+          session_id: string
+          symptoms: Json
+        }
+        Insert: {
+          allergies?: Json
+          created_at?: string
+          duration?: string | null
+          history?: Json
+          id?: string
+          intensity?: number | null
+          medications?: Json
+          raw_text?: string | null
+          red_flags?: Json
+          session_id: string
+          symptoms?: Json
+        }
+        Update: {
+          allergies?: Json
+          created_at?: string
+          duration?: string | null
+          history?: Json
+          id?: string
+          intensity?: number | null
+          medications?: Json
+          raw_text?: string | null
+          red_flags?: Json
+          session_id?: string
+          symptoms?: Json
+        }
+        Relationships: []
+      }
       apn_memory: {
         Row: {
           apn_msg: string

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useScribe, CommitStrategy } from "@elevenlabs/react";
 import {
   nativeSpeak, nativeStopTTS,
   nativeStartListening, nativeStopListening, nativeSttSupported,
@@ -7,6 +8,7 @@ import { Capacitor } from "@capacitor/core";
 
 const STORAGE_KEY = "apn:voice";
 const isNative = Capacitor.isNativePlatform();
+const SCRIBE_TOKEN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-scribe-token`;
 
 type VoicePrefs = {
   enabled: boolean;
@@ -98,22 +100,46 @@ export function useVoice() {
     [supported, prefs, voices, stop],
   );
 
-  // STT — native plugin first, Web Speech API fallback
-  const recognitionRef = useRef<any>(null);
+  // STT — ElevenLabs Scribe Realtime (web), native plugin on mobile
   const [listening, setListening] = useState(false);
   const [nativeStt, setNativeStt] = useState(false);
+  const onResultRef = useRef<((t: string) => void) | undefined>();
+  const onPartialRef = useRef<((t: string) => void) | undefined>();
+  const onErrorRef = useRef<((m: string) => void) | undefined>();
+  const liveRef = useRef("");
+  const finalRef = useRef("");
 
   useEffect(() => {
     if (isNative) nativeSttSupported().then(setNativeStt);
   }, []);
 
-  // Stable refs to avoid stale closures when auto-restarting
-  const onResultRef = useRef<(t: string) => void>();
-  const onPartialRef = useRef<((t: string) => void) | undefined>();
-  const onErrorRef = useRef<((msg: string) => void) | undefined>();
-  const wantListenRef = useRef(false);
-  const finalTextRef = useRef("");
-  const liveTextRef = useRef("");
+  const scribe = useScribe({
+    modelId: "scribe_v2_realtime",
+    commitStrategy: CommitStrategy.VAD,
+    languageCode: "fr",
+    onPartialTranscript: (data: any) => {
+      const live = (finalRef.current + " " + (data?.text ?? "")).trim();
+      liveRef.current = live;
+      if (live) onPartialRef.current?.(live);
+    },
+    onCommittedTranscript: (data: any) => {
+      const text = (data?.text ?? "").trim();
+      if (text) {
+        finalRef.current = (finalRef.current + " " + text).trim();
+        onPartialRef.current?.(finalRef.current);
+      }
+      // VAD already detected silence → finalize and send
+      const out = finalRef.current.trim();
+      if (out) {
+        finalRef.current = "";
+        liveRef.current = "";
+        // disconnect first to avoid double-trigger
+        try { scribe.disconnect?.(); } catch {}
+        setListening(false);
+        onResultRef.current?.(out);
+      }
+    },
+  });
 
   const startListening = useCallback(
     (
@@ -124,119 +150,74 @@ export function useVoice() {
       onResultRef.current = onResult;
       onPartialRef.current = onPartial;
       onErrorRef.current = onError;
+      finalRef.current = "";
+      liveRef.current = "";
 
       if (isNative && nativeStt) {
         let last = "";
         setListening(true);
-        wantListenRef.current = true;
         nativeStartListening((text) => {
           last = text;
           onPartialRef.current?.(text);
         }).then((ok) => {
           if (!ok) {
             setListening(false);
-            wantListenRef.current = false;
             onErrorRef.current?.("Micro indisponible");
             return;
           }
           setTimeout(async () => {
             await nativeStopListening();
             setListening(false);
-            wantListenRef.current = false;
             if (last.trim()) onResultRef.current?.(last);
           }, 6000);
         });
         return true;
       }
 
-      const Ctor: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!Ctor) {
-        onError?.("Reconnaissance vocale non supportée par ce navigateur");
-        return false;
-      }
-      const r = new Ctor();
-      r.lang = "fr-FR";
-      r.interimResults = true;
-      // Keep this single-shot: Chrome/Safari often reject automatic restarts
-      // because they are no longer inside the user's click gesture.
-      r.continuous = false;
-      finalTextRef.current = "";
-      liveTextRef.current = "";
-      wantListenRef.current = true;
+      // Web: ElevenLabs Scribe Realtime
+      (async () => {
+        try {
+          const tokenResp = await fetch(SCRIBE_TOKEN_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+          });
+          if (!tokenResp.ok) {
+            const j = await tokenResp.json().catch(() => ({}));
+            throw new Error(j?.error || `Token ${tokenResp.status}`);
+          }
+          const { token } = await tokenResp.json();
+          if (!token) throw new Error("Token vide");
 
-      r.onresult = (e: any) => {
-        let interim = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const res = e.results[i];
-          if (res.isFinal) finalTextRef.current += res[0].transcript + " ";
-          else interim += res[0].transcript;
+          await scribe.connect({
+            token,
+            microphone: { echoCancellation: true, noiseSuppression: true },
+          });
+          setListening(true);
+        } catch (e: any) {
+          console.error("scribe connect failed", e);
+          setListening(false);
+          onErrorRef.current?.(e?.message || "Impossible de démarrer la voix");
         }
-        const live = (finalTextRef.current + interim).trim();
-        liveTextRef.current = live;
-        if (live) onPartialRef.current?.(live);
-      };
-      r.onend = () => {
-        wantListenRef.current = false;
-        setListening(false);
-        recognitionRef.current = null;
-        const text = (finalTextRef.current || liveTextRef.current).trim();
-        if (text) onResultRef.current?.(text);
-      };
-      r.onerror = (e: any) => {
-        const code = e?.error || "unknown";
-        console.warn("STT error:", code);
-        wantListenRef.current = false;
-        setListening(false);
-        recognitionRef.current = null;
-        const text = (finalTextRef.current || liveTextRef.current).trim();
-        if (text) {
-          onResultRef.current?.(text);
-          return;
-        }
-        if (code === "no-speech") {
-          onErrorRef.current?.("Je n'ai rien entendu. Réessaie en parlant juste après avoir appuyé sur [MIC].");
-          return;
-        }
-        if (code === "not-allowed" || code === "service-not-allowed") {
-          onErrorRef.current?.("Accès au micro refusé. Autorise-le dans les réglages du navigateur.");
-        } else if (code === "audio-capture") {
-          onErrorRef.current?.("Aucun micro détecté.");
-        } else if (code === "network") {
-          onErrorRef.current?.("Service vocal du navigateur inaccessible. Utilise Chrome/Edge, vérifie que le micro est autorisé, puis réessaie.");
-        } else if (code !== "aborted") {
-          onErrorRef.current?.(`Reconnaissance vocale: ${code}`);
-        }
-      };
-      recognitionRef.current = r;
-      setListening(true);
-      try {
-        r.start();
-      } catch (err) {
-        console.warn("STT start failed", err);
-        wantListenRef.current = false;
-        setListening(false);
-        onError?.("Impossible de démarrer le micro");
-        return false;
-      }
+      })();
       return true;
     },
-    [nativeStt],
+    [nativeStt, scribe],
   );
 
   const stopListening = useCallback(() => {
-    wantListenRef.current = false;
     if (isNative) { nativeStopListening(); setListening(false); return; }
-    try { recognitionRef.current?.stop?.(); } catch {}
+    try { scribe.disconnect?.(); } catch {}
     setListening(false);
-    // Trigger final delivery
-    const text = finalTextRef.current.trim();
-    if (text) onResultRef.current?.(text);
-  }, []);
+    const out = (finalRef.current || liveRef.current).trim();
+    finalRef.current = "";
+    liveRef.current = "";
+    if (out) onResultRef.current?.(out);
+  }, [scribe]);
 
-  const sttSupported =
-    (isNative && nativeStt) ||
-    (typeof window !== "undefined" &&
-     !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
+  const sttSupported = isNative ? nativeStt : true;
 
   return {
     prefs, setPrefs,
