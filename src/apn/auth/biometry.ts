@@ -134,7 +134,7 @@ export async function loadEnrollment(pin: string): Promise<{
     const plain = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: b64.dec(env.ivB64) as BufferSource },
       key,
-      b64.dec(env.cipherB64),
+      b64.dec(env.cipherB64) as BufferSource,
     );
     return JSON.parse(new TextDecoder().decode(plain));
   } catch {
