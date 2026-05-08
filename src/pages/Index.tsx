@@ -21,6 +21,7 @@ export default function Index() {
   const [busy, setBusy] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
+  const [composerText, setComposerText] = useState("");
 
   useEffect(() => {
     if (apn.error) toast.error(apn.error);
@@ -71,10 +72,17 @@ export default function Index() {
     }
     tapMedium();
     apn.setListeningState(true);
-    const ok = voice.startListening((text) => {
-      apn.setListeningState(false);
-      if (text.trim()) handleSend(text);
-    });
+    setComposerText("");
+    const ok = voice.startListening(
+      (text) => {
+        apn.setListeningState(false);
+        setComposerText("");
+        if (text.trim()) handleSend(text);
+      },
+      (partial) => {
+        setComposerText(partial);
+      },
+    );
     if (!ok) {
       apn.setListeningState(false);
       toast.error("La reconnaissance vocale n'est pas disponible sur ce navigateur.");
