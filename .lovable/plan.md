@@ -1,63 +1,135 @@
-# Brume douce — orb volumétrique par humeur
+# Refonte APN — Brutalist Mono / Terminal Riche
 
-Objectif : remplacer le shader plasma actuel de `src/apn/OrbCanvas.tsx` par une **brume volumétrique douce** qui ressemble aux 4 images de référence (calm/empathetic/focused/alert), avec couleurs pilotées par l'humeur en temps réel.
+Direction : terminal hacker chic. Noir pur, blanc, accent mono par humeur. Typo monospace partout. Lignes 1px nettes. Aucun glassmorphism, aucun glow flou. À la place : grilles, brackets `[ ]`, séparateurs `─────`, badges encadrés, indicateurs ASCII.
 
-## Rendu visé (par humeur)
+## 1. Nouvelle orbe — `OrbCanvas.tsx`
 
-- **calm** — cyan/aqua, volutes lentes, méditatif
-- **empathetic** — rose poudré / lavande, chaleureux
-- **focused** — violet/indigo, cœur blanc lumineux, spirale concentrée
-- **alert** — ambre / orange brûlé, pulsations vives
+Remplacer le shader plasma actuel par une **sphère wireframe** mi-3D mi-ASCII :
 
-Aucune image n'est embarquée : tout est procédural (FBM + domain warp), donc instantané et léger.
+- Sphère filaire rotative (latitudes/longitudes) en lignes 1px monochromes
+- Surimpression de **caractères ASCII** (`. : ; + * # @`) mappés sur la profondeur, comme un renderer terminal — densité variant selon `uEnergy`
+- Trame de scan horizontale (CRT) qui défile lentement
+- Couleur unique = couleur d'humeur (cyan/rose/violet/ambre) sur fond noir
+- Respiration = légère pulsation du rayon + variation de densité ASCII
+- États :
+  - `standby` : rotation lente, ASCII clairsemé
+  - `thinking` : rotation accélère, glitch ponctuel (lignes décalées)
+  - `speaking` : ondes concentriques qui partent du centre
+  - `listening` : sphère qui "respire" + petites barres VU autour
+- Mood `alert` : trame de scan rouge plus dense + flicker
+- Mood `focused` : sphère devient un vortex ASCII spiralé
 
-## Modifications
+Technique : on garde Three.js. Deux passes — `THREE.LineSegments` pour le wireframe + un canvas 2D overlay (texture) qui dessine les caractères ASCII, samplée dans le shader. Plus simple : tout en shader fragment qui simule l'ASCII via lookup d'un atlas (8 glyphes packés dans une texture). Je pencherais pour la deuxième : 1 seul plan, perf max.
 
-### 1. `src/apn/OrbCanvas.tsx` — nouveau fragment shader
+## 2. Refonte interface complète
 
-Remplacer entièrement le `FRAG` actuel par une brume volumétrique :
+### Layout général
+- Fond `#000` pur (plus de `#03040a`)
+- Grille de fond invisible 8px (debug-friendly)
+- Marges franches, alignements stricts gauche/droite (pas de centrage flottant sauf l'orbe)
+- Tout en monospace : `JetBrains Mono` (display + body)
+- Accent par humeur via une seule variable `--mood` (déjà en place)
 
-- **Masque sphérique très doux** : `smoothstep` large (rayon 0.0 → 1.1), aucun bord net, fondu progressif vers le noir
-- **Brume volumétrique** : 5 octaves de FBM avec **domain warp auto-advecté** (`p += warp(p, t*0.15)`) → volutes organiques type fumée
-- **Cœur lumineux** : noyau gaussien blanc (`exp(-r*r*6)`) qui s'intensifie avec `uEnergy` — particulièrement visible en mode `focused`
-- **Particules / bokeh** : couche de hash multi-échelle, seuil élevé → points lumineux flous autour de l'orbe
-- **Couleurs par humeur** :
-  - 2 teintes HSV par mood (sombre + claire), mélangées par la densité de brume
-  - palette dérivée de `uHue` (déjà fourni par `MOOD_HUE`) avec offsets adaptés
-  - rim léger angle-based pour iridescence subtile
-- **Animation** :
-  - vitesse de base lente (`t * 0.12`)
-  - en mode `alert` : tremblement haute fréquence + pulse plus rapide
-  - en mode `focused` : rotation lente du domain warp (effet spirale)
-- **Alpha** : `densité * masque_sphère`, fade très doux sur les bords (pas de halo dur)
+### Top bar (remplace le HUD actuel)
+```text
+[APN] ──────── STATE: SPEAKING ──── MOOD: FOCUSED ──── 14:23:07 ─── [LOG] [CFG]
+```
+- Une seule ligne, bordure bas 1px
+- Horloge live monospace
+- Boutons texte encadrés `[LOG]` `[CFG]` (pas d'icônes rondes)
 
-### 2. Conserver
+### Bandeau gauche — visualiseur audio (densité riche)
+- Colonne fine 60px à gauche
+- VU-meter vertical ASCII pendant `speaking`/`listening` :
+  ```
+  ▓▓▓▓▓▓▓░░░
+  ▓▓▓▓▓░░░░░
+  ▓▓▓▓▓▓▓▓░░
+  ```
+- Fréquences temps réel via `AnalyserNode` du Web Audio sur le micro/TTS
 
-- structure React/Three.js (uniforms, animation loop, resize, lerp énergie/teinte)
-- `pixelRatioCap = 4` (4K)
-- types `AgentState` / `Mood` et `MOOD_HUE` (`src/apn/types.ts`) — inchangés
-- `src/apn/mood.ts` — inchangé (CSS vars d'accent)
+### Bandeau droit — mémoire & state
+- Colonne fine 60px à droite
+- Indicateurs ASCII verticaux :
+  - `MSG: 042`
+  - `MEM: ████░░░ 57%`
+  - `LOOP: 2`
+  - `TOPIC: travail`
+- Mises à jour live depuis `apn.profile`
 
-### 3. Aucun changement ailleurs
+### Centre — orbe ASCII
+- Carré central avec bordure pointillée 1px : `┌─ NEURAL CORE ─┐`
+- Coordonnées coin sup-droit `[x: 0.42  y: -0.18]` (joli détail terminal)
+- Caption sous l'orbe en mono majuscules : `> THINKING ABOUT TRAVAIL...`
 
-Pas de nouveau fichier, pas d'asset, pas de dépendance. Uniquement le shader dans `OrbCanvas.tsx`.
+### Particules ambiantes
+- Caractères ASCII flottants très subtils en background (`. ` `* ` `' `) qui dérivent lentement, opacité 5%
+- Ne perturbent pas la lisibilité
 
-## Détails techniques
+### Composer (bas)
+- Plus de pilule ronde glassy. À la place :
+  ```
+  > _ |                                        [MIC] [CAM] [SEND ↵]
+  ─────────────────────────────────────────────────────────────────
+  ```
+- Bordure haute 1px, fond noir, prompt `>` clignotant
+- Boutons = texte entre crochets `[MIC]`, deviennent `[●REC]` rouge quand actif
+- Curseur block clignotant (CSS `animate-pulse`)
+
+### Chat log (drawer)
+- Plein écran overlay noir avec scanlines très légères
+- Chaque message préfixé : `[USR 14:22:01] >` ou `[APN 14:22:04] $`
+- Pas de bulles arrondies, juste du texte aligné gauche avec bordure gauche 2px couleur humeur pour user / blanche pour APN
+- En haut : `── JOURNAL ──────── 042 MESSAGES ───── [X CLOSE]`
+
+### Controls drawer
+- Même esthétique : panneau noir, sliders ASCII style `[━━━━━●━━━] 0.75`
+- Toggles : `[X] VOICE ENABLED` / `[ ] VOICE DISABLED`
+- Section headers : `── VOICE ──`, `── RENDER ──`
+
+## 3. Système de design
+
+### `index.css`
+- Variables : `--bg: 0 0% 0%`, `--fg: 0 0% 95%`, `--dim: 0 0% 50%`, `--line: 0 0% 20%`
+- `--mood-h/s/l` conservé (déjà là)
+- Font family : `'JetBrains Mono', monospace` partout
+- Nouvelles utilities : `.ascii-border`, `.scanlines`, `.cursor-blink`, `.bracket-btn`
+
+### `tailwind.config.ts`
+- Ajouter family `mono` = JetBrains Mono
+- Couleurs sémantiques : `bg`, `fg`, `dim`, `line`, `mood`
+- Désactiver tous les `rounded-*` arrondis dans les composants custom (on garde shadcn intact)
+
+### Suppression progressive
+- Classes `.glass`, `.mood-ring`, drop-shadows, blurs → remplacées par bordures 1px + couleurs plates
+
+## 4. Fichiers touchés
 
 ```text
-fragment pipeline:
-  uv → p (-1..1)
-  ─ sphere mask (smoothstep doux)
-  ─ warp = vec2(fbm(p+t), fbm(p-t)) * 0.6
-  ─ density = fbm(p*1.3 + warp, 5 octaves)
-  ─ core = exp(-r²*6) * uEnergy
-  ─ bokeh = pow(hash(p*8 + t*0.1), 14) * 1.5
-  ─ color = mix(moodDark, moodLight, density) + core*white + bokeh*tint
-  ─ alpha = (density*0.7 + core*0.9 + bokeh*0.4) * sphereMask
+src/apn/OrbCanvas.tsx          ← réécriture totale (wireframe + ASCII shader)
+src/apn/MicroHUD.tsx           ← devient TopBar pleine largeur
+src/apn/Composer.tsx           ← refonte terminal prompt
+src/apn/ChatLog.tsx            ← refonte log style
+src/apn/ControlsDrawer.tsx     ← refonte sliders ASCII
+src/apn/AsciiSidebarLeft.tsx   ← NOUVEAU (VU-meter)
+src/apn/AsciiSidebarRight.tsx  ← NOUVEAU (mémoire/state)
+src/apn/AmbientChars.tsx       ← NOUVEAU (particules ASCII fond)
+src/pages/Index.tsx            ← réagencement layout 3 colonnes
+src/index.css                  ← refonte tokens + utilities
+tailwind.config.ts             ← font mono, couleurs flat
+index.html                     ← preload JetBrains Mono
 ```
 
-Coût GPU : ~5 octaves FBM + warp = OK 60fps mobile à `pixelRatioCap=4` (sphère couvre une petite zone).
+## 5. Conservé tel quel
 
-## À valider
+- Toute la logique : `useAPN`, `useVoice`, `intent.ts`, `notifications.ts`, edge functions
+- Types `Mood` / `AgentState` / `MOOD_HUE` / `MOOD_HSL`
+- Hooks haptics, photo, STT/TTS
 
-Cette proposition garde **un seul shader unifié** qui s'adapte aux 4 moods via `uHue`. Si tu préfères 4 presets visuellement très différents (ex. focused = vraie spirale, alert = vraies pulsations radiales), dis-le et je découpe le shader en branches `if (uMood == ...)` plus marquées.
+## 6. Question résiduelle
+
+Pour l'orbe ASCII, deux variantes possibles — dis-moi laquelle tu préfères, sinon je pars sur la **B** :
+
+- **A.** Wireframe pur (lignes lat/long visibles) + caractères ASCII clairsemés en surimpression
+- **B.** Pure ASCII : la sphère **est** faite de caractères (rendu terminal style donut.c rotatif), pas de lignes du tout
+- **C.** Hybride : wireframe en fond, ASCII dense devant qui forme la "matière" de la sphère
