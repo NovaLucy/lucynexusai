@@ -108,7 +108,7 @@ export async function enroll(data: EnrolledData): Promise<void> {
     voicePassphrase: data.voicePassphrase,
   });
   const cipher = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv as BufferSource },
     key,
     new TextEncoder().encode(payload),
   );
