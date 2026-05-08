@@ -171,12 +171,14 @@ export default function Index() {
         style={{ paddingBottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 0px))" }}
       >
         <Composer
-          onSend={handleSend}
+          onSend={(t) => { setComposerText(""); handleSend(t); }}
           onMic={handleMic}
           onPhoto={handlePhoto}
           micActive={voice.listening}
           sttSupported={voice.sttSupported}
           disabled={busy}
+          value={composerText}
+          onValueChange={setComposerText}
         />
       </div>
 
