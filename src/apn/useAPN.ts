@@ -284,6 +284,7 @@ export function useAPN() {
   return {
     sessionId: sessionId.current,
     messages, state, mood, caption, error, profile,
+    syncStatus, lastSyncAt,
     send, setStandby, setListeningState,
   };
 }
