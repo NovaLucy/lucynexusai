@@ -83,6 +83,7 @@ export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medica
           [MED]
         </button>
       )}
+      <SyncIndicator status={syncStatus} lastSyncAt={lastSyncAt} sessionId={sessionId} />
       <button onClick={onOpenLog} className="bracket-btn" aria-label="Journal">[LOG]</button>
       <button onClick={onOpenCfg} className="bracket-btn" aria-label="Configuration">[CFG]</button>
     </div>
