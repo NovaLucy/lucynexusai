@@ -131,12 +131,32 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    padding: 4px 8px;
+    padding: 6px 10px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: hsl(var(--fg));
     background: transparent;
     border: 1px solid hsl(var(--line));
     transition: all 120ms ease;
     white-space: nowrap;
+  }
+  @media (max-width: 767px) {
+    .bracket-btn { min-height: 40px; padding: 8px 10px; font-size: 11px; }
+  }
+  .tap-target { min-height: 44px; min-width: 44px; }
+
+  /* Face apparition fade */
+  .face-apparition {
+    animation: face-fade 3200ms ease-in-out both;
+    filter: drop-shadow(0 0 8px hsl(var(--mood) / 0.5));
+  }
+  @keyframes face-fade {
+    0%   { opacity: 0; transform: scale(0.85); }
+    15%  { opacity: 0.95; transform: scale(1); }
+    85%  { opacity: 0.95; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.05); }
   }
   .bracket-btn:hover:not(:disabled) {
     border-color: hsl(var(--mood));

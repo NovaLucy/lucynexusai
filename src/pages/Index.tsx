@@ -9,6 +9,9 @@ import AsciiSidebarLeft from "@/apn/AsciiSidebarLeft";
 import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
+import Face from "@/apn/Face";
+import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
+import { useIsMobile } from "@/hooks/use-mobile";
 import Onboarding from "@/apn/auth/Onboarding";
 import Lock from "@/apn/auth/Lock";
 import { useAuth } from "@/apn/auth/useAuth";
@@ -24,8 +27,9 @@ export default function Index() {
   const auth = useAuth();
   const apn = useAPN();
   const voice = useVoice();
+  const isMobile = useIsMobile();
   const [intensity, setIntensity] = useState(1.0);
-  const [pixelRatio, setPixelRatio] = useState(1.5);
+  const [pixelRatio, setPixelRatio] = useState(() => (typeof window !== "undefined" && window.innerWidth < 768 ? 1.25 : 1.5));
   const [busy, setBusy] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
@@ -37,6 +41,10 @@ export default function Index() {
   const [medicalMode, setMedicalMode] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem("apn:medical") ?? "false"); } catch { return false; }
   });
+  const [faceFrequency, setFaceFrequency] = useState<FaceFrequency>(() => {
+    try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
+  });
+  const faceVisible = useFaceApparition(faceFrequency, 3200);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
@@ -44,6 +52,9 @@ export default function Index() {
   useEffect(() => {
     try { localStorage.setItem("apn:medical", JSON.stringify(medicalMode)); } catch {}
   }, [medicalMode]);
+  useEffect(() => {
+    try { localStorage.setItem("apn:face", faceFrequency); } catch {}
+  }, [faceFrequency]);
 
   useEffect(() => {
     if (apn.error) toast.error(apn.error);
@@ -211,6 +222,21 @@ export default function Index() {
         </div>
       )}
 
+      {/* Mobile-only compact stat strip (replaces hidden sidebars) */}
+      <div className="md:hidden relative z-20 flex items-center gap-3 px-3 py-1 text-[10px] uppercase tracking-widest border-b ascii-border bg-black/60 overflow-x-auto">
+        <span className="text-foreground/50">MSG <span className="text-foreground tabular-nums">{String(apn.profile?.message_count ?? apn.messages.length).padStart(3, "0")}</span></span>
+        <span className="text-foreground/30">│</span>
+        <span className="text-foreground/50">STATE <span className="mood-text">{apn.state.slice(0, 4).toUpperCase()}</span></span>
+        <span className="text-foreground/30">│</span>
+        <span className="text-foreground/50">MOOD <span className="mood-text">{apn.mood.slice(0, 4).toUpperCase()}</span></span>
+        {apn.profile?.last_topic && (
+          <>
+            <span className="text-foreground/30">│</span>
+            <span className="text-foreground/50 truncate">› <span className="mood-text">{apn.profile.last_topic.slice(0, 18)}</span></span>
+          </>
+        )}
+      </div>
+
       {/* 3-column layout */}
       <div className="relative z-10 flex-1 flex min-h-0">
         <AsciiSidebarLeft state={apn.state} />
@@ -218,10 +244,10 @@ export default function Index() {
         {/* Center: orb */}
         <section className="relative flex-1 flex flex-col min-w-0">
           {/* Orb container */}
-          <div className="relative flex-1 flex items-center justify-center p-3">
+          <div className="relative flex-1 flex items-center justify-center p-2 sm:p-3">
             <div className="relative ascii-border-dashed scanlines"
               style={{
-                width: "min(72dvh, 92%)",
+                width: isMobile ? "min(58dvh, 96%)" : "min(72dvh, 92%)",
                 aspectRatio: "1 / 1",
                 maxHeight: "100%",
               }}
@@ -241,6 +267,16 @@ export default function Index() {
               </div>
 
               <OrbCanvas state={apn.state} mood={apn.mood} intensity={intensity} pixelRatioCap={pixelRatio} />
+
+              {/* Face apparition overlay */}
+              {faceVisible && (
+                <div
+                  key={`face-${Date.now()}`}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none face-apparition"
+                >
+                  <Face mood={apn.mood} state={apn.state} size={isMobile ? "md" : "lg"} blink variant="overlay" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -277,6 +313,8 @@ export default function Index() {
           value={composerText}
           onValueChange={setComposerText}
           polishEnabled={polishEnabled}
+          mood={apn.mood}
+          state={apn.state}
         />
       </div>
 
@@ -305,6 +343,8 @@ export default function Index() {
         medicalMode={medicalMode}
         setMedicalMode={setMedicalMode}
         onOpenReport={() => { setCfgOpen(false); setReportOpen(true); }}
+        faceFrequency={faceFrequency}
+        setFaceFrequency={setFaceFrequency}
       />
       <MedicalReport
         open={reportOpen}

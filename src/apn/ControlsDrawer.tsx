@@ -23,6 +23,8 @@ interface Props {
   medicalMode: boolean;
   setMedicalMode: (v: boolean) => void;
   onOpenReport: () => void;
+  faceFrequency: "off" | "rare" | "normal" | "often";
+  setFaceFrequency: (v: "off" | "rare" | "normal" | "often") => void;
 }
 
 function AsciiSlider({
@@ -137,6 +139,22 @@ export default function ControlsDrawer(p: Props) {
             <p className="text-[10px] text-foreground/40 italic">
               APN n'est pas un médecin. Aide à la préparation, pas un diagnostic.
             </p>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── VISAGE APN ──</h3>
+            <div className="grid grid-cols-4 gap-1">
+              {(["off", "rare", "normal", "often"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => p.setFaceFrequency(f)}
+                  className={`bracket-btn ${p.faceFrequency === f ? "bracket-btn-active" : ""}`}
+                >
+                  {f.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-foreground/40">// apparitions ASCII du visage d'APN dans l'orbe</p>
           </section>
 
           <section className="space-y-4">
