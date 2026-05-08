@@ -107,41 +107,58 @@ export function useVoice() {
     if (isNative) nativeSttSupported().then(setNativeStt);
   }, []);
 
-  const startListening = useCallback((onResult: (text: string) => void) => {
-    if (isNative && nativeStt) {
-      let last = "";
-      setListening(true);
-      nativeStartListening((text) => { last = text; }).then((ok) => {
-        if (!ok) {
-          setListening(false);
-          return;
+  const startListening = useCallback(
+    (onResult: (text: string) => void, onPartial?: (text: string) => void) => {
+      if (isNative && nativeStt) {
+        let last = "";
+        setListening(true);
+        nativeStartListening((text) => {
+          last = text;
+          onPartial?.(text);
+        }).then((ok) => {
+          if (!ok) {
+            setListening(false);
+            return;
+          }
+          setTimeout(async () => {
+            await nativeStopListening();
+            setListening(false);
+            if (last.trim()) onResult(last);
+          }, 6000);
+        });
+        return true;
+      }
+      const Ctor: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!Ctor) return false;
+      const r = new Ctor();
+      r.lang = "fr-FR";
+      r.interimResults = true;
+      r.continuous = false;
+      let finalText = "";
+      r.onresult = (e: any) => {
+        let interim = "";
+        let finals = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const res = e.results[i];
+          if (res.isFinal) finals += res[0].transcript;
+          else interim += res[0].transcript;
         }
-        // Auto-stop after 6s of speech window
-        setTimeout(async () => {
-          await nativeStopListening();
-          setListening(false);
-          if (last.trim()) onResult(last);
-        }, 6000);
-      });
+        if (finals) finalText += finals;
+        const live = (finalText + " " + interim).trim();
+        if (live) onPartial?.(live);
+      };
+      r.onend = () => {
+        setListening(false);
+        if (finalText.trim()) onResult(finalText.trim());
+      };
+      r.onerror = () => setListening(false);
+      recognitionRef.current = r;
+      setListening(true);
+      r.start();
       return true;
-    }
-    const Ctor: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!Ctor) return false;
-    const r = new Ctor();
-    r.lang = "fr-FR";
-    r.interimResults = false;
-    r.continuous = false;
-    r.onresult = (e: any) => {
-      const text = Array.from(e.results).map((res: any) => res[0].transcript).join(" ");
-      onResult(text);
-    };
-    r.onend = () => setListening(false);
-    r.onerror = () => setListening(false);
-    recognitionRef.current = r;
-    setListening(true);
-    r.start();
-    return true;
-  }, [nativeStt]);
+    },
+    [nativeStt],
+  );
 
   const stopListening = useCallback(() => {
     if (isNative) { nativeStopListening(); setListening(false); return; }
