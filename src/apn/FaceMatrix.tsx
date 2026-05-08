@@ -29,13 +29,18 @@ export default function FaceMatrix({ mood, state, opacity = 1, speaking, intensi
   const stateRef = useRef(state);
   const opacityRef = useRef(opacity);
   const speakingRef = useRef(speaking);
+  const intensityRef = useRef(intensity);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const maskRef = useRef<{ data: Uint8ClampedArray; w: number; h: number } | null>(null);
+  const shockStartRef = useRef<number>(0);
 
   useEffect(() => { moodRef.current = mood; }, [mood]);
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { opacityRef.current = opacity; }, [opacity]);
   useEffect(() => { speakingRef.current = speaking; }, [speaking]);
+  useEffect(() => { intensityRef.current = intensity; }, [intensity]);
+  // Trigger a shockwave whenever shockKey changes (or on first reveal mount)
+  useEffect(() => { shockStartRef.current = performance.now(); }, [shockKey, intensity]);
 
   // Load the face image once and cache its luminance mask.
   useEffect(() => {
