@@ -46,10 +46,11 @@ export default function Index() {
     try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
   });
   const speakingPinned = apn.state === "speaking";
-  const { visible: faceVisible, trigger: triggerFace } = useFaceApparition(faceFrequency, {
+  const { visible: faceVisible, mode: faceMode, phase: facePhase, trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
-    showMs: 3200,
+    showMs: 3400,
   });
+  const [shockKey, setShockKey] = useState(0);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
