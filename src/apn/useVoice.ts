@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useScribe } from "@elevenlabs/react";
+import { useScribe, CommitStrategy } from "@elevenlabs/react";
 import {
   nativeSpeak, nativeStopTTS,
   nativeStartListening, nativeStopListening, nativeSttSupported,
@@ -115,7 +115,8 @@ export function useVoice() {
 
   const scribe = useScribe({
     modelId: "scribe_v2_realtime",
-    commitStrategy: "vad",
+    commitStrategy: CommitStrategy.VAD,
+    languageCode: "fr",
     onPartialTranscript: (data: any) => {
       const live = (finalRef.current + " " + (data?.text ?? "")).trim();
       liveRef.current = live;
