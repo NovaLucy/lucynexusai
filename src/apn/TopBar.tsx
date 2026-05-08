@@ -24,7 +24,7 @@ function clock() {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medicalMode, onToggleMedical }: Props) {
+export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medicalMode, onToggleMedical, syncStatus, lastSyncAt, sessionId }: Props) {
   const [time, setTime] = useState(clock());
   useEffect(() => {
     const id = setInterval(() => setTime(clock()), 1000);
