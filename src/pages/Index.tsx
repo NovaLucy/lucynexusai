@@ -8,10 +8,13 @@ import ControlsDrawer from "@/apn/ControlsDrawer";
 import AsciiSidebarLeft from "@/apn/AsciiSidebarLeft";
 import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
 import AmbientChars from "@/apn/AmbientChars";
+import MedicalReport from "@/apn/MedicalReport";
 import { useAPN } from "@/apn/useAPN";
 import { useVoice } from "@/apn/useVoice";
 import { tapLight, tapMedium } from "@/native";
 import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
+
+const MEDICAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apn-medical`;
 
 export default function Index() {
   const apn = useAPN();
@@ -21,7 +24,21 @@ export default function Index() {
   const [busy, setBusy] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
+  const [polishEnabled, setPolishEnabled] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("apn:polish") ?? "true"); } catch { return true; }
+  });
+  const [medicalMode, setMedicalMode] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("apn:medical") ?? "false"); } catch { return false; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
+  }, [polishEnabled]);
+  useEffect(() => {
+    try { localStorage.setItem("apn:medical", JSON.stringify(medicalMode)); } catch {}
+  }, [medicalMode]);
 
   useEffect(() => {
     if (apn.error) toast.error(apn.error);
@@ -40,6 +57,36 @@ export default function Index() {
     });
   }, [apn.profile?.message_count, apn.profile?.last_topic]);
 
+  const extractHealth = (userMessage: string) => {
+    if (!medicalMode) return;
+    const recent = apn.messages.slice(-6).map((m) => ({ role: m.role, content: m.content }));
+    fetch(MEDICAL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({
+        action: "extract",
+        sessionId: apn.sessionId,
+        userMessage,
+        recent,
+      }),
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        const flags: string[] = j?.extracted?.red_flags ?? [];
+        if (flags.length > 0) {
+          toast.error(`⚠ Drapeau rouge détecté : ${flags.join(", ")}. Consulter en urgence.`, {
+            duration: 8000,
+          });
+        } else if (j?.saved) {
+          toast.success("Information santé enregistrée");
+        }
+      })
+      .catch(() => {});
+  };
+
   const handlePhoto = (dataUrl: string) => {
     void dataUrl;
     handleSend("Je viens de te partager une photo. Qu'est-ce que tu en penses ?");
@@ -50,6 +97,7 @@ export default function Index() {
     setBusy(true);
     tapLight();
     voice.stop();
+    extractHealth(text);
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantEnd: (full) => {
@@ -89,7 +137,7 @@ export default function Index() {
     );
     if (!ok) {
       apn.setListeningState(false);
-      toast.error("La reconnaissance vocale n'est pas disponible sur ce navigateur.");
+      toast.error("La reconnaissance vocale n'est pas disponible.");
     }
   };
 
@@ -115,8 +163,19 @@ export default function Index() {
           name={apn.profile?.display_name}
           onOpenLog={() => setLogOpen(true)}
           onOpenCfg={() => setCfgOpen(true)}
+          medicalMode={medicalMode}
+          onToggleMedical={() => {
+            setMedicalMode((v) => !v);
+            toast.info(!medicalMode ? "Mode pré-médecin activé" : "Mode pré-médecin désactivé");
+          }}
         />
       </div>
+
+      {medicalMode && (
+        <div className="relative z-20 px-3 py-1 text-[10px] uppercase tracking-widest text-center bg-red-950/40 text-red-200 border-b border-red-900/60">
+          ⚠ MODE PRÉ-MÉDECIN — APN n'est pas un médecin. Aide à la préparation, pas un diagnostic.
+        </div>
+      )}
 
       {/* 3-column layout */}
       <div className="relative z-10 flex-1 flex min-h-0">
@@ -183,6 +242,7 @@ export default function Index() {
           disabled={busy}
           value={composerText}
           onValueChange={setComposerText}
+          polishEnabled={polishEnabled}
         />
       </div>
 
@@ -206,6 +266,16 @@ export default function Index() {
         setPixelRatio={setPixelRatio}
         onTestVoice={() => voice.speak("Bonjour. Je suis APN. Je suis prêt à t'aider.")}
         onStopVoice={() => voice.stop()}
+        polishEnabled={polishEnabled}
+        setPolishEnabled={setPolishEnabled}
+        medicalMode={medicalMode}
+        setMedicalMode={setMedicalMode}
+        onOpenReport={() => { setCfgOpen(false); setReportOpen(true); }}
+      />
+      <MedicalReport
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        sessionId={apn.sessionId}
       />
     </main>
   );
