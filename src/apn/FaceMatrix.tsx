@@ -17,9 +17,13 @@ interface Props {
   opacity?: number;
   /** speaking pulses the face */
   speaking?: boolean;
+  /** "reveal" boosts visibility & emits a shockwave on mount */
+  intensity?: "ambient" | "reveal";
+  /** When changes, retriggers a shockwave from center */
+  shockKey?: number | string;
 }
 
-export default function FaceMatrix({ mood, state, opacity = 1, speaking }: Props) {
+export default function FaceMatrix({ mood, state, opacity = 1, speaking, intensity = "ambient", shockKey }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const moodRef = useRef(mood);
   const stateRef = useRef(state);
