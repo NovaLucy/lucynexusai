@@ -46,10 +46,11 @@ export default function Index() {
     try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
   });
   const speakingPinned = apn.state === "speaking";
-  const { visible: faceVisible, trigger: triggerFace } = useFaceApparition(faceFrequency, {
+  const { visible: faceVisible, mode: faceMode, phase: facePhase, trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
-    showMs: 3200,
+    showMs: 3400,
   });
+  const [shockKey, setShockKey] = useState(0);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
@@ -273,7 +274,11 @@ export default function Index() {
 
               <div
                 className="absolute inset-0"
-                onClick={() => triggerFace(2200)}
+                onClick={() => {
+                  tapMedium();
+                  setShockKey((k) => k + 1);
+                  triggerFace(3400, "reveal");
+                }}
                 role="button"
                 aria-label="Réveiller APN"
               >
@@ -283,13 +288,23 @@ export default function Index() {
               {/* Face apparition overlay — Matrix-style realistic face */}
               {faceVisible && (
                 <div
-                  key={`face-${speakingPinned ? "pin" : "apparition"}`}
-                  className={`absolute inset-0 pointer-events-none ${speakingPinned ? "" : "face-apparition"}`}
+                  key={`face-${speakingPinned ? "pin" : faceMode}-${shockKey}`}
+                  className={`absolute inset-0 pointer-events-none ${
+                    speakingPinned
+                      ? ""
+                      : facePhase === "out"
+                      ? "face-reveal-out"
+                      : faceMode === "reveal"
+                      ? "face-reveal-in"
+                      : "face-apparition"
+                  }`}
                 >
                   <FaceMatrix
                     mood={apn.mood}
                     state={apn.state}
                     speaking={speakingPinned}
+                    intensity={speakingPinned || faceMode === "reveal" ? "reveal" : "ambient"}
+                    shockKey={shockKey}
                   />
                 </div>
               )}
