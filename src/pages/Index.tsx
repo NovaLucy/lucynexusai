@@ -97,8 +97,23 @@ export default function Index() {
     handleSend("Je viens de te partager une photo. Qu'est-ce que tu en penses ?");
   };
 
+  const runCommand = (cmd: ReturnType<typeof matchCommand>) => {
+    if (!cmd) return false;
+    switch (cmd.action.type) {
+      case "medical": setMedicalMode(cmd.action.value); break;
+      case "voice":   voice.setPrefs({ ...voice.prefs, enabled: cmd.action.value }); break;
+      case "polish":  setPolishEnabled(cmd.action.value); break;
+      case "openLog": setLogOpen(true); break;
+      case "openCfg": setCfgOpen(true); break;
+      case "report":  setReportOpen(true); break;
+    }
+    toast.success(`⌘ ${cmd.label}`);
+    return true;
+  };
+
   const handleSend = async (text: string) => {
     if (busy) return;
+    if (runCommand(matchCommand(text))) return;
     setBusy(true);
     tapLight();
     voice.stop();
