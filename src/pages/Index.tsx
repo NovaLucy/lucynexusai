@@ -44,7 +44,11 @@ export default function Index() {
   const [faceFrequency, setFaceFrequency] = useState<FaceFrequency>(() => {
     try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
   });
-  const faceVisible = useFaceApparition(faceFrequency, 3200);
+  const speakingPinned = apn.state === "speaking";
+  const { visible: faceVisible, trigger: triggerFace } = useFaceApparition(faceFrequency, {
+    pinned: speakingPinned && faceFrequency !== "off",
+    showMs: 3200,
+  });
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
@@ -266,15 +270,29 @@ export default function Index() {
                 └─ v0.1 ─┘
               </div>
 
-              <OrbCanvas state={apn.state} mood={apn.mood} intensity={intensity} pixelRatioCap={pixelRatio} />
+              <div
+                className="absolute inset-0"
+                onClick={() => triggerFace(2200)}
+                role="button"
+                aria-label="Réveiller APN"
+              >
+                <OrbCanvas state={apn.state} mood={apn.mood} intensity={intensity} pixelRatioCap={pixelRatio} />
+              </div>
 
               {/* Face apparition overlay */}
               {faceVisible && (
                 <div
-                  key={`face-${Date.now()}`}
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none face-apparition"
+                  key={`face-${speakingPinned ? "pin" : "apparition"}`}
+                  className={`absolute inset-0 flex items-center justify-center pointer-events-none ${speakingPinned ? "" : "face-apparition"}`}
                 >
-                  <Face mood={apn.mood} state={apn.state} size={isMobile ? "md" : "lg"} blink variant="overlay" />
+                  <Face
+                    mood={apn.mood}
+                    state={apn.state}
+                    size={isMobile ? "md" : "lg"}
+                    blink
+                    variant="overlay"
+                    speaking={speakingPinned}
+                  />
                 </div>
               )}
             </div>
