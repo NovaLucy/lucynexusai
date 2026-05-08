@@ -222,6 +222,21 @@ export default function Index() {
         </div>
       )}
 
+      {/* Mobile-only compact stat strip (replaces hidden sidebars) */}
+      <div className="md:hidden relative z-20 flex items-center gap-3 px-3 py-1 text-[10px] uppercase tracking-widest border-b ascii-border bg-black/60 overflow-x-auto">
+        <span className="text-foreground/50">MSG <span className="text-foreground tabular-nums">{String(apn.profile?.message_count ?? apn.messages.length).padStart(3, "0")}</span></span>
+        <span className="text-foreground/30">│</span>
+        <span className="text-foreground/50">STATE <span className="mood-text">{apn.state.slice(0, 4).toUpperCase()}</span></span>
+        <span className="text-foreground/30">│</span>
+        <span className="text-foreground/50">MOOD <span className="mood-text">{apn.mood.slice(0, 4).toUpperCase()}</span></span>
+        {apn.profile?.last_topic && (
+          <>
+            <span className="text-foreground/30">│</span>
+            <span className="text-foreground/50 truncate">› <span className="mood-text">{apn.profile.last_topic.slice(0, 18)}</span></span>
+          </>
+        )}
+      </div>
+
       {/* 3-column layout */}
       <div className="relative z-10 flex-1 flex min-h-0">
         <AsciiSidebarLeft state={apn.state} />
@@ -229,10 +244,10 @@ export default function Index() {
         {/* Center: orb */}
         <section className="relative flex-1 flex flex-col min-w-0">
           {/* Orb container */}
-          <div className="relative flex-1 flex items-center justify-center p-3">
+          <div className="relative flex-1 flex items-center justify-center p-2 sm:p-3">
             <div className="relative ascii-border-dashed scanlines"
               style={{
-                width: "min(72dvh, 92%)",
+                width: isMobile ? "min(58dvh, 96%)" : "min(72dvh, 92%)",
                 aspectRatio: "1 / 1",
                 maxHeight: "100%",
               }}
@@ -252,6 +267,16 @@ export default function Index() {
               </div>
 
               <OrbCanvas state={apn.state} mood={apn.mood} intensity={intensity} pixelRatioCap={pixelRatio} />
+
+              {/* Face apparition overlay */}
+              {faceVisible && (
+                <div
+                  key={`face-${Date.now()}`}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none face-apparition"
+                >
+                  <Face mood={apn.mood} state={apn.state} size={isMobile ? "md" : "lg"} blink variant="overlay" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -288,6 +313,8 @@ export default function Index() {
           value={composerText}
           onValueChange={setComposerText}
           polishEnabled={polishEnabled}
+          mood={apn.mood}
+          state={apn.state}
         />
       </div>
 
