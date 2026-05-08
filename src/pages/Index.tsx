@@ -9,6 +9,10 @@ import AsciiSidebarLeft from "@/apn/AsciiSidebarLeft";
 import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
+import Onboarding from "@/apn/auth/Onboarding";
+import Lock from "@/apn/auth/Lock";
+import { useAuth } from "@/apn/auth/useAuth";
+import { matchCommand } from "@/apn/voiceCommands";
 import { useAPN } from "@/apn/useAPN";
 import { useVoice } from "@/apn/useVoice";
 import { tapLight, tapMedium } from "@/native";
@@ -17,6 +21,7 @@ import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
 const MEDICAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apn-medical`;
 
 export default function Index() {
+  const auth = useAuth();
   const apn = useAPN();
   const voice = useVoice();
   const [intensity, setIntensity] = useState(1.0);
@@ -92,8 +97,23 @@ export default function Index() {
     handleSend("Je viens de te partager une photo. Qu'est-ce que tu en penses ?");
   };
 
+  const runCommand = (cmd: ReturnType<typeof matchCommand>) => {
+    if (!cmd) return false;
+    switch (cmd.action.type) {
+      case "medical": setMedicalMode(cmd.action.value); break;
+      case "voice":   voice.setPrefs({ ...voice.prefs, enabled: cmd.action.value }); break;
+      case "polish":  setPolishEnabled(cmd.action.value); break;
+      case "openLog": setLogOpen(true); break;
+      case "openCfg": setCfgOpen(true); break;
+      case "report":  setReportOpen(true); break;
+    }
+    toast.success(`⌘ ${cmd.label}`);
+    return true;
+  };
+
   const handleSend = async (text: string) => {
     if (busy) return;
+    if (runCommand(matchCommand(text))) return;
     setBusy(true);
     tapLight();
     voice.stop();
@@ -142,6 +162,20 @@ export default function Index() {
   };
 
   const loops = apn.profile?.open_loops?.length ?? 0;
+
+  if (auth.status === "loading") {
+    return (
+      <main className="w-screen h-screen bg-black flex items-center justify-center">
+        <div className="font-mono text-xs text-foreground/40">[APN] init…</div>
+      </main>
+    );
+  }
+  if (auth.status === "needs-enrollment") {
+    return <Onboarding onDone={auth.onEnrolled} />;
+  }
+  if (auth.status === "locked") {
+    return <Lock onUnlock={auth.unlock} onReset={auth.onReset} />;
+  }
 
   return (
     <main
