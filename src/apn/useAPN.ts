@@ -45,39 +45,48 @@ export function useAPN() {
   // Load history + profile
   useEffect(() => {
     (async () => {
-      const [{ data: memData }, { data: profData }] = await Promise.all([
-        supabase
-          .from("apn_memory")
-          .select("user_msg, apn_msg, created_at, intent")
-          .eq("session_id", sessionId.current)
-          .order("created_at", { ascending: false })
-          .limit(8),
-        supabase
-          .from("apn_user_profile")
-          .select("*")
-          .eq("session_id", sessionId.current)
-          .maybeSingle(),
-      ]);
+      setSyncStatus("loading");
+      try {
+        const [{ data: memData, error: memErr }, { data: profData, error: profErr }] = await Promise.all([
+          supabase
+            .from("apn_memory")
+            .select("user_msg, apn_msg, created_at, intent")
+            .eq("session_id", sessionId.current)
+            .order("created_at", { ascending: false })
+            .limit(8),
+          supabase
+            .from("apn_user_profile")
+            .select("*")
+            .eq("session_id", sessionId.current)
+            .maybeSingle(),
+        ]);
+        if (memErr || profErr) throw memErr ?? profErr;
 
-      const rows = (memData ?? []).reverse();
-      const msgs: Message[] = [];
-      for (const r of rows) {
-        const t = new Date(r.created_at).getTime();
-        msgs.push({ id: crypto.randomUUID(), role: "user", content: r.user_msg, ts: t });
-        msgs.push({
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: r.apn_msg,
-          ts: t + 1,
-          mood: (r.intent as any)?.mood as Mood | undefined,
-        });
-      }
-      setMessages(msgs);
+        const rows = (memData ?? []).reverse();
+        const msgs: Message[] = [];
+        for (const r of rows) {
+          const t = new Date(r.created_at).getTime();
+          msgs.push({ id: crypto.randomUUID(), role: "user", content: r.user_msg, ts: t });
+          msgs.push({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: r.apn_msg,
+            ts: t + 1,
+            mood: (r.intent as any)?.mood as Mood | undefined,
+          });
+        }
+        setMessages(msgs);
 
-      if (profData) {
-        const p = profData as UserProfile;
-        profileRef.current = p;
-        setProfile(p);
+        if (profData) {
+          const p = profData as UserProfile;
+          profileRef.current = p;
+          setProfile(p);
+        }
+        setSyncStatus("saved");
+        setLastSyncAt(Date.now());
+      } catch (e) {
+        console.warn("load failed", e);
+        setSyncStatus("error");
       }
     })();
   }, []);
