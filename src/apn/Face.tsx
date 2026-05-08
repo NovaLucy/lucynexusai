@@ -159,8 +159,6 @@ export default function Face({
   // Render — multi-line for sm/md/lg, single line for xs
   let inner: React.ReactNode;
   if (size === "xs") {
-    inner = <span className="whitespace-nowrap">({eyeL}{base.eyeL === eyeL && base.eyeR === eyeR ? mouth : "."}{eyeR})</span>;
-    // Simpler xs: (eye mouth eye) but use just (eyeL mouth eyeR) compact
     inner = <span className="whitespace-nowrap">({eyeL}{mouth}{eyeR})</span>;
   } else if (size === "sm") {
     inner = (
