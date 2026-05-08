@@ -55,7 +55,7 @@ async function deriveKey(pin: string, salt: Uint8Array): Promise<CryptoKey> {
     "raw", enc.encode(pin), "PBKDF2", false, ["deriveKey"],
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 150_000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt as BufferSource, iterations: 150_000, hash: "SHA-256" },
     baseKey,
     { name: "AES-GCM", length: 256 },
     false,
@@ -79,8 +79,13 @@ interface EnrolledData {
 }
 
 const b64 = {
-  enc: (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf))),
-  dec: (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0)),
+  enc: (buf: ArrayBuffer | Uint8Array) => {
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    let s = "";
+    for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s);
+  },
+  dec: (s: string): Uint8Array => Uint8Array.from(atob(s), (c) => c.charCodeAt(0)),
 };
 
 export function isEnrolled(): boolean {
