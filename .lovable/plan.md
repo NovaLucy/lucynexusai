@@ -1,99 +1,129 @@
-# Mobile + visage APN
+# Améliorer le visage APN
 
-Deux axes : rendre l'app vraiment confortable sur mobile (710px et moins), et faire apparaître par moments un **visage ASCII de l'APN** dans l'interface (orbe + ambient + composer), comme un compagnon qui se "matérialise".
-
----
-
-## 1. Viabilité mobile
-
-### Layout
-- **Sidebars ASCII** (`AsciiSidebarLeft/Right`) : masquées en `< md` (déjà partiellement le cas pour les colonnes texte, mais elles prennent encore de la place). Forcer `hidden md:flex` propre, et déplacer l'info utile (msg count, topic, loops, name) dans un **bandeau compact sous la TopBar** uniquement visible en mobile.
-- **TopBar** : sur 710px les boutons `[MED] [LOG] [CFG]` + horloge + STATE/MOOD débordent. Refonte :
-  - Ligne 1 : `[APN]` · MOOD · time · boutons à droite
-  - STATE/USR passent dans une 2e ligne discrète repliable, ou en tooltip.
-  - Boutons compactés (icônes courtes : `MED LOG CFG` sans crochets sur très petit, ou icônes lucide).
-- **Orbe central** : passer de `min(72dvh, 92%)` à `min(58dvh, 96%)` en mobile pour laisser respirer le composer et la caption.
-- **Composer** : agrandir la zone tactile (min 44px), bouton mic plus gros, padding bas qui respecte vraiment `--keyboard-h` + `safe-area-inset-bottom` (déjà là, vérifier).
-- **Overlays** (ChatLog, ControlsDrawer, MedicalReport, Onboarding, Lock) : full-screen sur mobile au lieu de modal centrée, scrollable, boutons sticky en bas.
-- **Onboarding/Lock** : la vidéo `4/3` peut déborder verticalement → cap `max-h-[40dvh]`, scroll vertical du conteneur.
-
-### Interactions tactiles
-- Cibles tactiles ≥ 44px (boutons `bracket-btn`, mic, photo, switches).
-- Haptique légère sur mic / send / commande vocale détectée (déjà `tapLight/Medium`, étendre).
-- Désactiver les hover-only (tooltip survol) au profit d'un long-press.
-
-### Performance mobile
-- `pixelRatio` orb par défaut **1.25** sur mobile (vs 1.5) pour préserver la batterie / fluidité.
-- Lazy-load de `face-api.js` uniquement à l'entrée Onboarding/Lock (déjà fait via `loadFaceModels`, vérifier).
-- `AmbientChars` : densité réduite en mobile (moins de glyphes flottants).
-
-### Accessibilité
-- Tailles texte mini 12px sur les badges actuellement à 10px (ou garder 10 mais s'assurer du contraste).
-- `aria-label` sur tous les boutons crochets.
+Le visage actuel est mono-ligne et statique. On le transforme en **compagnon vivant** : expressif, cinématique dans l'orbe, et interactif dans la TopBar et le Composer.
 
 ---
 
-## 2. Visage APN qui apparaît dans l'UI
+## 1. Refonte de `Face.tsx` — plus expressif & animé
 
-Idée : un **visage ASCII** de l'APN (style minimaliste, ex. `( ◉ ◡ ◉ )` / `╭─◉ ◡ ◉─╮` / yeux qui clignent) qui se **matérialise par moments** :
+### Composition multi-lignes (ASCII art)
+Au lieu d'une seule ligne `( ◉ ◡ ◉ )`, le visage devient un mini ASCII art à 3 lignes :
 
-### Où il apparaît
-1. **Dans l'orbe** : pendant `idle` ou `thinking`, le shader de l'orbe se "dissout" temporairement pour révéler un visage ASCII overlay au centre, qui cligne des yeux puis s'efface. Apparitions aléatoires toutes les ~30-90s, ou déclenché à chaque réponse longue de l'assistant.
-2. **Composer** : quand l'utilisateur tape ou parle, micro-visage ASCII (`◉_◉`, `^_^`, `-_-` selon le `mood`) à gauche du champ, qui change d'expression selon mood (calm, focus, joy, alert, melt…).
-3. **Ambient** : 1 chance sur N, l'`AmbientChars` génère un visage complet flottant lentement au lieu d'un glyphe seul.
-4. **TopBar** : remplacer `[APN]` par un visage mini animé (yeux qui clignent toutes les 4-7s).
+```text
+   ╭─────╮
+   │◉ ◡ ◉│
+   ╰──◡──╯
+```
 
-### Composant
-- Nouveau `src/apn/Face.tsx` :
-  - Props : `mood`, `state`, `size` ('xs'|'sm'|'md'|'lg'), `blink`, `variant` ('inline'|'overlay'|'ambient').
-  - Catalogue d'expressions ASCII par mood :
-    - calm : `( ◉ ◡ ◉ )`
-    - focus : `[ ◉ — ◉ ]`
-    - joy : `( ^ ◡ ^ )`
-    - alert : `( ⊙ _ ⊙ )`
-    - melt : `( ╥ ◡ ╥ )`
-    - thinking : yeux qui bougent `( ◐ . ◑ )` → `( ◑ . ◐ )`
-  - Animation clignement via interval (yeux remplacés par `_ _` pendant 120ms).
-  - Variant overlay : fondu in/out CSS (opacity + slight blur), durée d'apparition 2-4s.
+Avec des variantes par taille :
+- `xs` (TopBar/Composer) : reste 1 ligne `(◉◡◉)` pour rester compact
+- `sm` : 3 lignes compactes
+- `md`/`lg` (orbe) : 5-7 lignes avec contour, sourcils, bouche animée
 
-### Intégration
-- `OrbCanvas` reçoit un overlay enfant : `<Face variant="overlay" />` rendu par-dessus le canvas avec `position: absolute`, déclenché par un hook `useFaceApparition()` (probabilité + cooldown).
-- `Composer` : `<Face variant="inline" size="xs" />` à gauche de la barre quand `value.length > 0` ou `micActive`.
-- `TopBar` : remplacer le `[APN]` statique par `<Face variant="inline" size="xs" blink />`.
-- `AmbientChars` : injecter aléatoirement (≤5% des sprites) un mini visage à la place d'un char.
+### Catalogue d'expressions enrichi
+Pour chaque `mood` × `state`, on définit :
+- **eyes** (gauche/droit séparés pour asymétrie possible)
+- **brows** (sourcils : `‾`, `╱╲`, `__`, vide)
+- **mouth** (états : `◡`, `○`, `─`, `◯`, `^`, `v`, séquence parlante `▁▂▃▂▁`)
 
-### Réglage
-- Toggle dans `ControlsDrawer` → "Visage APN" (on/off, fréquence : discret / normal / fréquent).
-- Persisté dans `localStorage` (`apn:face`).
+Exemples :
+- `calm` : sourcils neutres, yeux `◉◡◉`, bouche `◡`
+- `focused` : sourcils froncés `╲ ╱`, yeux `◉─◉`, bouche `─`
+- `alert` : sourcils hauts `‾ ‾`, yeux `⊙_⊙`, bouche `○`
+- `empathetic` : sourcils inclinés `╲╱`, yeux `♡◡♡`, bouche `◡`
+
+### Micro-mouvements
+- **Clignement asymétrique** : 15% de chance de cligner d'un seul œil (clin d'œil)
+- **Saccades oculaires** : pendant `idle`, les yeux regardent à gauche/droite/haut aléatoirement (`◐◉`, `◉◑`, `◔◔`)
+- **Bouche parlante** : pendant `state === "speaking"`, la bouche s'anime en boucle `─ → ○ → ◯ → ○ → ─` (60-120ms par frame)
+- **Respiration** : très léger `scale` CSS (1 → 1.02 → 1) sur 4s en boucle pour donner vie
+- **Réaction au mood en temps réel** : transition CSS douce quand le mood change (fade des yeux 200ms)
+
+### Nouveau prop `speaking?: boolean`
+Déclenche l'animation de bouche peu importe le `state`.
+
+---
+
+## 2. Visage cinématique dans l'orbe
+
+Actuellement `useFaceApparition` affiche un visage `xs` flou. On muscle :
+
+### Hook `useFaceApparition` enrichi
+- Variants d'apparition : `peek` (court, petit, latéral), `full` (grand, centré, 4s), `glitch` (multi-frames rapide)
+- Probabilité de `full` augmente après une réponse longue de l'IA (déjà détectable via `state === "speaking"` + durée)
+
+### Overlay orbe
+- Le `<Face variant="overlay" size="lg" />` au centre de l'orbe affiche maintenant le visage **multi-lignes complet**, ~80-120px, avec :
+  - Drop-shadow mood plus prononcé
+  - Légère distorsion CRT (utilise `.scanlines` existant)
+  - Animation d'entrée : ASCII se compose ligne par ligne (typewriter, 80ms/ligne) puis se dissout en glyphes flottants
+  - Animation de sortie : explose en particules (réutilise le système `AmbientChars`)
+- Quand l'IA `speaking` longtemps, le visage reste affiché en permanence avec bouche animée (mode "présence active")
+
+### Trigger interactif
+- Au tap/clic sur l'orbe → fait apparaître le visage immédiatement avec un clin d'œil (déjà un orbe tactile, on ajoute le hook)
+
+---
+
+## 3. TopBar — visage permanent et vivant
+
+Aujourd'hui : `<Face xs blink />` à côté de `[APN]`.  
+Refonte :
+- Le visage **remplace complètement** le texte `[APN]` (plus besoin du double affichage)
+- Animation continue : clignements + micro-saccades oculaires toutes les 5-10s
+- Réagit au `state` global :
+  - `listening` → bouche `○`, pulse mood
+  - `thinking` → yeux qui pannent `◐.◑ ↔ ◑.◐` (déjà là, on accélère)
+  - `speaking` → bouche qui s'anime
+  - `idle` → respiration douce
+- Tap sur le visage → ouvre un mini-dialogue (toast) avec le mood actuel + dernière action
+
+---
+
+## 4. Composer — visage réactif
+
+Aujourd'hui : `<Face xs />` quand l'utilisateur tape.  
+Refonte :
+- Visage à gauche du textarea, **toujours visible** (pas seulement quand on tape)
+- Réagit en temps réel :
+  - Tape rapidement → yeux suivent le rythme (`◉ ◉` → `◔ ◔` → `◉ ◉`)
+  - Mic actif → yeux `( ◉ ◡ ◉ )` + bouche `○` qui pulse
+  - Message envoyé → clin d'œil rapide + sourire `( ^ ◡ ^ )` 1s
+  - Réponse IA en cours (`speaking`) → bouche qui parle en synchro
+  - Erreur → expression `alert` 2s puis retour
+- Petite hitbox tactile (44px) → tap sur visage = focus textarea
+
+---
+
+## 5. Réglages (`ControlsDrawer`)
+
+L'option "Visage APN" existe déjà avec fréquences. On ajoute :
+- **Style** : `Compact` (1 ligne) / `Expressif` (multi-lignes) / `Cinématique` (full ASCII art dans orbe)
+- **Animations** : toggle micro-mouvements (respiration, saccades) on/off pour les utilisateurs sensibles au mouvement
+- Persisté `localStorage` (`apn:face:style`, `apn:face:micro`)
 
 ---
 
 ## Fichiers touchés
 
-**Créés**
-- `src/apn/Face.tsx`
-- `src/apn/useFaceApparition.ts`
-
 **Modifiés**
-- `src/apn/TopBar.tsx` — refonte responsive + visage `[APN]`
-- `src/apn/Composer.tsx` — visage inline + cibles tactiles
-- `src/apn/OrbCanvas.tsx` (ou wrapper dans `Index.tsx`) — overlay visage
-- `src/apn/AsciiSidebarLeft.tsx` / `Right.tsx` — `hidden md:flex`
-- `src/apn/AmbientChars.tsx` — densité mobile + injection visages
-- `src/apn/ControlsDrawer.tsx` — toggle Visage APN, slider fréquence
-- `src/apn/auth/Onboarding.tsx` / `Lock.tsx` — vidéo cap + scroll mobile
-- `src/apn/ChatLog.tsx` / `MedicalReport.tsx` — full-screen mobile
-- `src/pages/Index.tsx` — nouveau bandeau mobile compact, pixelRatio adaptatif
-- `src/index.css` — utilitaires `tap-target`, animations clignement/fondu
+- `src/apn/Face.tsx` — refonte complète : multi-lignes, sourcils, bouche animée, clignements asymétriques, saccades, respiration
+- `src/apn/useFaceApparition.ts` — variants `peek`/`full`/`glitch`, déclenchement par speaking long
+- `src/apn/TopBar.tsx` — visage remplace `[APN]`, réactif au state, tap → toast mood
+- `src/apn/Composer.tsx` — visage permanent à gauche, réactions au typing/mic/send/speaking/error
+- `src/apn/OrbCanvas.tsx` (ou wrapper Index) — overlay multi-lignes, animation typewriter d'entrée
+- `src/apn/ControlsDrawer.tsx` — options Style + micro-animations
+- `src/index.css` — keyframes : `face-breath`, `face-typewriter`, `mouth-talk`, `face-wink`
+- `src/pages/Index.tsx` — passer `speaking` & last-error au Composer/Face
 
 **Pas touché**
-- Backend / edge functions / DB / auth logique.
+- Backend, DB, edge functions, auth, mobile layout (déjà fait dans la passe précédente)
 
 ---
 
 ## Hors scope
-- Refonte visuelle complète du design system.
-- Visage 3D / WebGL avancé (on reste ASCII pour rester cohérent avec l'esthétique terminale).
-- Multi-utilisateur, sync.
+- Visage 3D / WebGL
+- Synchronisation labiale réelle sur l'audio TTS (on simule avec un cycle de bouche)
+- Émotions générées par IA (on garde le mapping `mood`/`state` actuel)
 
-Une fois validé, j'implémente les deux axes en une passe.
+Une fois validé, j'implémente d'une seule passe.
