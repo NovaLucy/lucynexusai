@@ -113,6 +113,7 @@ export function useVoice() {
   const onErrorRef = useRef<((msg: string) => void) | undefined>();
   const wantListenRef = useRef(false);
   const finalTextRef = useRef("");
+  const liveTextRef = useRef("");
 
   const startListening = useCallback(
     (
@@ -156,8 +157,11 @@ export function useVoice() {
       const r = new Ctor();
       r.lang = "fr-FR";
       r.interimResults = true;
-      r.continuous = true; // keep listening across pauses
+      // Keep this single-shot: Chrome/Safari often reject automatic restarts
+      // because they are no longer inside the user's click gesture.
+      r.continuous = false;
       finalTextRef.current = "";
+      liveTextRef.current = "";
       wantListenRef.current = true;
 
       r.onresult = (e: any) => {
@@ -168,35 +172,37 @@ export function useVoice() {
           else interim += res[0].transcript;
         }
         const live = (finalTextRef.current + interim).trim();
+        liveTextRef.current = live;
         if (live) onPartialRef.current?.(live);
       };
       r.onend = () => {
-        // Auto-restart if user is still listening (continuous chunks)
-        if (wantListenRef.current) {
-          try {
-            r.start();
-            return;
-          } catch (err) {
-            console.warn("STT restart failed", err);
-          }
-        }
+        wantListenRef.current = false;
         setListening(false);
-        const text = finalTextRef.current.trim();
+        recognitionRef.current = null;
+        const text = (finalTextRef.current || liveTextRef.current).trim();
         if (text) onResultRef.current?.(text);
       };
       r.onerror = (e: any) => {
         const code = e?.error || "unknown";
         console.warn("STT error:", code);
-        if (code === "no-speech") {
-          // benign — let onend handle restart
-          return;
-        }
         wantListenRef.current = false;
         setListening(false);
+        recognitionRef.current = null;
+        const text = (finalTextRef.current || liveTextRef.current).trim();
+        if (text) {
+          onResultRef.current?.(text);
+          return;
+        }
+        if (code === "no-speech") {
+          onErrorRef.current?.("Je n'ai rien entendu. Réessaie en parlant juste après avoir appuyé sur [MIC].");
+          return;
+        }
         if (code === "not-allowed" || code === "service-not-allowed") {
           onErrorRef.current?.("Accès au micro refusé. Autorise-le dans les réglages du navigateur.");
         } else if (code === "audio-capture") {
           onErrorRef.current?.("Aucun micro détecté.");
+        } else if (code === "network") {
+          onErrorRef.current?.("Service vocal du navigateur inaccessible. Utilise Chrome/Edge, vérifie que le micro est autorisé, puis réessaie.");
         } else if (code !== "aborted") {
           onErrorRef.current?.(`Reconnaissance vocale: ${code}`);
         }
