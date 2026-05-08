@@ -102,21 +102,30 @@ Deno.serve(async (req) => {
 
     const systemPrompt = buildSystemPrompt(profile, !!isFirstContact);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
+    const callModel = (model: string, withReasoning: boolean) =>
+      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages,
+          ],
+          stream: true,
+          ...(withReasoning ? { reasoning: { effort: "low" } } : {}),
+        }),
+      });
+
+    // Try the smarter model first, fallback to flash on rate-limit / failure.
+    let response = await callModel("google/gemini-3.1-pro-preview", true);
+    if (!response.ok && (response.status === 429 || response.status >= 500)) {
+      console.warn("Pro model failed", response.status, "— falling back to flash");
+      response = await callModel("google/gemini-3-flash-preview", false);
+    }
 
     if (!response.ok) {
       if (response.status === 429) {
