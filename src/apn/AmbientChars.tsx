@@ -60,7 +60,13 @@ export default function AmbientChars() {
         if (p.x > W) p.x = 0;
         if (p.y < 0) p.y = H;
         if (p.y > H) p.y = 0;
-        ctx.fillStyle = `hsl(0 0% 70% / ${p.o})`;
+        if (p.isFace) {
+          ctx.font = "13px 'JetBrains Mono', monospace";
+          ctx.fillStyle = `hsl(var(--mood-h) var(--mood-s) var(--mood-l) / ${p.o})`;
+        } else {
+          ctx.font = "11px 'JetBrains Mono', monospace";
+          ctx.fillStyle = `hsl(0 0% 70% / ${p.o})`;
+        }
         ctx.fillText(p.ch, p.x, p.y);
       }
       raf = requestAnimationFrame(tick);
