@@ -158,6 +158,10 @@
     85%  { opacity: 0.95; transform: scale(1); }
     100% { opacity: 0; transform: scale(1.05); }
   }
+  @keyframes face-breath {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.025); }
+  }
   .bracket-btn:hover:not(:disabled) {
     border-color: hsl(var(--mood));
     color: hsl(var(--mood));

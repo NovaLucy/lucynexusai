@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { STATE_LABEL, type AgentState, type Mood } from "@/apn/types";
 import Face from "@/apn/Face";
 
@@ -31,8 +32,18 @@ export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medica
       aria-live="polite"
     >
       <span className="shrink-0 flex items-center gap-1">
-        <Face mood={mood} state={state} size="xs" blink variant="inline" />
-        <span className="hidden sm:inline mood-text font-medium">[APN]</span>
+        <Face
+          mood={mood}
+          state={state}
+          size="xs"
+          blink
+          variant="inline"
+          onClick={() =>
+            toast.message(`APN · ${STATE_LABEL[state]}`, {
+              description: `mood: ${mood}${name ? ` · usr: ${name}` : ""}`,
+            })
+          }
+        />
       </span>
 
       <span className="text-foreground/30 flex-1 truncate hidden sm:inline">
