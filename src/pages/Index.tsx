@@ -163,6 +163,20 @@ export default function Index() {
 
   const loops = apn.profile?.open_loops?.length ?? 0;
 
+  if (auth.status === "loading") {
+    return (
+      <main className="w-screen h-screen bg-black flex items-center justify-center">
+        <div className="font-mono text-xs text-foreground/40">[APN] init…</div>
+      </main>
+    );
+  }
+  if (auth.status === "needs-enrollment") {
+    return <Onboarding onDone={auth.onEnrolled} />;
+  }
+  if (auth.status === "locked") {
+    return <Lock onUnlock={auth.unlock} onReset={auth.onReset} />;
+  }
+
   return (
     <main
       className="relative w-screen overflow-hidden bg-black flex flex-col"
