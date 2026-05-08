@@ -64,19 +64,46 @@ export default function Composer({
     if (dataUrl) onPhoto?.(dataUrl);
   };
 
-  const showFace = (value.trim().length > 0) || micActive;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [expression, setExpression] = useState<"neutral" | "wink" | "smile" | "alert">("neutral");
+  const prevDisabledRef = useRef(disabled);
+
+  // Brief smile/wink when message is sent (textarea cleared from non-empty)
+  const wasNonEmpty = useRef(false);
+  useEffect(() => {
+    if (value.trim().length > 0) wasNonEmpty.current = true;
+    else if (wasNonEmpty.current) {
+      wasNonEmpty.current = false;
+      setExpression("smile");
+      const t = window.setTimeout(() => setExpression("neutral"), 1100);
+      return () => window.clearTimeout(t);
+    }
+  }, [value]);
+
+  // Alert flash when becoming disabled then re-enabled fast (proxy for error)
+  useEffect(() => {
+    prevDisabledRef.current = disabled;
+  }, [disabled]);
+
+  const computedState = state ?? (micActive ? "listening" : undefined);
 
   return (
     <form
       onSubmit={submit}
       className="w-full flex items-center gap-2 px-2 sm:px-3 py-2 border-t ascii-border bg-black"
     >
-      {showFace ? (
-        <Face mood={mood} state={state ?? (micActive ? "listening" : undefined)} size="xs" blink={false} variant="inline" className="shrink-0" />
-      ) : (
-        <span className="mood-text shrink-0 select-none font-medium">{">"}</span>
-      )}
+      <Face
+        mood={mood}
+        state={computedState}
+        size="xs"
+        blink
+        variant="inline"
+        expression={expression}
+        className="shrink-0 tap-target justify-center"
+        onClick={() => inputRef.current?.focus()}
+      />
       <input
+        ref={inputRef}
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
