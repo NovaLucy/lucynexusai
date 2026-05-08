@@ -28,6 +28,8 @@ type UserProfile = {
   first_seen?: string;
 };
 
+export type SyncStatus = "idle" | "loading" | "saving" | "saved" | "error";
+
 export function useAPN() {
   const sessionId = useRef<string>(getSessionId());
   const profileRef = useRef<UserProfile | null>(null);
@@ -37,43 +39,54 @@ export function useAPN() {
   const [error, setError] = useState<string | null>(null);
   const [caption, setCaption] = useState<string>("Je suis prêt.");
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
 
   // Load history + profile
   useEffect(() => {
     (async () => {
-      const [{ data: memData }, { data: profData }] = await Promise.all([
-        supabase
-          .from("apn_memory")
-          .select("user_msg, apn_msg, created_at, intent")
-          .eq("session_id", sessionId.current)
-          .order("created_at", { ascending: false })
-          .limit(8),
-        supabase
-          .from("apn_user_profile")
-          .select("*")
-          .eq("session_id", sessionId.current)
-          .maybeSingle(),
-      ]);
+      setSyncStatus("loading");
+      try {
+        const [{ data: memData, error: memErr }, { data: profData, error: profErr }] = await Promise.all([
+          supabase
+            .from("apn_memory")
+            .select("user_msg, apn_msg, created_at, intent")
+            .eq("session_id", sessionId.current)
+            .order("created_at", { ascending: false })
+            .limit(8),
+          supabase
+            .from("apn_user_profile")
+            .select("*")
+            .eq("session_id", sessionId.current)
+            .maybeSingle(),
+        ]);
+        if (memErr || profErr) throw memErr ?? profErr;
 
-      const rows = (memData ?? []).reverse();
-      const msgs: Message[] = [];
-      for (const r of rows) {
-        const t = new Date(r.created_at).getTime();
-        msgs.push({ id: crypto.randomUUID(), role: "user", content: r.user_msg, ts: t });
-        msgs.push({
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: r.apn_msg,
-          ts: t + 1,
-          mood: (r.intent as any)?.mood as Mood | undefined,
-        });
-      }
-      setMessages(msgs);
+        const rows = (memData ?? []).reverse();
+        const msgs: Message[] = [];
+        for (const r of rows) {
+          const t = new Date(r.created_at).getTime();
+          msgs.push({ id: crypto.randomUUID(), role: "user", content: r.user_msg, ts: t });
+          msgs.push({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: r.apn_msg,
+            ts: t + 1,
+            mood: (r.intent as any)?.mood as Mood | undefined,
+          });
+        }
+        setMessages(msgs);
 
-      if (profData) {
-        const p = profData as UserProfile;
-        profileRef.current = p;
-        setProfile(p);
+        if (profData) {
+          const p = profData as UserProfile;
+          profileRef.current = p;
+          setProfile(p);
+        }
+        setSyncStatus("saved");
+        setLastSyncAt(Date.now());
+      } catch (e) {
+        console.warn("load failed", e);
+        setSyncStatus("error");
       }
     })();
   }, []);
@@ -86,6 +99,7 @@ export function useAPN() {
   useEffect(() => { applyMoodToRoot(mood); }, [mood]);
 
   const persist = useCallback(async (userMsg: string, apnMsg: string, m: Mood) => {
+    setSyncStatus("saving");
     const { error } = await supabase.from("apn_memory").insert({
       session_id: sessionId.current,
       user_msg: userMsg,
@@ -93,7 +107,13 @@ export function useAPN() {
       intent: { mood: m },
       meta: {},
     });
-    if (error) console.warn("persist failed", error);
+    if (error) {
+      console.warn("persist failed", error);
+      setSyncStatus("error");
+    } else {
+      setSyncStatus("saved");
+      setLastSyncAt(Date.now());
+    }
   }, []);
 
   // Fire-and-forget profile update
@@ -264,6 +284,7 @@ export function useAPN() {
   return {
     sessionId: sessionId.current,
     messages, state, mood, caption, error, profile,
+    syncStatus, lastSyncAt,
     send, setStandby, setListeningState,
   };
 }

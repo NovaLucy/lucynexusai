@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { STATE_LABEL, type AgentState, type Mood } from "@/apn/types";
 import Face from "@/apn/Face";
+import SyncIndicator from "@/apn/SyncIndicator";
+import type { SyncStatus } from "@/apn/useAPN";
 
 interface Props {
   state: AgentState;
@@ -11,6 +13,9 @@ interface Props {
   onOpenCfg: () => void;
   medicalMode?: boolean;
   onToggleMedical?: () => void;
+  syncStatus: SyncStatus;
+  lastSyncAt: number | null;
+  sessionId: string;
 }
 
 function clock() {
@@ -19,7 +24,7 @@ function clock() {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medicalMode, onToggleMedical }: Props) {
+export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medicalMode, onToggleMedical, syncStatus, lastSyncAt, sessionId }: Props) {
   const [time, setTime] = useState(clock());
   useEffect(() => {
     const id = setInterval(() => setTime(clock()), 1000);
@@ -78,6 +83,7 @@ export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medica
           [MED]
         </button>
       )}
+      <SyncIndicator status={syncStatus} lastSyncAt={lastSyncAt} sessionId={sessionId} />
       <button onClick={onOpenLog} className="bracket-btn" aria-label="Journal">[LOG]</button>
       <button onClick={onOpenCfg} className="bracket-btn" aria-label="Configuration">[CFG]</button>
     </div>

@@ -219,6 +219,9 @@ export default function Index() {
             setMedicalMode((v) => !v);
             toast.info(!medicalMode ? "Mode pré-médecin activé" : "Mode pré-médecin désactivé");
           }}
+          syncStatus={apn.syncStatus}
+          lastSyncAt={apn.lastSyncAt}
+          sessionId={apn.sessionId}
         />
       </div>
 
