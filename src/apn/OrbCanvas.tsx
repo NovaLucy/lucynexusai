@@ -1,169 +1,22 @@
 import { useEffect, useRef } from "react";
-import * as THREE from "three";
-import { ENERGY_TARGET, MOOD_HUE, type AgentState, type Mood } from "@/apn/types";
+import { ENERGY_TARGET, MOOD_HSL, type AgentState, type Mood } from "@/apn/types";
 
-const MOOD_INDEX: Record<Mood, number> = { calm: 0, empathetic: 1, focused: 2, alert: 3 };
+/**
+ * Pure ASCII rotating sphere — terminal donut.c style.
+ * Renders on a 2D canvas. Color = current mood.
+ */
 
-const VERT = /* glsl */ `
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const FRAG = /* glsl */ `
-  precision highp float;
-  varying vec2 vUv;
-  uniform float uTime;
-  uniform float uEnergy;
-  uniform float uHue;
-  uniform float uMood;
-  uniform float uIntensity;
-
-  vec3 hsv2rgb(vec3 c) {
-    vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
-    rgb = rgb*rgb*(3.0-2.0*rgb);
-    return c.z * mix(vec3(1.0), rgb, c.y);
-  }
-
-  float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453);
-  }
-  float noise(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f*f*(3.0-2.0*f);
-    float a = hash(i);
-    float b = hash(i+vec2(1.0,0.0));
-    float c = hash(i+vec2(0.0,1.0));
-    float d = hash(i+vec2(1.0,1.0));
-    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
-  }
-  float fbm(vec2 p) {
-    float v = 0.0, a = 0.5;
-    for (int i=0;i<5;i++) {
-      v += a * noise(p);
-      p = p*2.02 + vec2(1.7, 9.2);
-      a *= 0.5;
-    }
-    return v;
-  }
-
-  mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
-
-  // Plasma sample at point p with given hue
-  vec4 sampleOrb(vec2 p, float t, float hue, float energy, bool isAlert, bool isFocused) {
-    float r = length(p);
-    float ang = atan(p.y, p.x);
-
-    // Breathing
-    float breathSpeed = isAlert ? 4.5 : 1.6;
-    float breathAmp   = isAlert ? 0.10 : 0.05;
-    float breath = 1.0 + breathAmp * sin(t * breathSpeed) * (0.5 + energy);
-
-    float R = 0.92 * breath;
-
-    // Soft sphere envelope (anti-aliased)
-    float aa = 0.012;
-    float sphereCore = smoothstep(R + aa, R - aa, r);
-    // Rim ring (thin bright outline)
-    float rimRing = exp(-pow((r - R) / 0.018, 2.0));
-    // Outer atmospheric glow
-    float outerGlow = exp(-pow(max(r - R, 0.0) / 0.10, 1.4));
-
-    // ---------- Radial filaments ----------
-    float spin = isFocused ? t * 0.15 : t * 0.04;
-    float a2 = ang + spin;
-    // multi-octave angular noise for finer strands
-    float n1 = noise(vec2(a2 * 22.0, t * 0.5));
-    float n2 = noise(vec2(a2 * 55.0, t * 0.9 + 7.3));
-    float n3 = noise(vec2(a2 * 110.0, t * 1.3 + 2.1));
-    float strand = pow(n1, 2.2) * 0.55 + pow(n2, 4.0) * 1.1 + pow(n3, 8.0) * 0.6;
-    // Radial profile
-    float radial = smoothstep(0.04, 0.30, r) * smoothstep(R, 0.42, r);
-    radial *= 0.82 + 0.18 * noise(vec2(r * 10.0, a2 * 7.0 + t));
-    float filaments = strand * radial;
-
-    // ---------- Bright central star ----------
-    float core = exp(-r * r * 65.0) * 1.5;
-    float spikes = pow(max(0.0, cos(ang * 2.0)), 80.0)
-                 + pow(max(0.0, cos(ang * 2.0 + 1.5707)), 80.0);
-    spikes *= exp(-r * 7.0) * 0.85;
-    float starCore = (core + spikes) * (0.6 + 0.85 * energy) * breath;
-
-    // ---------- Sparkles on rim ----------
-    float sparkle = 0.0;
-    for (int i = 0; i < 18; i++) {
-      float fi = float(i);
-      float aSp = fi * 0.349 + t * (0.04 + 0.035 * fract(fi * 0.731));
-      float rSp = R - 0.015 - 0.035 * fract(fi * 0.317);
-      vec2 sp = vec2(cos(aSp), sin(aSp)) * rSp;
-      float d = length(p - sp);
-      float blink = 0.5 + 0.5 * sin(t * (2.0 + fract(fi * 1.91) * 4.0) + fi);
-      sparkle += exp(-d * d * 1400.0) * (0.5 + 0.9 * blink);
-    }
-
-    // ---------- Palette ----------
-    vec3 deep   = hsv2rgb(vec3(hue, 0.95, 0.32));
-    vec3 mid    = hsv2rgb(vec3(hue, 0.85, 0.92));
-    vec3 bright = hsv2rgb(vec3(hue + 0.02, 0.22, 1.0));
-
-    vec3 interior = deep * 0.32;
-    interior += mid * filaments * 1.7;
-    interior += bright * starCore;
-    interior *= sphereCore;
-
-    vec3 col = interior
-             + bright * (rimRing * 1.3 + outerGlow * 0.55)
-             + bright * sparkle;
-
-    float a = clamp(
-      sphereCore * (0.5 + 0.65 * (filaments + starCore))
-      + rimRing * 0.95
-      + outerGlow * 0.45
-      + sparkle, 0.0, 1.0);
-
-    return vec4(col, a);
-  }
-
-  void main() {
-    vec2 p = (vUv - 0.5) * 2.0;
-    float t = uTime;
-    bool isAlert   = abs(uMood - 3.0) < 0.5;
-    bool isFocused = abs(uMood - 2.0) < 0.5;
-
-    // 2x2 rotated-grid supersampling for crisp edges
-    vec2 dx = dFdx(p) * 0.25;
-    vec2 dy = dFdy(p) * 0.25;
-    vec4 s0 = sampleOrb(p + vec2( dx.x + dy.x,  dx.y + dy.y), t, uHue, uEnergy, isAlert, isFocused);
-    vec4 s1 = sampleOrb(p + vec2(-dx.x + dy.x, -dx.y + dy.y), t, uHue, uEnergy, isAlert, isFocused);
-    // Slight chromatic aberration on the second pair (hue offset)
-    vec4 s2 = sampleOrb(p + vec2( dx.x - dy.x,  dx.y - dy.y), t, uHue + 0.01, uEnergy, isAlert, isFocused);
-    vec4 s3 = sampleOrb(p + vec2(-dx.x - dy.x, -dx.y - dy.y), t, uHue - 0.01, uEnergy, isAlert, isFocused);
-    vec4 s = (s0 + s1 + s2 + s3) * 0.25;
-
-    vec3 col = s.rgb * uIntensity;
-    // Tonemap (Reinhard) for highlight rolloff
-    col = col / (1.0 + col);
-    // Gamma
-    col = pow(col, vec3(1.0 / 2.2));
-    // Subtle dithering to kill banding
-    float d = (hash(gl_FragCoord.xy + t) - 0.5) / 255.0;
-    col += d;
-
-    gl_FragColor = vec4(col, s.a);
-  }
-`;
+const GLYPHS = ".,-:;+*=#%@";
 
 interface Props {
   state: AgentState;
   mood: Mood;
-  intensity?: number;     // 0.5–1.5
-  pixelRatioCap?: number; // default 4 (4K-ready)
+  intensity?: number;
+  pixelRatioCap?: number;
 }
 
-export default function OrbCanvas({ state, mood, intensity = 1.0, pixelRatioCap = 4 }: Props) {
-  const mountRef = useRef<HTMLDivElement>(null);
+export default function OrbCanvas({ state, mood, intensity = 1.0, pixelRatioCap = 2 }: Props) {
+  const ref = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef(state);
   const moodRef = useRef(mood);
   const intensityRef = useRef(intensity);
@@ -173,84 +26,205 @@ export default function OrbCanvas({ state, mood, intensity = 1.0, pixelRatioCap 
   useEffect(() => { intensityRef.current = intensity; }, [intensity]);
 
   useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelRatioCap));
-    mount.appendChild(renderer.domElement);
-    renderer.domElement.style.width = "100%";
-    renderer.domElement.style.height = "100%";
-    renderer.domElement.style.display = "block";
+    const dpr = Math.min(window.devicePixelRatio || 1, pixelRatioCap);
 
-    const uniforms = {
-      uTime:      { value: 0 },
-      uEnergy:    { value: 0.3 },
-      uHue:       { value: MOOD_HUE.calm / 360 },
-      uMood:      { value: 0 },
-      uIntensity: { value: intensity },
-    };
-
-    const material = new THREE.ShaderMaterial({
-      vertexShader: VERT,
-      fragmentShader: FRAG,
-      uniforms,
-      transparent: true,
-      depthWrite: false,
-      extensions: { derivatives: true } as any,
-    });
-    const geometry = new THREE.PlaneGeometry(2, 2);
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
-
+    let W = 0, H = 0;
     const resize = () => {
-      const w = mount.clientWidth;
-      const h = mount.clientHeight;
-      renderer.setSize(w, h, false);
+      const rect = canvas.getBoundingClientRect();
+      W = Math.floor(rect.width);
+      H = Math.floor(rect.height);
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
     const ro = new ResizeObserver(resize);
-    ro.observe(mount);
+    ro.observe(canvas);
 
     let energy = 0.3;
-    let hue = MOOD_HUE.calm / 360;
+    let curHue = MOOD_HSL.calm.h;
+    let curSat = MOOD_HSL.calm.s;
+    let curLig = MOOD_HSL.calm.l;
     let raf = 0;
     const start = performance.now();
-    const animate = () => {
+
+    const draw = () => {
       const now = performance.now();
       const t = (now - start) / 1000;
-      const targetEnergy = ENERGY_TARGET[stateRef.current];
-      energy += (targetEnergy - energy) * 0.04;
-      const targetHue = MOOD_HUE[moodRef.current] / 360;
-      // shortest-path interpolation on hue circle
-      let dh = targetHue - hue;
-      if (dh > 0.5) dh -= 1;
-      if (dh < -0.5) dh += 1;
-      hue = (hue + dh * 0.06 + 1) % 1;
+      const st = stateRef.current;
+      const md = moodRef.current;
+      const inten = intensityRef.current;
 
-      uniforms.uTime.value = t;
-      uniforms.uEnergy.value = energy;
-      uniforms.uHue.value = hue;
-      uniforms.uMood.value = MOOD_INDEX[moodRef.current];
-      uniforms.uIntensity.value = intensityRef.current;
+      // Lerp energy
+      const targetE = ENERGY_TARGET[st];
+      energy += (targetE - energy) * 0.05;
 
-      renderer.render(scene, camera);
-      raf = requestAnimationFrame(animate);
+      // Lerp color
+      const tgt = MOOD_HSL[md];
+      let dh = tgt.h - curHue;
+      if (dh > 180) dh -= 360;
+      if (dh < -180) dh += 360;
+      curHue = (curHue + dh * 0.06 + 360) % 360;
+      curSat += (tgt.s - curSat) * 0.06;
+      curLig += (tgt.l - curLig) * 0.06;
+
+      // Cell size — scales with width
+      const cellW = Math.max(7, Math.min(11, W / 60));
+      const cellH = cellW * 1.15;
+      ctx.font = `${Math.floor(cellW * 1.5)}px 'JetBrains Mono', monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const cols = Math.floor(W / cellW);
+      const rows = Math.floor(H / cellH);
+
+      // Clear
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, W, H);
+
+      const cx = cols / 2;
+      const cy = rows / 2;
+      // Sphere radius in cells
+      const baseR = Math.min(cols, rows) * 0.42;
+      const breath = 1 + 0.04 * Math.sin(t * (st === "speaking" ? 3.2 : 1.6)) * (0.5 + energy);
+      const R = baseR * breath;
+
+      // Rotation speed by state
+      const rotSpeed = st === "thinking" ? 1.6 : st === "speaking" ? 1.2 : st === "listening" ? 0.7 : 0.45;
+      const A = t * rotSpeed;          // yaw
+      const B = t * rotSpeed * 0.55;   // pitch
+
+      // Light direction
+      const Lx = Math.cos(t * 0.3) * 0.6;
+      const Ly = -0.6;
+      const Lz = -0.7;
+      const Llen = Math.hypot(Lx, Ly, Lz);
+      const lx = Lx / Llen, ly = Ly / Llen, lz = Lz / Llen;
+
+      // Glitch (thinking) — random row offsets
+      const doGlitch = st === "thinking" && Math.sin(t * 6.3) > 0.85;
+
+      // Vortex spiral for "focused" mood
+      const vortex = md === "focused";
+      // Alert flicker
+      const isAlert = md === "alert";
+      const alertOn = !isAlert || Math.sin(t * 13.0) > -0.85;
+
+      // For each "screen" cell decide a glyph from sphere surface
+      // We sample the sphere parametrically (theta, phi) projecting forward.
+      // Simpler: for each pixel cell, compute (x,y) -> if inside circle, derive z from sphere, rotate the surface point and pick brightness.
+      const scale = R; // cells -> sphere radius units = 1
+      const colorBase = `${curHue.toFixed(0)} ${curSat.toFixed(0)}% `;
+      const dimColor = `hsl(${curHue.toFixed(0)} ${curSat.toFixed(0)}% ${(curLig * 0.35).toFixed(0)}%)`;
+      void dimColor;
+
+      // Pre-compute sin/cos
+      const cA = Math.cos(A), sA = Math.sin(A);
+      const cB = Math.cos(B), sB = Math.sin(B);
+
+      for (let j = 0; j < rows; j++) {
+        const rowOff = doGlitch && Math.random() > 0.92 ? (Math.random() - 0.5) * 6 : 0;
+        for (let i = 0; i < cols; i++) {
+          // Cell center in cell space (anisotropic — adjust for cellH/cellW)
+          const dx = (i - cx);
+          const dy = (j - cy) * (cellH / cellW);
+          const r2 = dx * dx + dy * dy;
+          if (r2 > scale * scale) continue;
+          const z = Math.sqrt(scale * scale - r2);
+
+          // Surface point on unit sphere
+          let nx = dx / scale;
+          let ny = dy / scale;
+          let nz = z / scale;
+
+          // Rotate around Y then X
+          const x1 = nx * cA + nz * sA;
+          const z1 = -nx * sA + nz * cA;
+          const y1 = ny * cB + z1 * sB;
+          const z2 = -ny * sB + z1 * cB;
+
+          // Lambert lighting against rotated normal
+          let lambert = nx * lx + ny * ly + nz * lz;
+          lambert = Math.max(0, lambert);
+
+          // Surface "texture" via a procedural pattern on rotated coords
+          let theta = Math.atan2(x1, z2);
+          const phi = Math.asin(Math.max(-1, Math.min(1, y1)));
+          if (vortex) {
+            theta += phi * 3.0 + t * 0.6;
+          }
+          const pat =
+            0.5 +
+            0.5 *
+              Math.sin(theta * 8 + t * 0.7) *
+              Math.cos(phi * 6 - t * 0.5);
+          let bright = lambert * 0.7 + pat * 0.35 + energy * 0.15;
+          bright = Math.max(0, Math.min(1, bright));
+
+          // Outgoing wave for "speaking"
+          if (st === "speaking") {
+            const surfR = Math.sqrt(r2) / scale;
+            const wave = Math.sin(surfR * 18 - t * 6.0);
+            bright = Math.max(0, Math.min(1, bright + wave * 0.18));
+          }
+
+          // Map to glyph
+          const gi = Math.min(GLYPHS.length - 1, Math.floor(bright * GLYPHS.length));
+          if (gi < 1) continue; // skip near-black
+          const ch = GLYPHS[gi];
+
+          // Color: mood hue, lightness scaled by brightness, with iridescence near limb
+          const limb = 1 - Math.abs(nz); // edge highlight
+          const lig = (curLig * (0.45 + 0.55 * bright) + limb * 12) * inten;
+          const finalLig = Math.max(8, Math.min(95, lig));
+          const alpha = isAlert && !alertOn ? 0.35 : 1;
+          ctx.fillStyle = `hsl(${colorBase}${finalLig.toFixed(0)}% / ${alpha})`;
+
+          const px = i * cellW + cellW / 2;
+          const py = j * cellH + cellH / 2 + rowOff;
+          ctx.fillText(ch, px, py);
+        }
+      }
+
+      // CRT scanline drift — drawn as faint horizontal bar
+      const scanY = ((t * 60) % H);
+      ctx.fillStyle = `hsl(${curHue.toFixed(0)} ${curSat.toFixed(0)}% 60% / 0.06)`;
+      ctx.fillRect(0, scanY, W, 2);
+
+      // Listening: small VU bars around base
+      if (st === "listening") {
+        const bars = 24;
+        const barR = baseR * cellW * 1.12;
+        for (let k = 0; k < bars; k++) {
+          const ang = (k / bars) * Math.PI * 2 + t * 0.4;
+          const amp = 4 + 10 * Math.abs(Math.sin(t * 4 + k * 0.7));
+          const x1 = W / 2 + Math.cos(ang) * barR;
+          const y1 = H / 2 + Math.sin(ang) * barR;
+          const x2 = W / 2 + Math.cos(ang) * (barR + amp);
+          const y2 = H / 2 + Math.sin(ang) * (barR + amp);
+          ctx.strokeStyle = `hsl(${curHue.toFixed(0)} ${curSat.toFixed(0)}% 60% / 0.7)`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+      }
+
+      raf = requestAnimationFrame(draw);
     };
-    raf = requestAnimationFrame(animate);
+    raf = requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
-      geometry.dispose();
-      material.dispose();
-      renderer.dispose();
-      if (renderer.domElement.parentElement === mount) mount.removeChild(renderer.domElement);
     };
   }, [pixelRatioCap]);
 
-  return <div ref={mountRef} className="absolute inset-0" aria-hidden />;
+  return <canvas ref={ref} className="absolute inset-0 w-full h-full" aria-hidden />;
 }

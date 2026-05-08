@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import OrbCanvas from "@/apn/OrbCanvas";
-import MicroHUD from "@/apn/MicroHUD";
+import TopBar from "@/apn/TopBar";
 import Composer from "@/apn/Composer";
 import ChatLog from "@/apn/ChatLog";
 import ControlsDrawer from "@/apn/ControlsDrawer";
+import AsciiSidebarLeft from "@/apn/AsciiSidebarLeft";
+import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
+import AmbientChars from "@/apn/AmbientChars";
 import { useAPN } from "@/apn/useAPN";
 import { useVoice } from "@/apn/useVoice";
 import { tapLight, tapMedium } from "@/native";
@@ -16,13 +19,13 @@ export default function Index() {
   const [intensity, setIntensity] = useState(1.0);
   const [pixelRatio, setPixelRatio] = useState(1.5);
   const [busy, setBusy] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [cfgOpen, setCfgOpen] = useState(false);
 
   useEffect(() => {
     if (apn.error) toast.error(apn.error);
   }, [apn.error]);
 
-  // Proactive nudge: après chaque échange, planifie une relance douce dans 4h
-  // si APN a un sujet ouvert. Annule les précédentes pour ne pas spammer.
   useEffect(() => {
     if (!apn.profile?.message_count) return;
     const topic = apn.profile.last_topic ?? (apn.profile.open_loops?.[0] as any)?.topic;
@@ -37,8 +40,6 @@ export default function Index() {
   }, [apn.profile?.message_count, apn.profile?.last_topic]);
 
   const handlePhoto = (dataUrl: string) => {
-    // On envoie un message texte décrivant qu'une photo est partagée.
-    // (Vision multimodale = chantier suivant — pour l'instant on signale juste le geste.)
     void dataUrl;
     handleSend("Je viens de te partager une photo. Qu'est-ce que tu en penses ?");
   };
@@ -80,72 +81,86 @@ export default function Index() {
     }
   };
 
-  const knowsYou = !!(apn.profile?.display_name || apn.profile?.message_count);
+  const loops = apn.profile?.open_loops?.length ?? 0;
 
   return (
     <main
-      className="relative w-screen overflow-hidden"
-      style={{ backgroundColor: "#03040a", height: "100dvh" }}
+      className="relative w-screen overflow-hidden bg-black flex flex-col"
+      style={{ height: "100dvh" }}
     >
       <h1 className="sr-only">APN — Agent Personnel Numérique</h1>
 
-      {/* Top HUD */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-start justify-between px-3 pt-safe pl-safe pr-safe">
-        <div className="pt-3 flex items-center gap-2">
-          <MicroHUD state={apn.state} />
-          {knowsYou && apn.profile?.display_name && (
-            <span className="hidden sm:inline glass rounded-full px-3 py-1.5 text-[11px] uppercase tracking-widest text-foreground/70">
-              {apn.profile.display_name}
-            </span>
-          )}
-        </div>
-        <div className="pt-3 flex items-center gap-2">
-          <ChatLog messages={apn.messages} />
-          <ControlsDrawer
-            voiceEnabled={voice.prefs.enabled}
-            setVoiceEnabled={(v) => voice.setPrefs({ ...voice.prefs, enabled: v })}
-            voices={voice.voices}
-            voiceURI={voice.prefs.voiceURI}
-            setVoiceURI={(v) => voice.setPrefs({ ...voice.prefs, voiceURI: v })}
-            rate={voice.prefs.rate}
-            setRate={(n) => voice.setPrefs({ ...voice.prefs, rate: n })}
-            pitch={voice.prefs.pitch}
-            setPitch={(n) => voice.setPrefs({ ...voice.prefs, pitch: n })}
-            intensity={intensity}
-            setIntensity={setIntensity}
-            pixelRatio={pixelRatio}
-            setPixelRatio={setPixelRatio}
-            onTestVoice={() => voice.speak("Bonjour. Je suis APN. Je suis prêt à t'aider.")}
-            onStopVoice={() => voice.stop()}
-          />
-        </div>
+      {/* Ambient floating chars background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <AmbientChars />
       </div>
 
-      {/* Orbe centrée */}
-      <div
-        className="absolute left-1/2 top-[40%] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-        style={{ width: "min(58dvh, 88vw)", height: "min(58dvh, 88vw)" }}
-      >
-        <OrbCanvas state={apn.state} mood={apn.mood} intensity={intensity} pixelRatioCap={pixelRatio} />
+      {/* Top bar */}
+      <div className="relative z-20 pt-safe pl-safe pr-safe">
+        <TopBar
+          state={apn.state}
+          mood={apn.mood}
+          name={apn.profile?.display_name}
+          onOpenLog={() => setLogOpen(true)}
+          onOpenCfg={() => setCfgOpen(true)}
+        />
       </div>
 
-      {/* Caption d'état */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none px-4"
-        style={{ top: "calc(40% + min(29dvh, 44vw) + 18px)" }}
-        aria-live="polite"
-      >
-        <p className="font-display text-lg sm:text-xl tracking-wide mood-text drop-shadow-[0_0_18px_hsl(var(--mood)/0.4)]">
-          {apn.caption}
-        </p>
+      {/* 3-column layout */}
+      <div className="relative z-10 flex-1 flex min-h-0">
+        <AsciiSidebarLeft state={apn.state} />
+
+        {/* Center: orb */}
+        <section className="relative flex-1 flex flex-col min-w-0">
+          {/* Orb container */}
+          <div className="relative flex-1 flex items-center justify-center p-3">
+            <div className="relative ascii-border-dashed scanlines"
+              style={{
+                width: "min(72dvh, 92%)",
+                aspectRatio: "1 / 1",
+                maxHeight: "100%",
+              }}
+            >
+              {/* corner labels */}
+              <div className="absolute -top-3 left-2 px-1 bg-black text-[10px] uppercase tracking-widest mood-text">
+                ┌─ NEURAL CORE ─┐
+              </div>
+              <div className="absolute -top-3 right-2 px-1 bg-black text-[10px] tabular-nums text-foreground/40">
+                [{apn.state.toUpperCase().slice(0, 4)}]
+              </div>
+              <div className="absolute -bottom-3 left-2 px-1 bg-black text-[10px] text-foreground/40 tabular-nums">
+                FREQ:{(apn.mood.charCodeAt(0) * 7).toString(16).toUpperCase()}HZ
+              </div>
+              <div className="absolute -bottom-3 right-2 px-1 bg-black text-[10px] text-foreground/40">
+                └─ v0.1 ─┘
+              </div>
+
+              <OrbCanvas state={apn.state} mood={apn.mood} intensity={intensity} pixelRatioCap={pixelRatio} />
+            </div>
+          </div>
+
+          {/* Caption */}
+          <div className="px-4 pb-3 text-center" aria-live="polite">
+            <p className="font-mono text-xs sm:text-sm uppercase tracking-widest mood-text">
+              <span className="text-foreground/40">{">"} </span>
+              {apn.caption}
+              <span className="cursor-blink" />
+            </p>
+          </div>
+        </section>
+
+        <AsciiSidebarRight
+          msgCount={apn.profile?.message_count ?? apn.messages.length}
+          topic={apn.profile?.last_topic}
+          loops={loops}
+          name={apn.profile?.display_name}
+        />
       </div>
 
-      {/* Composer — bottom, safe-area + keyboard aware */}
+      {/* Composer at bottom */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 z-20 w-full flex justify-center px-3 transition-[bottom] duration-200"
-        style={{
-          bottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 12px))",
-        }}
+        className="relative z-20 pl-safe pr-safe transition-[padding] duration-200"
+        style={{ paddingBottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 0px))" }}
       >
         <Composer
           onSend={handleSend}
@@ -156,6 +171,28 @@ export default function Index() {
           disabled={busy}
         />
       </div>
+
+      {/* Overlays */}
+      <ChatLog messages={apn.messages} open={logOpen} onClose={() => setLogOpen(false)} />
+      <ControlsDrawer
+        open={cfgOpen}
+        onOpenChange={setCfgOpen}
+        voiceEnabled={voice.prefs.enabled}
+        setVoiceEnabled={(v) => voice.setPrefs({ ...voice.prefs, enabled: v })}
+        voices={voice.voices}
+        voiceURI={voice.prefs.voiceURI}
+        setVoiceURI={(v) => voice.setPrefs({ ...voice.prefs, voiceURI: v })}
+        rate={voice.prefs.rate}
+        setRate={(n) => voice.setPrefs({ ...voice.prefs, rate: n })}
+        pitch={voice.prefs.pitch}
+        setPitch={(n) => voice.setPrefs({ ...voice.prefs, pitch: n })}
+        intensity={intensity}
+        setIntensity={setIntensity}
+        pixelRatio={pixelRatio}
+        setPixelRatio={setPixelRatio}
+        onTestVoice={() => voice.speak("Bonjour. Je suis APN. Je suis prêt à t'aider.")}
+        onStopVoice={() => voice.stop()}
+      />
     </main>
   );
 }

@@ -2,47 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-/* APN Nova — design tokens (HSL only). Mood color is updated dynamically. */
+/* APN — Brutalist Mono. Terminal aesthetic, monospace, 1px lines. */
 @layer base {
   :root {
-    --background: 230 50% 3%;
-    --foreground: 220 18% 92%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 95%;
 
-    --card: 230 30% 6%;
-    --card-foreground: 220 18% 92%;
+    --card: 0 0% 3%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 230 35% 5%;
-    --popover-foreground: 220 18% 92%;
+    --popover: 0 0% 2%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 195 95% 55%;
-    --primary-foreground: 230 50% 4%;
+    --primary: 0 0% 95%;
+    --primary-foreground: 0 0% 0%;
 
-    --secondary: 230 20% 12%;
-    --secondary-foreground: 220 18% 92%;
+    --secondary: 0 0% 8%;
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 230 18% 14%;
-    --muted-foreground: 220 12% 64%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 50%;
 
-    --accent: 195 90% 60%;
-    --accent-foreground: 230 50% 4%;
+    --accent: 0 0% 95%;
+    --accent-foreground: 0 0% 0%;
 
-    --destructive: 0 75% 55%;
-    --destructive-foreground: 220 18% 96%;
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 0 0% 95%;
 
-    --border: 230 20% 14%;
-    --input: 230 20% 12%;
-    --ring: 195 95% 55%;
+    --border: 0 0% 18%;
+    --input: 0 0% 8%;
+    --ring: 0 0% 95%;
 
-    --radius: 1rem;
+    --radius: 0px;
 
-    /* Mood — dynamically driven by JS via document.documentElement.style */
+    /* Mood — driven by JS */
     --mood-h: 195;
     --mood-s: 95%;
     --mood-l: 55%;
     --mood: var(--mood-h) var(--mood-s) var(--mood-l);
 
-    --surface: 230 30% 6%;
-    --surface-glass: 230 30% 6% / 0.42;
+    /* Terminal palette */
+    --bg: 0 0% 0%;
+    --fg: 0 0% 92%;
+    --dim: 0 0% 45%;
+    --line: 0 0% 18%;
   }
 }
 
@@ -57,10 +60,11 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background: #03040a;
+    background: #000;
+    color: hsl(var(--fg));
     font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 400;
     overflow: hidden;
-    /* Disable iOS pull-to-refresh & rubber-band */
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
@@ -68,43 +72,121 @@
   }
 
   h1, h2, h3, .font-display {
-    font-family: 'Syne', system-ui, sans-serif;
-    letter-spacing: -0.01em;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: 0.02em;
+    font-weight: 500;
   }
 
-  /* Avoid iOS auto-zoom on input focus (font-size must be ≥16px) */
   input, textarea, select {
     font-size: 16px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
 }
 
 @layer utilities {
-  .glass {
-    background: hsl(var(--surface) / 0.55);
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid hsl(0 0% 100% / 0.06);
+  .mood-text   { color: hsl(var(--mood)); }
+  .mood-bg     { background-color: hsl(var(--mood)); }
+  .mood-border { border-color: hsl(var(--mood)); }
+
+  .ascii-border {
+    border: 1px solid hsl(var(--line));
+  }
+  .ascii-border-mood {
+    border: 1px solid hsl(var(--mood) / 0.55);
+  }
+  .ascii-border-dashed {
+    border: 1px dashed hsl(var(--line));
   }
 
-  .mood-text  { color: hsl(var(--mood)); }
-  .mood-bg    { background-color: hsl(var(--mood)); }
-  .mood-border{ border-color: hsl(var(--mood) / 0.55); }
-  .mood-ring  { box-shadow: 0 0 0 1px hsl(var(--mood) / 0.55), 0 0 24px hsl(var(--mood) / 0.18); }
-  .mood-glow  { box-shadow: 0 0 36px hsl(var(--mood) / 0.35); }
+  /* CRT scanlines overlay */
+  .scanlines::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      hsl(0 0% 100% / 0.025) 0px,
+      hsl(0 0% 100% / 0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode: overlay;
+  }
 
-  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  /* Block cursor blink */
+  .cursor-blink::after {
+    content: '▊';
+    color: hsl(var(--mood));
+    margin-left: 2px;
+    animation: cursor-blink 1s steps(2) infinite;
+  }
+  @keyframes cursor-blink {
+    50% { opacity: 0; }
+  }
+
+  /* Bracket button */
+  .bracket-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 8px;
+    color: hsl(var(--fg));
+    background: transparent;
+    border: 1px solid hsl(var(--line));
+    transition: all 120ms ease;
+    white-space: nowrap;
+  }
+  .bracket-btn:hover:not(:disabled) {
+    border-color: hsl(var(--mood));
+    color: hsl(var(--mood));
+  }
+  .bracket-btn:disabled {
+    opacity: 0.3;
+  }
+  .bracket-btn-active {
+    border-color: hsl(var(--mood));
+    color: hsl(var(--mood));
+    background: hsl(var(--mood) / 0.08);
+  }
+  .bracket-btn-rec {
+    border-color: hsl(0 80% 55%);
+    color: hsl(0 80% 55%);
+    background: hsl(0 80% 55% / 0.1);
+    animation: rec-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes rec-pulse {
+    50% { background: hsl(0 80% 55% / 0.25); }
+  }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: hsl(0 0% 100% / 0.08);
-    border-radius: 999px;
+    background: hsl(var(--line));
   }
 
   .pt-safe { padding-top: env(safe-area-inset-top); }
   .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   .pl-safe { padding-left: env(safe-area-inset-left); }
   .pr-safe { padding-right: env(safe-area-inset-right); }
+
+  /* Legacy classes kept as no-ops so lingering refs don't break */
+  .glass { background: transparent; }
+  .mood-ring { box-shadow: none; }
 }
 
 :root { --keyboard-h: 0px; }
 
-@keyframes apn-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.apn-fade-in { animation: apn-fade-in 220ms ease-out both; }
+@keyframes apn-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.apn-fade-in { animation: apn-fade-in 180ms ease-out both; }
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 1; }
+  48% { opacity: 0.6; }
+  49% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.7; }
+  94% { opacity: 1; }
+}
+.flicker { animation: flicker 4s linear infinite; }

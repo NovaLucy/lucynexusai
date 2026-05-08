@@ -1,12 +1,8 @@
-import { Settings, X } from "lucide-react";
-import { useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
   voiceEnabled: boolean;
   setVoiceEnabled: (v: boolean) => void;
   voices: SpeechSynthesisVoice[];
@@ -24,8 +20,37 @@ interface Props {
   onStopVoice: () => void;
 }
 
+function AsciiSlider({
+  label, min, max, step, value, onChange, format,
+}: {
+  label: string; min: number; max: number; step: number; value: number;
+  onChange: (n: number) => void; format?: (n: number) => string;
+}) {
+  const pct = (value - min) / (max - min);
+  const knobs = 12;
+  const pos = Math.round(pct * (knobs - 1));
+  const bar = Array.from({ length: knobs }, (_, i) => (i === pos ? "●" : "━")).join("");
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-[10px] uppercase tracking-widest text-foreground/60">
+        <span>{label}</span>
+        <span className="text-foreground tabular-nums">{format ? format(value) : value.toFixed(2)}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="mood-text font-mono select-none">[{bar}]</span>
+      </div>
+      <input
+        type="range"
+        min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full opacity-0 -mt-5 h-5 cursor-pointer"
+        aria-label={label}
+      />
+    </div>
+  );
+}
+
 export default function ControlsDrawer(p: Props) {
-  const [open, setOpen] = useState(false);
   const frVoices = [...p.voices].sort((a, b) => {
     const af = a.lang?.toLowerCase().startsWith("fr") ? 0 : 1;
     const bf = b.lang?.toLowerCase().startsWith("fr") ? 0 : 1;
@@ -33,35 +58,35 @@ export default function ControlsDrawer(p: Props) {
   });
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <button
-          aria-label="Réglages"
-          className="glass h-10 w-10 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors"
-        >
-          <Settings size={18} />
-        </button>
-      </SheetTrigger>
-      <SheetContent side="right" className="bg-background/90 backdrop-blur-xl border-l border-white/5 w-[min(380px,92vw)]">
-        <SheetHeader>
-          <SheetTitle className="font-display tracking-wide">Réglages APN</SheetTitle>
-        </SheetHeader>
+    <Sheet open={p.open} onOpenChange={p.onOpenChange}>
+      <SheetContent
+        side="right"
+        className="bg-black border-l ascii-border w-[min(380px,92vw)] p-0 font-mono text-sm scanlines"
+      >
+        <div className="flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-widest border-b ascii-border">
+          <span className="mood-text">── CONFIG</span>
+          <span className="text-foreground/30 flex-1">{"─".repeat(40)}</span>
+          <button onClick={() => p.onOpenChange(false)} className="bracket-btn">[X]</button>
+        </div>
 
-        <div className="mt-6 space-y-8">
+        <div className="p-4 space-y-6 overflow-y-auto" style={{ maxHeight: "calc(100dvh - 44px)" }}>
           <section className="space-y-4">
-            <h3 className="text-xs uppercase tracking-widest text-muted-foreground">Voix</h3>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="tts-toggle">Activer la synthèse vocale</Label>
-              <Switch id="tts-toggle" checked={p.voiceEnabled} onCheckedChange={p.setVoiceEnabled} />
-            </div>
-            <div className="space-y-2">
-              <Label>Voix</Label>
+            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── VOICE ──</h3>
+            <button
+              onClick={() => p.setVoiceEnabled(!p.voiceEnabled)}
+              className={`bracket-btn w-full text-left ${p.voiceEnabled ? "bracket-btn-active" : ""}`}
+            >
+              [{p.voiceEnabled ? "X" : " "}] TTS ENABLED
+            </button>
+
+            <div className="space-y-1">
+              <div className="text-[10px] uppercase tracking-widest text-foreground/60">VOICE</div>
               <select
                 value={p.voiceURI ?? ""}
                 onChange={(e) => p.setVoiceURI(e.target.value || undefined)}
-                className="w-full bg-secondary text-foreground rounded-md px-3 py-2 text-sm border border-white/5"
+                className="w-full bg-black text-foreground px-2 py-1.5 text-xs ascii-border outline-none focus:ascii-border-mood"
               >
-                <option value="">Auto (FR si disponible)</option>
+                <option value="">AUTO (FR)</option>
                 {frVoices.map((v) => (
                   <option key={v.voiceURI} value={v.voiceURI}>
                     {v.name} — {v.lang}
@@ -69,31 +94,21 @@ export default function ControlsDrawer(p: Props) {
                 ))}
               </select>
             </div>
-            <div className="space-y-2">
-              <Label>Vitesse — {p.rate.toFixed(2)}x</Label>
-              <Slider min={0.5} max={1.5} step={0.05} value={[p.rate]} onValueChange={([v]) => p.setRate(v)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Pitch — {p.pitch.toFixed(2)}</Label>
-              <Slider min={0.5} max={1.5} step={0.05} value={[p.pitch]} onValueChange={([v]) => p.setPitch(v)} />
-            </div>
+
+            <AsciiSlider label="RATE" min={0.5} max={1.5} step={0.05} value={p.rate} onChange={p.setRate} format={(v) => `${v.toFixed(2)}x`} />
+            <AsciiSlider label="PITCH" min={0.5} max={1.5} step={0.05} value={p.pitch} onChange={p.setPitch} />
+
             <div className="flex gap-2">
-              <Button variant="secondary" onClick={p.onTestVoice}>Test</Button>
-              <Button variant="ghost" onClick={p.onStopVoice}>Stop</Button>
+              <button onClick={p.onTestVoice} className="bracket-btn flex-1">[TEST]</button>
+              <button onClick={p.onStopVoice} className="bracket-btn flex-1">[STOP]</button>
             </div>
           </section>
 
           <section className="space-y-4">
-            <h3 className="text-xs uppercase tracking-widest text-muted-foreground">Rendu</h3>
-            <div className="space-y-2">
-              <Label>Qualité — {p.pixelRatio.toFixed(2)}x</Label>
-              <Slider min={0.75} max={2} step={0.25} value={[p.pixelRatio]} onValueChange={([v]) => p.setPixelRatio(v)} />
-              <p className="text-xs text-muted-foreground">Recharge la page après changement.</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Intensité plasma — {p.intensity.toFixed(2)}</Label>
-              <Slider min={0.5} max={1.5} step={0.05} value={[p.intensity]} onValueChange={([v]) => p.setIntensity(v)} />
-            </div>
+            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── RENDER ──</h3>
+            <AsciiSlider label="QUALITY" min={0.75} max={2} step={0.25} value={p.pixelRatio} onChange={p.setPixelRatio} format={(v) => `${v.toFixed(2)}x`} />
+            <AsciiSlider label="INTENSITY" min={0.5} max={1.5} step={0.05} value={p.intensity} onChange={p.setIntensity} />
+            <p className="text-[10px] text-foreground/40">// quality: reload to apply</p>
           </section>
         </div>
       </SheetContent>
