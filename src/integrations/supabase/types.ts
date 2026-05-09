@@ -27,6 +27,7 @@ export type Database = {
           red_flags: Json
           session_id: string
           symptoms: Json
+          user_id: string | null
         }
         Insert: {
           allergies?: Json
@@ -40,6 +41,7 @@ export type Database = {
           red_flags?: Json
           session_id: string
           symptoms?: Json
+          user_id?: string | null
         }
         Update: {
           allergies?: Json
@@ -53,6 +55,7 @@ export type Database = {
           red_flags?: Json
           session_id?: string
           symptoms?: Json
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -64,6 +67,7 @@ export type Database = {
           intent: Json
           meta: Json
           session_id: string
+          user_id: string | null
           user_msg: string
         }
         Insert: {
@@ -73,6 +77,7 @@ export type Database = {
           intent?: Json
           meta?: Json
           session_id: string
+          user_id?: string | null
           user_msg: string
         }
         Update: {
@@ -82,6 +87,7 @@ export type Database = {
           intent?: Json
           meta?: Json
           session_id?: string
+          user_id?: string | null
           user_msg?: string
         }
         Relationships: []
@@ -97,6 +103,7 @@ export type Database = {
           session_id: string
           traits: Json
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           display_name?: string | null
@@ -108,6 +115,7 @@ export type Database = {
           session_id: string
           traits?: Json
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           display_name?: string | null
@@ -119,6 +127,7 @@ export type Database = {
           session_id?: string
           traits?: Json
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
