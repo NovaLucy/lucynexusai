@@ -346,7 +346,7 @@ export default function Index() {
           disabled={busy}
           value={composerText}
           onValueChange={setComposerText}
-          polishEnabled={polishEnabled}
+          polishEnabled={polishEnabled && !voice.listening}
           mood={apn.mood}
           state={apn.state}
         />
