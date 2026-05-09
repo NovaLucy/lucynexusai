@@ -53,10 +53,25 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
 
-    const supa = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Authenticate caller
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = userData.user.id;
+
+    const supa = createClient(SUPABASE_URL, SERVICE_KEY);
 
     if (action === "extract") {
       const { sessionId, userMessage, recent } = body as {
