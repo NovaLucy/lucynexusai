@@ -26,7 +26,8 @@ type UserProfile = {
 export type SyncStatus = "idle" | "loading" | "saving" | "saved" | "error";
 
 export function useAPN() {
-  const sessionId = useRef<string>(getSessionId());
+  const [userId, setUserId] = useState<string | null>(null);
+  const sessionId = useRef<string>("");
   const profileRef = useRef<UserProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [state, setState] = useState<AgentState>("standby");
@@ -37,8 +38,24 @@ export function useAPN() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
 
+  // Bind to auth user
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user?.id ?? null;
+      setUserId(uid);
+      if (uid) sessionId.current = uid;
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      const uid = s?.user?.id ?? null;
+      setUserId(uid);
+      if (uid) sessionId.current = uid;
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
   // Load history + profile
   useEffect(() => {
+    if (!userId) return;
     (async () => {
       setSyncStatus("loading");
       try {
@@ -46,13 +63,13 @@ export function useAPN() {
           supabase
             .from("apn_memory")
             .select("user_msg, apn_msg, created_at, intent")
-            .eq("session_id", sessionId.current)
+            .eq("user_id", userId)
             .order("created_at", { ascending: false })
             .limit(8),
           supabase
             .from("apn_user_profile")
             .select("*")
-            .eq("session_id", sessionId.current)
+            .eq("user_id", userId)
             .maybeSingle(),
         ]);
         if (memErr || profErr) throw memErr ?? profErr;
@@ -84,7 +101,7 @@ export function useAPN() {
         setSyncStatus("error");
       }
     })();
-  }, []);
+  }, [userId]);
 
   const setMoodAndApply = useCallback((m: Mood) => {
     setMood(m);
