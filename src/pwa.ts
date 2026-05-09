@@ -16,7 +16,17 @@ if (
   // Lazy import so the SW registration code is only included in prod builds.
   import("virtual:pwa-register")
     .then(({ registerSW }) => {
-      registerSW({ immediate: true });
+      const updateSW = registerSW({
+        immediate: true,
+        onNeedRefresh() {
+          // Auto-apply new version: skip waiting + reload
+          updateSW(true);
+        },
+      });
+      // Periodic check (every 30 min) so installed PWAs pick up new builds
+      setInterval(() => {
+        navigator.serviceWorker?.getRegistration().then((r) => r?.update());
+      }, 30 * 60 * 1000);
     })
     .catch(() => {
       // No-op — PWA optional.
