@@ -132,7 +132,8 @@ Deno.serve(async (req) => {
 
       if (hasContent) {
         await supa.from("apn_health_records").insert({
-          session_id: sessionId,
+          user_id: userId,
+          session_id: sessionId ?? userId,
           symptoms: extracted.symptoms ?? [],
           duration: extracted.duration ?? null,
           intensity: extracted.intensity ?? null,
@@ -149,11 +150,10 @@ Deno.serve(async (req) => {
     }
 
     if (action === "report") {
-      const { sessionId } = body as { sessionId: string };
       const { data: rows } = await supa
         .from("apn_health_records")
         .select("*")
-        .eq("session_id", sessionId)
+        .eq("user_id", userId)
         .order("created_at", { ascending: true });
 
       if (!rows?.length) {
