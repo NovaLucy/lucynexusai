@@ -1,1 +1,7 @@
 project_id = "ekwqglaidwmwpncsormz"
+
+[functions.elevenlabs-tts]
+verify_jwt = false
+
+[functions.elevenlabs-scribe-token]
+verify_jwt = false
