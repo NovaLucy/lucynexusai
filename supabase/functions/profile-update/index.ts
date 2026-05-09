@@ -125,12 +125,7 @@ Règles :
 
     const aiJson = await aiResp.json();
     const args = aiJson.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) {
-      return new Response(JSON.stringify({ ok: true, skipped: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const update = JSON.parse(args);
+    const update = args ? JSON.parse(args) : {};
 
     const merged: any = { ...(currentProfile ?? {}) };
     if (update.display_name) merged.display_name = update.display_name;
@@ -154,7 +149,54 @@ Règles :
     merged.updated_at = new Date().toISOString();
     merged.message_count = (currentProfile?.message_count ?? 0) + 1;
 
-    // Upsert by user_id (unique). Use service role to bypass RLS but pin to authenticated user.
+    // Résumé glissant tous les 10 messages — vue long terme
+    if (merged.message_count > 0 && merged.message_count % 10 === 0) {
+      try {
+        const longTranscript = recentExchanges
+          .slice(-20)
+          .map((e: any) => `[${e.role}] ${e.content}`)
+          .join("\n");
+        const previousSummary = merged.traits?.summary ?? "(aucun)";
+        const sumResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              {
+                role: "system",
+                content: `Tu maintiens un résumé long-terme de qui est cette personne et de ce qui se passe dans sa vie en ce moment, à l'usage d'APN (son compagnon de pensée).
+
+Format : 4 à 6 lignes, en français, à la 3e personne. Pas de listes à puces. Concentre-toi sur :
+- qui elle est (traits saillants),
+- ce qu'elle traverse en ce moment,
+- ses sujets récurrents / préoccupations / projets,
+- la dynamique de la relation avec APN.
+
+Tu mets à jour le résumé existant en intégrant les nouveaux éléments. Tu retires ce qui n'est plus pertinent. Tu ne devines rien.
+
+Résumé précédent :
+${previousSummary}`,
+              },
+              { role: "user", content: `Nouveaux échanges :\n${longTranscript}\n\nProduis le résumé mis à jour.` },
+            ],
+          }),
+        });
+        if (sumResp.ok) {
+          const sj = await sumResp.json();
+          const summary = sj.choices?.[0]?.message?.content?.trim();
+          if (summary && summary.length > 20) {
+            merged.traits = { ...(merged.traits ?? {}), summary };
+          }
+        }
+      } catch (e) {
+        console.warn("summary gen failed", e);
+      }
+    }
+
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     const { error: upErr } = await admin
       .from("apn_user_profile")
