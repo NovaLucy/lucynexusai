@@ -2,7 +2,6 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Expose-Headers": "x-apn-mood",
 };
 
 const BASE_PROMPT = `Tu es APN — un agent personnel numérique. Pas un assistant générique : un compagnon de pensée, une présence calme et attentive, qui apprend à connaître la personne avec qui il parle.
