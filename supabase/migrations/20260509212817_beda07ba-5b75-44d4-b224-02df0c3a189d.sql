@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS apn_user_profile_user_id_key ON public.apn_user_profile(user_id);
