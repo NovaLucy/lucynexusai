@@ -461,14 +461,14 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
       // distance gradient: warm core, cooler tips
       float t = smoothstep(0.2, 2.6, vDist);
       vec3 baseCol = mix(uColor2, uColor, t);
-      vec3 sheath = mix(baseCol * 0.5, baseCol * 1.4, myelin);
-      vec3 col = sheath + baseCol * fres * (0.6 + uPulse * 0.8);
+      vec3 sheath = mix(baseCol * 0.35, baseCol * 0.9, myelin);
+      vec3 col = sheath + baseCol * fres * (0.3 + uPulse * 0.4);
       // traveling shimmer with pulse
-      col += uColor2 * (0.3 + uPulse * 0.5) * smoothstep(0.7, 1.0,
+      col += uColor2 * (0.15 + uPulse * 0.25) * smoothstep(0.7, 1.0,
         0.5 + 0.5 * sin(vUv.x * 1.2 - uTime * 3.0));
       // shock highlight
-      col += vec3(1.0, 0.9, 0.8) * vShock * 2.0;
-      float a = (0.85 - t * 0.35) * uIntensity;
+      col += uColor * vShock * 0.8;
+      float a = (0.65 - t * 0.3) * uIntensity;
       gl_FragColor = vec4(col, a);
     }
   `;
