@@ -634,7 +634,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
         <meshBasicMaterial
           color={uniforms.uColor2.value}
           transparent
-          opacity={0.95}
+          opacity={0.45}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
