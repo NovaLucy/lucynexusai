@@ -179,43 +179,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Stream-through + heuristique mood côté serveur via tee
-    const lastUser = messages[messages.length - 1]?.content ?? "";
-    const [streamForClient, streamForMood] = response.body!.tee();
-
-    // Calcul mood en arrière-plan (non bloquant pour le stream client)
-    let detectedMood = "calm";
-    (async () => {
-      try {
-        const reader = streamForMood.getReader();
-        const decoder = new TextDecoder();
-        let full = "";
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          for (const line of chunk.split("\n")) {
-            if (!line.startsWith("data: ")) continue;
-            const j = line.slice(6).trim();
-            if (j === "[DONE]") continue;
-            try {
-              const c = JSON.parse(j).choices?.[0]?.delta?.content;
-              if (c) full += c;
-            } catch {}
-          }
-        }
-        detectedMood = inferServerMood(full, lastUser);
-      } catch {}
-    })();
-
-    return new Response(streamForClient, {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream",
-        // Mood "best-effort" — peut être calm si non encore calculé.
-        // Le client a aussi inferMood() en fallback.
-        "x-apn-mood": detectedMood,
-      },
+    return new Response(response.body, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
     console.error("chat error", e);
@@ -225,13 +190,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
-function inferServerMood(reply: string, userMsg: string): string {
-  const r = reply.toLowerCase();
-  const u = userMsg.toLowerCase();
-  if (/désolé|je comprends|courage|je suis là|navré|ça me touche|tendresse/.test(r)) return "empathetic";
-  if (/triste|seul|fatigué|épuisé|déprime|j'en peux plus|mal/.test(u)) return "empathetic";
-  if (/urgent|alerte|danger|risque|critique|attention/.test(r) || (r.match(/!/g)?.length ?? 0) >= 2) return "alert";
-  if (reply.length > 280) return "focused";
-  return "calm";
-}
