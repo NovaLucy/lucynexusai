@@ -133,6 +133,9 @@ export function useAPN() {
   // Fire-and-forget profile update
   const updateProfileAsync = useCallback(async (userMsg: string, apnMsg: string) => {
     try {
+      // Profile update requires an authenticated user (RLS + getUser in edge fn)
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.access_token) return;
       const recent = [
         ...messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
         { role: "user", content: userMsg },
