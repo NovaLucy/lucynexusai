@@ -21,7 +21,7 @@ function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0): THREE.Color {
   c.setHSL(
     ((m.h + hShift) % 360) / 360,
     Math.min(1, m.s / 100 + sBoost),
-    Math.min(0.55, Math.max(0, m.l / 100 + lOff)),
+    Math.min(0.4, Math.max(0, m.l / 100 + lOff)),
   );
   return c;
 }
