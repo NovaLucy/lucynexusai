@@ -191,12 +191,6 @@ export default function Index() {
       </main>
     );
   }
-  if (auth.status === "needs-enrollment") {
-    return <Onboarding onDone={auth.onEnrolled} />;
-  }
-  if (auth.status === "locked") {
-    return <Lock onUnlock={auth.unlock} onReset={auth.onReset} />;
-  }
 
   return (
     <main
