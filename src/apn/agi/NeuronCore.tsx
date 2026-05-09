@@ -496,8 +496,8 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
       if (d > 0.5) discard;
       float a = smoothstep(0.5, 0.0, d);
       vec3 hot = mix(uColor2, uColor, vSeed);
-      vec3 col = hot * (1.7 + uPulse * 1.6) + vec3(1.0, 0.85, 0.7) * pow(a, 6.0) * 0.6;
-      gl_FragColor = vec4(col, a * (0.85 + uPulse * 0.15));
+      vec3 col = hot * (0.9 + uPulse * 0.8) + uColor * pow(a, 6.0) * 0.3;
+      gl_FragColor = vec4(col, a * (0.6 + uPulse * 0.15));
     }
   `;
 
