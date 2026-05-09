@@ -480,8 +480,8 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
     void main() {
       vSeed = aSeed;
       vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      float size = (2.6 + aSeed * 3.4) * (1.0 + uPulse * 1.3);
-      gl_PointSize = size * (340.0 / -mv.z);
+      float size = (1.4 + aSeed * 1.8) * (1.0 + uPulse * 0.8);
+      gl_PointSize = size * (140.0 / -mv.z);
       gl_Position = projectionMatrix * mv;
     }
   `;
