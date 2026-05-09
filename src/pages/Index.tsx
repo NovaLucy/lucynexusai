@@ -14,8 +14,6 @@ import NeuralNetwork from "@/apn/agi/NeuralNetwork";
 import HUDFrame from "@/apn/agi/HUDFrame";
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useIsMobile } from "@/hooks/use-mobile";
-import Onboarding from "@/apn/auth/Onboarding";
-import Lock from "@/apn/auth/Lock";
 import { useAuth } from "@/apn/auth/useAuth";
 import { matchCommand } from "@/apn/voiceCommands";
 import { useAPN } from "@/apn/useAPN";
@@ -190,12 +188,6 @@ export default function Index() {
         <div className="font-mono text-xs text-foreground/40">[APN] init…</div>
       </main>
     );
-  }
-  if (auth.status === "needs-enrollment") {
-    return <Onboarding onDone={auth.onEnrolled} />;
-  }
-  if (auth.status === "locked") {
-    return <Lock onUnlock={auth.unlock} onReset={auth.onReset} />;
   }
 
   return (
