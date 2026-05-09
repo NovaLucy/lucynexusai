@@ -283,7 +283,7 @@ export default function Index() {
                 onClick={() => {
                   tapMedium();
                   setShockKey((k) => k + 1);
-                  triggerFace(3400, "reveal");
+                  triggerFace(5400, "reveal");
                 }}
                 role="button"
                 aria-label="Réveiller APN"
