@@ -196,7 +196,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
     [],
   );
 
-  const PULSE_COUNT = 380;
+  const PULSE_COUNT = 140;
   const pulses = useMemo(() => {
     const arr: { path: number; t: number; speed: number }[] = [];
     for (let i = 0; i < PULSE_COUNT; i++) {
