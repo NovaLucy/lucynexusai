@@ -119,6 +119,7 @@ function buildDendrites(branchCount: number, seed: number) {
 
   const RADIAL = 6;
   for (const p of paths) {
+    if (p.count < 4) continue; // CatmullRom needs enough points for frenet frames
     const tubularSegments = Math.max(8, Math.min(64, Math.floor(p.length * 22)));
     // Custom: build tube manually so radius can taper along curve
     const frames = p.curve.computeFrenetFrames(tubularSegments, false);
