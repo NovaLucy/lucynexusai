@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import OrbCanvas from "@/apn/OrbCanvas";
+// OrbCanvas remplacé par VolumetricFace (AGI core)
 import TopBar from "@/apn/TopBar";
 import Composer from "@/apn/Composer";
 import ChatLog from "@/apn/ChatLog";
@@ -9,8 +9,9 @@ import AsciiSidebarLeft from "@/apn/AsciiSidebarLeft";
 import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
-import Face from "@/apn/Face";
-import FaceMatrix from "@/apn/FaceMatrix";
+import VolumetricFace from "@/apn/agi/VolumetricFace";
+import NeuralNetwork from "@/apn/agi/NeuralNetwork";
+import HUDFrame from "@/apn/agi/HUDFrame";
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Onboarding from "@/apn/auth/Onboarding";
@@ -47,7 +48,7 @@ export default function Index() {
     try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
   });
   const speakingPinned = apn.state === "speaking" || apn.state === "thinking";
-  const { visible: faceVisible, mode: faceMode, phase: facePhase, trigger: triggerFace } = useFaceApparition(faceFrequency, {
+  const { trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
     showMs: 4800,
   });
@@ -253,33 +254,24 @@ export default function Index() {
       <div className="relative z-10 flex-1 flex min-h-0">
         <AsciiSidebarLeft state={apn.state} />
 
-        {/* Center: orb */}
+        {/* Center: AGI core */}
         <section className="relative flex-1 flex flex-col min-w-0">
-          {/* Orb container */}
-          <div className="relative flex-1 flex items-center justify-center p-2 sm:p-3">
-            <div className="relative ascii-border-dashed scanlines"
+          {/* Neural network background — bio-organic synapses */}
+          <div className="absolute inset-0 pointer-events-none">
+            <NeuralNetwork mood={apn.mood} state={apn.state} />
+          </div>
+
+          <div className="relative flex-1 flex items-center justify-center p-2 sm:p-3 z-10">
+            <div
+              className="relative"
               style={{
-                width: isMobile ? "min(58dvh, 96%)" : "min(72dvh, 92%)",
+                width: isMobile ? "min(64dvh, 96%)" : "min(78dvh, 92%)",
                 aspectRatio: "1 / 1",
                 maxHeight: "100%",
               }}
             >
-              {/* corner labels */}
-              <div className="absolute -top-3 left-2 px-1 bg-black text-[10px] uppercase tracking-widest mood-text">
-                ┌─ NEURAL CORE ─┐
-              </div>
-              <div className="absolute -top-3 right-2 px-1 bg-black text-[10px] tabular-nums text-foreground/40">
-                [{apn.state.toUpperCase().slice(0, 4)}]
-              </div>
-              <div className="absolute -bottom-3 left-2 px-1 bg-black text-[10px] text-foreground/40 tabular-nums">
-                FREQ:{(apn.mood.charCodeAt(0) * 7).toString(16).toUpperCase()}HZ
-              </div>
-              <div className="absolute -bottom-3 right-2 px-1 bg-black text-[10px] text-foreground/40">
-                └─ v0.1 ─┘
-              </div>
-
               <div
-                className="absolute inset-0"
+                className="absolute inset-0 cursor-pointer"
                 onClick={() => {
                   tapMedium();
                   setShockKey((k) => k + 1);
@@ -288,32 +280,22 @@ export default function Index() {
                 role="button"
                 aria-label="Réveiller APN"
               >
-                <OrbCanvas state={apn.state} mood={apn.mood} intensity={intensity} pixelRatioCap={pixelRatio} />
+                <VolumetricFace
+                  mood={apn.mood}
+                  state={apn.state}
+                  speaking={speakingPinned}
+                  intensity={intensity}
+                />
               </div>
 
-              {/* Face apparition overlay — Matrix-style realistic face */}
-              {faceVisible && (
-                <div
-                  key={`face-${speakingPinned ? "pin" : faceMode}-${shockKey}`}
-                  className={`absolute inset-0 pointer-events-none ${
-                    speakingPinned
-                      ? ""
-                      : facePhase === "out"
-                      ? "face-reveal-out"
-                      : faceMode === "reveal"
-                      ? "face-reveal-in"
-                      : "face-apparition"
-                  }`}
-                >
-                  <FaceMatrix
-                    mood={apn.mood}
-                    state={apn.state}
-                    speaking={speakingPinned}
-                    intensity={speakingPinned || faceMode === "reveal" ? "reveal" : "ambient"}
-                    shockKey={shockKey}
-                  />
-                </div>
-              )}
+              {/* AGI HUD overlay */}
+              <HUDFrame
+                state={apn.state}
+                mood={apn.mood}
+                msgCount={apn.profile?.message_count ?? apn.messages.length}
+                topic={apn.profile?.last_topic}
+                loops={apn.profile?.open_loops?.length ?? 0}
+              />
             </div>
           </div>
 
