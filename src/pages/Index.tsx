@@ -200,13 +200,19 @@ export default function Index() {
 
   return (
     <main
-      className="relative w-screen overflow-hidden bg-black flex flex-col"
+      className="relative w-screen overflow-hidden bg-black flex flex-col mood-ambient cine-vignette film-grain"
       style={{ height: "100dvh" }}
+      data-state={apn.state}
+      data-mood={apn.mood}
     >
       <h1 className="sr-only">APN — Agent Personnel Numérique</h1>
 
+      {/* Letterbox bars (cinematic) */}
+      <div className="letterbox letterbox-top" aria-hidden />
+      <div className="letterbox letterbox-bot" aria-hidden />
+
       {/* Ambient floating chars background */}
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none z-[1]">
         <AmbientChars />
       </div>
 
