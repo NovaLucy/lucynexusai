@@ -256,13 +256,22 @@ export default function Index() {
         )}
       </div>
 
-      {/* 3-column layout */}
+      {/* Center stage — sidebars become overlays so the core dominates */}
       <div className="relative z-10 flex-1 flex min-h-0">
-        <AsciiSidebarLeft state={apn.state} />
+        <div className="hidden md:block absolute top-0 bottom-0 left-0 z-10 pointer-events-none">
+          <AsciiSidebarLeft state={apn.state} />
+        </div>
+        <div className="hidden md:block absolute top-0 bottom-0 right-0 z-10 pointer-events-none">
+          <AsciiSidebarRight
+            msgCount={apn.profile?.message_count ?? apn.messages.length}
+            topic={apn.profile?.last_topic}
+            loops={loops}
+            name={apn.profile?.display_name}
+          />
+        </div>
 
-        {/* Center: AGI core */}
+        {/* Center: AGI core — full width, dominant */}
         <section className="relative flex-1 flex flex-col min-w-0">
-          {/* Neural network background — bio-organic synapses */}
           <div className="absolute inset-0 pointer-events-none">
             <NeuralNetwork mood={apn.mood} state={apn.state} />
           </div>
@@ -271,11 +280,14 @@ export default function Index() {
             <div
               className="relative"
               style={{
-                width: isMobile ? "min(64dvh, 96%)" : "min(78dvh, 92%)",
+                width: isMobile ? "min(78dvh, 100%)" : "min(92dvh, 96%)",
                 aspectRatio: "1 / 1",
                 maxHeight: "100%",
               }}
             >
+              {/* Pulsing mood halo behind the core */}
+              <div className="core-halo" aria-hidden />
+
               <div
                 className="absolute inset-0 cursor-pointer"
                 onClick={() => {
@@ -294,33 +306,28 @@ export default function Index() {
                 />
               </div>
 
-              {/* AGI HUD overlay */}
-              <HUDFrame
-                state={apn.state}
-                mood={apn.mood}
-                msgCount={apn.profile?.message_count ?? apn.messages.length}
-                topic={apn.profile?.last_topic}
-                loops={apn.profile?.open_loops?.length ?? 0}
-              />
+              {/* AGI HUD overlay (opacity reactive) */}
+              <div className="absolute inset-0 hud-reactive">
+                <HUDFrame
+                  state={apn.state}
+                  mood={apn.mood}
+                  msgCount={apn.profile?.message_count ?? apn.messages.length}
+                  topic={apn.profile?.last_topic}
+                  loops={apn.profile?.open_loops?.length ?? 0}
+                />
+              </div>
             </div>
           </div>
 
           {/* Caption */}
-          <div className="px-4 pb-3 text-center" aria-live="polite">
-            <p className="font-mono text-xs sm:text-sm uppercase tracking-widest mood-text">
+          <div className="px-4 pb-3 text-center relative z-20" aria-live="polite">
+            <p className="font-mono text-xs sm:text-sm md:text-base uppercase tracking-[0.3em] mood-text">
               <span className="text-foreground/40">{">"} </span>
               {apn.caption}
               <span className="cursor-blink" />
             </p>
           </div>
         </section>
-
-        <AsciiSidebarRight
-          msgCount={apn.profile?.message_count ?? apn.messages.length}
-          topic={apn.profile?.last_topic}
-          loops={loops}
-          name={apn.profile?.display_name}
-        />
       </div>
 
       {/* Composer at bottom */}
