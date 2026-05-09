@@ -239,8 +239,8 @@
     pointer-events: none;
     background: radial-gradient(
       ellipse at 50% 50%,
-      hsl(var(--mood) / calc(0.18 * var(--ambient-intensity))) 0%,
-      hsl(var(--mood) / calc(0.06 * var(--ambient-intensity))) 28%,
+      hsl(var(--mood) / calc(0.06 * var(--ambient-intensity))) 0%,
+      hsl(var(--mood) / calc(0.02 * var(--ambient-intensity))) 28%,
       transparent 62%
     );
     filter: blur(40px);
@@ -287,10 +287,9 @@
     border-radius: 50%;
     background: radial-gradient(
       circle at center,
-      hsl(var(--mood) / calc(0.5 * var(--ambient-intensity))) 0%,
-      hsl(var(--mood) / calc(0.2 * var(--ambient-intensity))) 22%,
-      hsl(var(--mood) / calc(0.06 * var(--ambient-intensity))) 45%,
-      transparent 70%
+      hsl(var(--mood) / calc(0.07 * var(--ambient-intensity))) 0%,
+      hsl(var(--mood) / calc(0.03 * var(--ambient-intensity))) 30%,
+      transparent 65%
     );
     filter: blur(28px);
     animation: mood-breathe var(--bg-pulse-speed) ease-in-out infinite;

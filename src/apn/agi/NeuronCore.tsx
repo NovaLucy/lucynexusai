@@ -21,7 +21,7 @@ function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0): THREE.Color {
   c.setHSL(
     ((m.h + hShift) % 360) / 360,
     Math.min(1, m.s / 100 + sBoost),
-    Math.min(0.85, Math.max(0, m.l / 100 + lOff)),
+    Math.min(0.4, Math.max(0, m.l / 100 + lOff)),
   );
   return c;
 }
@@ -196,7 +196,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
     [],
   );
 
-  const PULSE_COUNT = 380;
+  const PULSE_COUNT = 140;
   const pulses = useMemo(() => {
     const arr: { path: number; t: number; speed: number }[] = [];
     for (let i = 0; i < PULSE_COUNT; i++) {
@@ -461,14 +461,14 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
       // distance gradient: warm core, cooler tips
       float t = smoothstep(0.2, 2.6, vDist);
       vec3 baseCol = mix(uColor2, uColor, t);
-      vec3 sheath = mix(baseCol * 0.5, baseCol * 1.4, myelin);
-      vec3 col = sheath + baseCol * fres * (0.6 + uPulse * 0.8);
+      vec3 sheath = mix(baseCol * 0.35, baseCol * 0.9, myelin);
+      vec3 col = sheath + baseCol * fres * (0.3 + uPulse * 0.4);
       // traveling shimmer with pulse
-      col += uColor2 * (0.3 + uPulse * 0.5) * smoothstep(0.7, 1.0,
+      col += uColor2 * (0.15 + uPulse * 0.25) * smoothstep(0.7, 1.0,
         0.5 + 0.5 * sin(vUv.x * 1.2 - uTime * 3.0));
       // shock highlight
-      col += vec3(1.0, 0.9, 0.8) * vShock * 2.0;
-      float a = (0.85 - t * 0.35) * uIntensity;
+      col += uColor * vShock * 0.8;
+      float a = (0.65 - t * 0.3) * uIntensity;
       gl_FragColor = vec4(col, a);
     }
   `;
@@ -480,8 +480,8 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
     void main() {
       vSeed = aSeed;
       vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      float size = (2.6 + aSeed * 3.4) * (1.0 + uPulse * 1.3);
-      gl_PointSize = size * (340.0 / -mv.z);
+      float size = (1.4 + aSeed * 1.8) * (1.0 + uPulse * 0.8);
+      gl_PointSize = size * (140.0 / -mv.z);
       gl_Position = projectionMatrix * mv;
     }
   `;
@@ -496,8 +496,8 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
       if (d > 0.5) discard;
       float a = smoothstep(0.5, 0.0, d);
       vec3 hot = mix(uColor2, uColor, vSeed);
-      vec3 col = hot * (1.7 + uPulse * 1.6) + vec3(1.0, 0.85, 0.7) * pow(a, 6.0) * 0.6;
-      gl_FragColor = vec4(col, a * (0.85 + uPulse * 0.15));
+      vec3 col = hot * (0.5 + uPulse * 0.4);
+      gl_FragColor = vec4(col, a * (0.25 + uPulse * 0.1));
     }
   `;
 
@@ -507,8 +507,8 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
     void main() {
       vLife = aLife;
       vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      float size = (8.0 + aLife * 14.0);
-      gl_PointSize = size * (340.0 / -mv.z);
+      float size = (3.0 + aLife * 5.0);
+      gl_PointSize = size * (140.0 / -mv.z);
       gl_Position = projectionMatrix * mv;
     }
   `;
@@ -522,7 +522,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
       float d = length(c);
       if (d > 0.5) discard;
       float a = smoothstep(0.5, 0.0, d) * vLife;
-      vec3 col = mix(uColor, vec3(1.0, 0.95, 0.85), 0.6) * (1.5 + vLife * 1.5);
+      vec3 col = mix(uColor, uColor2, 0.5) * (0.9 + vLife * 1.0);
       gl_FragColor = vec4(col, a);
     }
   `;
@@ -594,9 +594,9 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
     void main() {
       vec3 viewDir = vec3(0.0, 0.0, 1.0);
       float fres = pow(1.0 - abs(dot(normalize(vNormal), viewDir)), 2.0);
-      vec3 core = mix(uColor2 * 1.4, uColor, fres);
-      core += uColor2 * (0.5 + uPulse * 1.0) * (1.0 - fres);
-      float a = clamp(0.55 + fres * 0.5 + uPulse * 0.2, 0.0, 1.0);
+      vec3 core = mix(uColor2 * 0.6, uColor, fres);
+      core += uColor2 * (0.15 + uPulse * 0.35) * (1.0 - fres);
+      float a = clamp(0.35 + fres * 0.35 + uPulse * 0.15, 0.0, 0.85);
       gl_FragColor = vec4(core, a);
     }
   `;
@@ -609,7 +609,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
         <meshBasicMaterial
           color={uniforms.uColor.value}
           transparent
-          opacity={0.22}
+          opacity={0.10}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
@@ -634,7 +634,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
         <meshBasicMaterial
           color={uniforms.uColor2.value}
           transparent
-          opacity={0.95}
+          opacity={0.45}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
@@ -649,7 +649,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
           uniforms={uniforms}
           transparent
           depthWrite={false}
-          blending={THREE.AdditiveBlending}
+          blending={THREE.NormalBlending}
           side={THREE.DoubleSide}
         />
       </mesh>

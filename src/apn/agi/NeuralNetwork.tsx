@@ -141,7 +141,7 @@ export default function NeuralNetwork({ mood, state }: Props) {
     <canvas
       ref={ref}
       className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ mixBlendMode: "screen", opacity: 0.85 }}
+      style={{ opacity: 0.55 }}
       aria-hidden
     />
   );
