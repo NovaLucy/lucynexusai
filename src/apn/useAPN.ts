@@ -186,7 +186,6 @@ export function useAPN() {
         }),
       });
 
-      const serverMood = resp.headers.get("x-apn-mood") as Mood | null;
 
       if (!resp.ok) {
         let msg = "Erreur de la passerelle IA.";
