@@ -4,19 +4,14 @@ import { applyMoodToRoot } from "./mood";
 import { inferMood } from "./intent";
 import type { AgentState, Message, Mood } from "./types";
 
-const SESSION_KEY = "apn:session_id";
-
-function getSessionId() {
-  let s = localStorage.getItem(SESSION_KEY);
-  if (!s) {
-    s = crypto.randomUUID();
-    localStorage.setItem(SESSION_KEY, s);
-  }
-  return s;
-}
-
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const PROFILE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/profile-update`;
+
+async function getAuthHeader(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  return `Bearer ${token}`;
+}
 
 type UserProfile = {
   display_name?: string | null;
