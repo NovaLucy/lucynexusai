@@ -142,7 +142,7 @@ export function useAPN() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: await getAuthHeader(),
         },
         body: JSON.stringify({
           sessionId: sessionId.current,
