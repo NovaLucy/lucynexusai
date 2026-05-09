@@ -14,8 +14,6 @@ import NeuralNetwork from "@/apn/agi/NeuralNetwork";
 import HUDFrame from "@/apn/agi/HUDFrame";
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useIsMobile } from "@/hooks/use-mobile";
-import Onboarding from "@/apn/auth/Onboarding";
-import Lock from "@/apn/auth/Lock";
 import { useAuth } from "@/apn/auth/useAuth";
 import { matchCommand } from "@/apn/voiceCommands";
 import { useAPN } from "@/apn/useAPN";
