@@ -317,3 +317,19 @@
     transition: opacity 380ms ease-out;
   }
 }
+
+:root { --keyboard-h: 0px; }
+
+@keyframes apn-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.apn-fade-in { animation: apn-fade-in 180ms ease-out both; }
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 1; }
+  48% { opacity: 0.6; }
+  49% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.7; }
+  94% { opacity: 1; }
+}
+.flicker { animation: flicker 4s linear infinite; }
