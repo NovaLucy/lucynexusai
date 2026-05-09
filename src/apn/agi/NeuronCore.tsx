@@ -649,7 +649,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
           uniforms={uniforms}
           transparent
           depthWrite={false}
-          blending={THREE.AdditiveBlending}
+          blending={THREE.NormalBlending}
           side={THREE.DoubleSide}
         />
       </mesh>
