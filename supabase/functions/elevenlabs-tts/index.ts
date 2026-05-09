@@ -49,9 +49,11 @@ Deno.serve(async (req) => {
 
     if (!resp.ok) {
       const t = await resp.text();
-      console.error("ElevenLabs TTS error", resp.status, t);
-      return new Response(JSON.stringify({ error: "tts failed", detail: t }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      console.warn("ElevenLabs TTS unavailable, client should fallback", resp.status, t);
+      // Return 200 with fallback flag so the client uses browser SpeechSynthesis
+      // without surfacing a network/runtime error to monitoring.
+      return new Response(JSON.stringify({ fallback: true, reason: t }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
