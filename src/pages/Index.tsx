@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import OrbCanvas from "@/apn/OrbCanvas";
+// OrbCanvas remplacé par VolumetricFace (AGI core)
 import TopBar from "@/apn/TopBar";
 import Composer from "@/apn/Composer";
 import ChatLog from "@/apn/ChatLog";
@@ -48,7 +48,7 @@ export default function Index() {
     try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
   });
   const speakingPinned = apn.state === "speaking" || apn.state === "thinking";
-  const { visible: faceVisible, mode: faceMode, phase: facePhase, trigger: triggerFace } = useFaceApparition(faceFrequency, {
+  const { trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
     showMs: 4800,
   });
