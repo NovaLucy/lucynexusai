@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const MEDICAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apn-medical`;
 
@@ -19,22 +20,29 @@ export default function MedicalReport({ open, onOpenChange, sessionId }: Props) 
     if (!open) return;
     setLoading(true);
     setReport(null);
-    fetch(MEDICAL_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({ action: "report", sessionId }),
-    })
-      .then((r) => r.json())
-      .then((j) => {
+    (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      try {
+        const r = await fetch(MEDICAL_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ action: "report", sessionId }),
+        });
+        const j = await r.json();
         setReport(j?.report ?? "_Aucune donnée_");
         setCount(j?.count ?? 0);
-      })
-      .catch(() => setReport("_Erreur de génération_"))
-      .finally(() => setLoading(false));
+      } catch {
+        setReport("_Erreur de génération_");
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [open, sessionId]);
+
 
   const copy = async () => {
     if (!report) return;
