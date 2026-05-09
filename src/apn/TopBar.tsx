@@ -4,6 +4,7 @@ import { STATE_LABEL, type AgentState, type Mood } from "@/apn/types";
 import Face from "@/apn/Face";
 import SyncIndicator from "@/apn/SyncIndicator";
 import type { SyncStatus } from "@/apn/useAPN";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   state: AgentState;
