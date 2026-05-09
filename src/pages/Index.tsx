@@ -18,6 +18,7 @@ import Lock from "@/apn/auth/Lock";
 import { useAuth } from "@/apn/auth/useAuth";
 import { matchCommand } from "@/apn/voiceCommands";
 import { useAPN } from "@/apn/useAPN";
+import { supabase } from "@/integrations/supabase/client";
 import { useVoice } from "@/apn/useVoice";
 import { tapLight, tapMedium } from "@/native";
 import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
