@@ -46,10 +46,10 @@ export default function Index() {
   const [faceFrequency, setFaceFrequency] = useState<FaceFrequency>(() => {
     try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
   });
-  const speakingPinned = apn.state === "speaking";
+  const speakingPinned = apn.state === "speaking" || apn.state === "thinking";
   const { visible: faceVisible, mode: faceMode, phase: facePhase, trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
-    showMs: 3400,
+    showMs: 4800,
   });
   const [shockKey, setShockKey] = useState(0);
 
@@ -283,7 +283,7 @@ export default function Index() {
                 onClick={() => {
                   tapMedium();
                   setShockKey((k) => k + 1);
-                  triggerFace(3400, "reveal");
+                  triggerFace(5400, "reveal");
                 }}
                 role="button"
                 aria-label="Réveiller APN"

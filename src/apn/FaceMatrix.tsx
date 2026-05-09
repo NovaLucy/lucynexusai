@@ -139,10 +139,10 @@ export default function FaceMatrix({ mood, state, opacity = 1, speaking, intensi
       const isReveal = intensityRef.current === "reveal";
       const pulse = sp ? 1 + 0.04 * Math.sin(t * 8) : 1;
       const speedMul = (sp ? 1.4 : st === "thinking" ? 1.2 : st === "listening" ? 0.9 : 1) * (isReveal ? 1.15 : 1);
-      const trail = isReveal ? 22 : 14;
-      const gamma = isReveal ? 0.6 : 0.85;
-      const lumGain = isReveal ? 1.6 : 1.15;
-      const baseDim = isReveal ? 0.1 : 0.18;
+      const trail = isReveal ? 26 : 20;
+      const gamma = isReveal ? 0.55 : 0.7;
+      const lumGain = isReveal ? 1.85 : 1.45;
+      const baseDim = isReveal ? 0.08 : 0.13;
 
       // Shockwave: radial pulse expanding from face center over ~900ms
       const shockAge = (now - shockStartRef.current) / 1000;

@@ -5,9 +5,9 @@ export type FaceMode = "ambient" | "reveal";
 export type FacePhase = "in" | "hold" | "out";
 
 const RANGES: Record<Exclude<FaceFrequency, "off">, [number, number]> = {
-  rare:   [60_000, 120_000],
-  normal: [25_000, 60_000],
-  often:  [10_000, 25_000],
+  rare:   [45_000, 90_000],
+  normal: [15_000, 35_000],
+  often:  [6_000, 16_000],
 };
 
 interface Options {
