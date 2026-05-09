@@ -65,7 +65,7 @@ export function useAPN() {
             .select("user_msg, apn_msg, created_at, intent")
             .eq("user_id", userId)
             .order("created_at", { ascending: false })
-            .limit(8),
+            .limit(40),
           supabase
             .from("apn_user_profile")
             .select("*")
@@ -182,8 +182,10 @@ export function useAPN() {
           messages: ctxMessages,
           profile: profileRef.current,
           isFirstContact,
+          localHour: new Date().getHours(),
         }),
       });
+
 
       if (!resp.ok) {
         let msg = "Erreur de la passerelle IA.";
