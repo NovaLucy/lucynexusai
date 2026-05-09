@@ -522,7 +522,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
       float d = length(c);
       if (d > 0.5) discard;
       float a = smoothstep(0.5, 0.0, d) * vLife;
-      vec3 col = mix(uColor, vec3(1.0, 0.95, 0.85), 0.6) * (1.5 + vLife * 1.5);
+      vec3 col = mix(uColor, uColor2, 0.5) * (0.9 + vLife * 1.0);
       gl_FragColor = vec4(col, a);
     }
   `;
