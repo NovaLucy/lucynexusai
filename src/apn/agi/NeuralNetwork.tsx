@@ -21,7 +21,7 @@ interface Node {
   size: number;
 }
 
-const NODE_COUNT = 70;
+const NODE_COUNT = 140; // pool; visibility scales with state
 const MAX_DIST = 180;
 
 export default function NeuralNetwork({ mood, state }: Props) {
