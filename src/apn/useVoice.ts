@@ -127,6 +127,11 @@ export function useVoice() {
             body: JSON.stringify({ text, speed: prefs.rate }),
           });
           if (!resp.ok) throw new Error(`tts ${resp.status}`);
+          const ct = resp.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            speakWebFallback(text, onEnd);
+            return;
+          }
           const blob = await resp.blob();
           const url = URL.createObjectURL(blob);
           audioUrlRef.current = url;
