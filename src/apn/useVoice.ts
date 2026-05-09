@@ -9,6 +9,7 @@ import { Capacitor } from "@capacitor/core";
 const STORAGE_KEY = "apn:voice";
 const isNative = Capacitor.isNativePlatform();
 const SCRIBE_TOKEN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-scribe-token`;
+const TTS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`;
 
 type VoicePrefs = {
   enabled: boolean;
@@ -62,10 +63,46 @@ export function useVoice() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); } catch {}
   }, [prefs]);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+
   const stop = useCallback(() => {
     nativeStopTTS();
-    if (supported) window.speechSynthesis.cancel();
+    if (supported) {
+      try { window.speechSynthesis.cancel(); } catch {}
+    }
+    if (audioRef.current) {
+      try { audioRef.current.pause(); } catch {}
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      try { URL.revokeObjectURL(audioUrlRef.current); } catch {}
+      audioUrlRef.current = null;
+    }
   }, [supported]);
+
+  const speakWebFallback = useCallback((text: string, onEnd?: () => void) => {
+    if (!supported) { onEnd?.(); return; }
+    try { window.speechSynthesis.cancel(); } catch {}
+    const chunks = chunkText(text);
+    let i = 0;
+    const sayNext = () => {
+      if (i >= chunks.length) { onEnd?.(); return; }
+      const u = new SpeechSynthesisUtterance(chunks[i++]);
+      u.lang = "fr-FR";
+      u.rate = prefs.rate;
+      u.pitch = prefs.pitch;
+      const v = voices.find((v) => v.voiceURI === prefs.voiceURI)
+        ?? voices.find((v) => v.lang?.toLowerCase().startsWith("fr"))
+        ?? voices[0];
+      if (v) u.voice = v;
+      u.onend = sayNext;
+      u.onerror = sayNext;
+      window.speechSynthesis.speak(u);
+    };
+    sayNext();
+  }, [supported, prefs, voices]);
 
   const speak = useCallback(
     (text: string, onEnd?: () => void): void => {
@@ -77,27 +114,35 @@ export function useVoice() {
         nativeSpeak(text, { rate: prefs.rate, pitch: prefs.pitch }).then(() => onEnd?.());
         return;
       }
-      if (!supported) { onEnd?.(); return; }
+      // Web: try ElevenLabs (high quality, reliable). Fallback to speechSynthesis.
       stop();
-      const chunks = chunkText(text);
-      let i = 0;
-      const sayNext = () => {
-        if (i >= chunks.length) { onEnd?.(); return; }
-        const u = new SpeechSynthesisUtterance(chunks[i++]);
-        u.lang = "fr-FR";
-        u.rate = prefs.rate;
-        u.pitch = prefs.pitch;
-        const v = voices.find((v) => v.voiceURI === prefs.voiceURI)
-          ?? voices.find((v) => v.lang?.toLowerCase().startsWith("fr"))
-          ?? voices[0];
-        if (v) u.voice = v;
-        u.onend = sayNext;
-        u.onerror = sayNext;
-        window.speechSynthesis.speak(u);
-      };
-      sayNext();
+      (async () => {
+        try {
+          const resp = await fetch(TTS_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ text, speed: prefs.rate }),
+          });
+          if (!resp.ok) throw new Error(`tts ${resp.status}`);
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          audioUrlRef.current = url;
+          const a = new Audio(url);
+          a.preload = "auto";
+          audioRef.current = a;
+          a.onended = () => { onEnd?.(); };
+          a.onerror = () => { speakWebFallback(text, onEnd); };
+          await a.play();
+        } catch (e) {
+          console.warn("ElevenLabs TTS failed, falling back", e);
+          speakWebFallback(text, onEnd);
+        }
+      })();
     },
-    [supported, prefs, voices, stop],
+    [prefs, stop, speakWebFallback],
   );
 
   // STT — ElevenLabs Scribe Realtime (web), native plugin on mobile
