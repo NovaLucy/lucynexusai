@@ -41,6 +41,10 @@
     --mood-l: 55%;
     --mood: var(--mood-h) var(--mood-s) var(--mood-l);
 
+    /* Ambient intensity (0..1.4) — set per state via [data-state] on <main> */
+    --ambient-intensity: 0.55;
+    --bg-pulse-speed: 9s;
+
     /* Terminal palette */
     --bg: 0 0% 0%;
     --fg: 0 0% 92%;
@@ -218,6 +222,100 @@
   /* Legacy classes kept as no-ops so lingering refs don't break */
   .glass { background: transparent; }
   .mood-ring { box-shadow: none; }
+
+  /* ─── Cinematic 4K ambient ─────────────────────────────────────── */
+
+  /* Adaptive ambient intensity per state */
+  main[data-state="standby"]   { --ambient-intensity: 0.45; --bg-pulse-speed: 11s; }
+  main[data-state="listening"] { --ambient-intensity: 0.7;  --bg-pulse-speed: 7s; }
+  main[data-state="thinking"]  { --ambient-intensity: 0.95; --bg-pulse-speed: 4.5s; }
+  main[data-state="speaking"]  { --ambient-intensity: 1.25; --bg-pulse-speed: 2.6s; }
+
+  /* Radial mood halo behind everything */
+  .mood-ambient::before {
+    content: '';
+    position: absolute;
+    inset: -10%;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      hsl(var(--mood) / calc(0.18 * var(--ambient-intensity))) 0%,
+      hsl(var(--mood) / calc(0.06 * var(--ambient-intensity))) 28%,
+      transparent 62%
+    );
+    filter: blur(40px);
+    animation: mood-breathe var(--bg-pulse-speed) ease-in-out infinite;
+    z-index: 0;
+  }
+  @keyframes mood-breathe {
+    0%, 100% { opacity: 0.85; transform: scale(1); }
+    50%      { opacity: 1; transform: scale(1.05); }
+  }
+
+  /* Cinematic vignette */
+  .cine-vignette::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      transparent 35%,
+      hsl(0 0% 0% / 0.45) 78%,
+      hsl(0 0% 0% / 0.85) 100%
+    );
+    z-index: 30;
+  }
+
+  /* Film grain overlay */
+  .film-grain::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 31;
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='1'/></svg>");
+  }
+
+  /* Center halo — pulses with mood under the 3D core */
+  .core-halo {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at center,
+      hsl(var(--mood) / calc(0.5 * var(--ambient-intensity))) 0%,
+      hsl(var(--mood) / calc(0.2 * var(--ambient-intensity))) 22%,
+      hsl(var(--mood) / calc(0.06 * var(--ambient-intensity))) 45%,
+      transparent 70%
+    );
+    filter: blur(28px);
+    animation: mood-breathe var(--bg-pulse-speed) ease-in-out infinite;
+  }
+
+  /* Letterbox bars — appear during thinking for "important moment" feel */
+  .letterbox {
+    pointer-events: none;
+    position: absolute;
+    left: 0; right: 0;
+    height: 0;
+    background: #000;
+    transition: height 600ms cubic-bezier(.7, 0, .2, 1);
+    z-index: 40;
+  }
+  .letterbox-top { top: 0; }
+  .letterbox-bot { bottom: 0; }
+  main[data-state="thinking"] .letterbox { height: 1.6%; }
+  main[data-state="speaking"] .letterbox { height: 0.8%; }
+
+  /* Reactive HUD opacity */
+  .hud-reactive {
+    opacity: calc(0.45 + 0.55 * var(--ambient-intensity));
+    transition: opacity 380ms ease-out;
+  }
 }
 
 :root { --keyboard-h: 0px; }

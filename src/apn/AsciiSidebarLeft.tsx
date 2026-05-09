@@ -37,8 +37,11 @@ export default function AsciiSidebarLeft({ state }: Props) {
 
   return (
     <aside
-      className="hidden md:flex flex-col gap-0.5 py-3 px-2 text-[10px] leading-[14px] border-r ascii-border bg-black/60"
-      style={{ width: 96 }}
+      className="hidden md:flex flex-col gap-0.5 py-3 px-2 text-[10px] leading-[14px] h-full pointer-events-auto"
+      style={{
+        width: 88,
+        background: "linear-gradient(to right, hsl(0 0% 0% / 0.78) 0%, hsl(0 0% 0% / 0.35) 65%, transparent 100%)",
+      }}
       aria-hidden
     >
       <div className="text-foreground/40 uppercase tracking-widest mb-2">── AUDIO ──</div>

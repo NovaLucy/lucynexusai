@@ -27,17 +27,17 @@ export default function AmbientChars() {
     let parts: P[] = [];
     const seed = () => {
       const isMobile = W < 768;
-      const density = isMobile ? 11000 : 6500;
+      const density = isMobile ? 18000 : 11000;
       const n = Math.floor((W * H) / density);
       parts = Array.from({ length: n }, () => {
-        const isFace = Math.random() < 0.04;
+        const isFace = Math.random() < 0.025;
         return {
           x: Math.random() * W,
           y: Math.random() * H,
-          vx: (Math.random() - 0.5) * 0.08,
-          vy: (Math.random() - 0.5) * 0.08,
+          vx: (Math.random() - 0.5) * 0.06,
+          vy: (Math.random() - 0.5) * 0.06,
           ch: isFace ? FACES[Math.floor(Math.random() * FACES.length)] : CHARS[Math.floor(Math.random() * CHARS.length)],
-          o: isFace ? 0.08 + Math.random() * 0.05 : 0.04 + Math.random() * 0.06,
+          o: isFace ? 0.05 + Math.random() * 0.04 : 0.022 + Math.random() * 0.03,
           isFace,
         };
       });

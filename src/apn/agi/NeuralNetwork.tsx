@@ -21,7 +21,7 @@ interface Node {
   size: number;
 }
 
-const NODE_COUNT = 70;
+const NODE_COUNT = 140; // pool; visibility scales with state
 const MAX_DIST = 180;
 
 export default function NeuralNetwork({ mood, state }: Props) {
@@ -69,15 +69,21 @@ export default function NeuralNetwork({ mood, state }: Props) {
       const st = stateRef.current;
       const moodHSL = MOOD_HSL[md];
 
-      const speedMul = st === "speaking" ? 2.2 : st === "thinking" ? 1.6 : st === "listening" ? 1.1 : 1;
-      const brightMul = st === "speaking" ? 1.4 : st === "thinking" ? 1.2 : 1;
+      const speedMul = st === "speaking" ? 2.4 : st === "thinking" ? 1.8 : st === "listening" ? 1.2 : 0.9;
+      const brightMul = st === "speaking" ? 1.5 : st === "thinking" ? 1.25 : st === "listening" ? 1.05 : 0.85;
+      // Adaptive active node count — reveal more synapses when engaged
+      const activeCount = st === "speaking" ? NODE_COUNT
+        : st === "thinking" ? Math.floor(NODE_COUNT * 0.85)
+        : st === "listening" ? Math.floor(NODE_COUNT * 0.65)
+        : Math.floor(NODE_COUNT * 0.5);
 
       // Soft trail fade for after-glow
       ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
       ctx.fillRect(0, 0, W, H);
 
       // Update nodes
-      for (const n of nodes) {
+      for (let i = 0; i < activeCount; i++) {
+        const n = nodes[i];
         n.x += n.vx * speedMul;
         n.y += n.vy * speedMul;
         n.phase += 0.012 * speedMul;
@@ -89,9 +95,9 @@ export default function NeuralNetwork({ mood, state }: Props) {
 
       // Draw edges
       ctx.lineWidth = 0.8;
-      for (let i = 0; i < nodes.length; i++) {
+      for (let i = 0; i < activeCount; i++) {
         const a = nodes[i];
-        for (let j = i + 1; j < nodes.length; j++) {
+        for (let j = i + 1; j < activeCount; j++) {
           const b = nodes[j];
           const dx = a.x - b.x, dy = a.y - b.y;
           const d = Math.sqrt(dx * dx + dy * dy);
@@ -99,7 +105,10 @@ export default function NeuralNetwork({ mood, state }: Props) {
           const closeness = 1 - d / MAX_DIST;
           const pulse = 0.5 + 0.5 * Math.sin(t * 0.8 + (a.phase + b.phase) * 0.5);
           const alpha = closeness * 0.32 * pulse * brightMul;
-          ctx.strokeStyle = `hsla(${moodHSL.h}, ${moodHSL.s}%, ${Math.min(75, moodHSL.l + 25)}%, ${alpha})`;
+          // Mix mood + complementary on long edges → cinematic depth
+          const useComp = ((a.phase + b.phase) % 1) > 0.65;
+          const hue = useComp ? (moodHSL.h + 35) % 360 : moodHSL.h;
+          ctx.strokeStyle = `hsla(${hue}, ${moodHSL.s}%, ${Math.min(75, moodHSL.l + 25)}%, ${alpha})`;
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
@@ -108,7 +117,8 @@ export default function NeuralNetwork({ mood, state }: Props) {
       }
 
       // Draw nodes
-      for (const n of nodes) {
+      for (let i = 0; i < activeCount; i++) {
+        const n = nodes[i];
         const pulse = 0.6 + 0.4 * Math.sin(t * 1.2 + n.phase);
         const r = n.size * (1 + pulse * 0.4);
         const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 6);
