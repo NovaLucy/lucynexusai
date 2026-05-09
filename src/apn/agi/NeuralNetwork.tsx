@@ -69,8 +69,13 @@ export default function NeuralNetwork({ mood, state }: Props) {
       const st = stateRef.current;
       const moodHSL = MOOD_HSL[md];
 
-      const speedMul = st === "speaking" ? 2.2 : st === "thinking" ? 1.6 : st === "listening" ? 1.1 : 1;
-      const brightMul = st === "speaking" ? 1.4 : st === "thinking" ? 1.2 : 1;
+      const speedMul = st === "speaking" ? 2.4 : st === "thinking" ? 1.8 : st === "listening" ? 1.2 : 0.9;
+      const brightMul = st === "speaking" ? 1.5 : st === "thinking" ? 1.25 : st === "listening" ? 1.05 : 0.85;
+      // Adaptive active node count — reveal more synapses when engaged
+      const activeCount = st === "speaking" ? NODE_COUNT
+        : st === "thinking" ? Math.floor(NODE_COUNT * 0.85)
+        : st === "listening" ? Math.floor(NODE_COUNT * 0.65)
+        : Math.floor(NODE_COUNT * 0.5);
 
       // Soft trail fade for after-glow
       ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
