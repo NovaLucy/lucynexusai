@@ -4,6 +4,7 @@ import { STATE_LABEL, type AgentState, type Mood } from "@/apn/types";
 import Face from "@/apn/Face";
 import SyncIndicator from "@/apn/SyncIndicator";
 import type { SyncStatus } from "@/apn/useAPN";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   state: AgentState;
@@ -86,6 +87,17 @@ export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medica
       <SyncIndicator status={syncStatus} lastSyncAt={lastSyncAt} sessionId={sessionId} />
       <button onClick={onOpenLog} className="bracket-btn" aria-label="Journal">[LOG]</button>
       <button onClick={onOpenCfg} className="bracket-btn" aria-label="Configuration">[CFG]</button>
+      <button
+        onClick={async () => {
+          await supabase.auth.signOut();
+          window.location.href = "/auth";
+        }}
+        className="bracket-btn"
+        aria-label="Déconnexion"
+        title="Déconnexion"
+      >
+        [OUT]
+      </button>
     </div>
   );
 }

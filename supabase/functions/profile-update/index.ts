@@ -1,5 +1,7 @@
 // Background function: re-reads recent exchanges and updates the user profile.
 // Called fire-and-forget after each assistant response.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -12,18 +14,33 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = userData.user.id;
+
     const { sessionId, currentProfile, recentExchanges } = await req.json();
-    if (!sessionId || !Array.isArray(recentExchanges)) {
+    if (!Array.isArray(recentExchanges)) {
       return new Response(JSON.stringify({ error: "invalid payload" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!LOVABLE_API_KEY || !SUPABASE_URL || !SERVICE_KEY) {
+    if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "missing env" }), { status: 500, headers: corsHeaders });
     }
 
@@ -115,7 +132,6 @@ Règles :
     }
     const update = JSON.parse(args);
 
-    // Merge with current
     const merged: any = { ...(currentProfile ?? {}) };
     if (update.display_name) merged.display_name = update.display_name;
     if (update.last_topic) merged.last_topic = update.last_topic;
@@ -138,30 +154,25 @@ Règles :
     merged.updated_at = new Date().toISOString();
     merged.message_count = (currentProfile?.message_count ?? 0) + 1;
 
-    const upsertResp = await fetch(`${SUPABASE_URL}/rest/v1/apn_user_profile`, {
-      method: "POST",
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-        display_name: merged.display_name ?? null,
-        traits: merged.traits ?? {},
-        last_topic: merged.last_topic ?? null,
-        open_loops: merged.open_loops ?? [],
-        message_count: merged.message_count,
-        last_seen: merged.last_seen,
-        updated_at: merged.updated_at,
-      }),
-    });
-
-    if (!upsertResp.ok) {
-      const t = await upsertResp.text();
-      console.error("upsert err", upsertResp.status, t);
-    }
+    // Upsert by user_id (unique). Use service role to bypass RLS but pin to authenticated user.
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+    const { error: upErr } = await admin
+      .from("apn_user_profile")
+      .upsert(
+        {
+          user_id: userId,
+          session_id: sessionId ?? userId,
+          display_name: merged.display_name ?? null,
+          traits: merged.traits ?? {},
+          last_topic: merged.last_topic ?? null,
+          open_loops: merged.open_loops ?? [],
+          message_count: merged.message_count,
+          last_seen: merged.last_seen,
+          updated_at: merged.updated_at,
+        },
+        { onConflict: "user_id" },
+      );
+    if (upErr) console.error("upsert err", upErr);
 
     return new Response(JSON.stringify({ ok: true, profile: merged }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -4,19 +4,14 @@ import { applyMoodToRoot } from "./mood";
 import { inferMood } from "./intent";
 import type { AgentState, Message, Mood } from "./types";
 
-const SESSION_KEY = "apn:session_id";
-
-function getSessionId() {
-  let s = localStorage.getItem(SESSION_KEY);
-  if (!s) {
-    s = crypto.randomUUID();
-    localStorage.setItem(SESSION_KEY, s);
-  }
-  return s;
-}
-
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const PROFILE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/profile-update`;
+
+async function getAuthHeader(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  return `Bearer ${token}`;
+}
 
 type UserProfile = {
   display_name?: string | null;
@@ -31,7 +26,8 @@ type UserProfile = {
 export type SyncStatus = "idle" | "loading" | "saving" | "saved" | "error";
 
 export function useAPN() {
-  const sessionId = useRef<string>(getSessionId());
+  const [userId, setUserId] = useState<string | null>(null);
+  const sessionId = useRef<string>("");
   const profileRef = useRef<UserProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [state, setState] = useState<AgentState>("standby");
@@ -42,8 +38,24 @@ export function useAPN() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
 
+  // Bind to auth user
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user?.id ?? null;
+      setUserId(uid);
+      if (uid) sessionId.current = uid;
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      const uid = s?.user?.id ?? null;
+      setUserId(uid);
+      if (uid) sessionId.current = uid;
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
   // Load history + profile
   useEffect(() => {
+    if (!userId) return;
     (async () => {
       setSyncStatus("loading");
       try {
@@ -51,13 +63,13 @@ export function useAPN() {
           supabase
             .from("apn_memory")
             .select("user_msg, apn_msg, created_at, intent")
-            .eq("session_id", sessionId.current)
+            .eq("user_id", userId)
             .order("created_at", { ascending: false })
             .limit(8),
           supabase
             .from("apn_user_profile")
             .select("*")
-            .eq("session_id", sessionId.current)
+            .eq("user_id", userId)
             .maybeSingle(),
         ]);
         if (memErr || profErr) throw memErr ?? profErr;
@@ -89,7 +101,7 @@ export function useAPN() {
         setSyncStatus("error");
       }
     })();
-  }, []);
+  }, [userId]);
 
   const setMoodAndApply = useCallback((m: Mood) => {
     setMood(m);
@@ -99,9 +111,11 @@ export function useAPN() {
   useEffect(() => { applyMoodToRoot(mood); }, [mood]);
 
   const persist = useCallback(async (userMsg: string, apnMsg: string, m: Mood) => {
+    if (!userId) return;
     setSyncStatus("saving");
     const { error } = await supabase.from("apn_memory").insert({
       session_id: sessionId.current,
+      user_id: userId,
       user_msg: userMsg,
       apn_msg: apnMsg,
       intent: { mood: m },
@@ -114,7 +128,7 @@ export function useAPN() {
       setSyncStatus("saved");
       setLastSyncAt(Date.now());
     }
-  }, []);
+  }, [userId]);
 
   // Fire-and-forget profile update
   const updateProfileAsync = useCallback(async (userMsg: string, apnMsg: string) => {
@@ -128,7 +142,7 @@ export function useAPN() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: await getAuthHeader(),
         },
         body: JSON.stringify({
           sessionId: sessionId.current,
@@ -162,7 +176,7 @@ export function useAPN() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: await getAuthHeader(),
         },
         body: JSON.stringify({
           messages: ctxMessages,

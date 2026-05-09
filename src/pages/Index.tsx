@@ -18,6 +18,7 @@ import Lock from "@/apn/auth/Lock";
 import { useAuth } from "@/apn/auth/useAuth";
 import { matchCommand } from "@/apn/voiceCommands";
 import { useAPN } from "@/apn/useAPN";
+import { supabase } from "@/integrations/supabase/client";
 import { useVoice } from "@/apn/useVoice";
 import { tapLight, tapMedium } from "@/native";
 import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
@@ -79,14 +80,16 @@ export default function Index() {
     });
   }, [apn.profile?.message_count, apn.profile?.last_topic]);
 
-  const extractHealth = (userMessage: string) => {
+  const extractHealth = async (userMessage: string) => {
     if (!medicalMode) return;
     const recent = apn.messages.slice(-6).map((m) => ({ role: m.role, content: m.content }));
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     fetch(MEDICAL_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         action: "extract",
