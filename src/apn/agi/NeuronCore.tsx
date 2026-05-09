@@ -507,8 +507,8 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
     void main() {
       vLife = aLife;
       vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      float size = (8.0 + aLife * 14.0);
-      gl_PointSize = size * (340.0 / -mv.z);
+      float size = (3.0 + aLife * 5.0);
+      gl_PointSize = size * (140.0 / -mv.z);
       gl_Position = projectionMatrix * mv;
     }
   `;
