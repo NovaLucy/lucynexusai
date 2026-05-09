@@ -41,6 +41,10 @@
     --mood-l: 55%;
     --mood: var(--mood-h) var(--mood-s) var(--mood-l);
 
+    /* Ambient intensity (0..1.4) — set per state via [data-state] on <main> */
+    --ambient-intensity: 0.55;
+    --bg-pulse-speed: 9s;
+
     /* Terminal palette */
     --bg: 0 0% 0%;
     --fg: 0 0% 92%;
