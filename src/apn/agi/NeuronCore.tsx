@@ -594,9 +594,9 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
     void main() {
       vec3 viewDir = vec3(0.0, 0.0, 1.0);
       float fres = pow(1.0 - abs(dot(normalize(vNormal), viewDir)), 2.0);
-      vec3 core = mix(uColor2 * 1.4, uColor, fres);
-      core += uColor2 * (0.5 + uPulse * 1.0) * (1.0 - fres);
-      float a = clamp(0.55 + fres * 0.5 + uPulse * 0.2, 0.0, 1.0);
+      vec3 core = mix(uColor2 * 0.6, uColor, fres);
+      core += uColor2 * (0.15 + uPulse * 0.35) * (1.0 - fres);
+      float a = clamp(0.35 + fres * 0.35 + uPulse * 0.15, 0.0, 0.85);
       gl_FragColor = vec4(core, a);
     }
   `;
