@@ -307,7 +307,6 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
   // ── Soma (synaptic terminals) — small static glowing dots
   const somaVertex = /* glsl */ `
     uniform float uTime;
-    attribute vec3 position;
     varying float vFlick;
     void main() {
       float f = fract(sin(dot(position, vec3(12.9, 78.2, 37.7))) * 43758.5);
