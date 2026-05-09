@@ -14,8 +14,11 @@ export default function AsciiSidebarRight({ msgCount, topic, loops, name }: Prop
   const memPct = Math.min(100, Math.round((msgCount / 200) * 100));
   return (
     <aside
-      className="hidden md:flex flex-col gap-2 py-3 px-2 text-[10px] leading-[14px] border-l ascii-border bg-black/60"
-      style={{ width: 128 }}
+      className="hidden md:flex flex-col gap-2 py-3 px-2 text-[10px] leading-[14px] h-full pointer-events-auto"
+      style={{
+        width: 116,
+        background: "linear-gradient(to left, hsl(0 0% 0% / 0.78) 0%, hsl(0 0% 0% / 0.35) 65%, transparent 100%)",
+      }}
       aria-hidden
     >
       <div className="text-foreground/40 uppercase tracking-widest">── MEMORY ──</div>
