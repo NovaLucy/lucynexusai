@@ -38,8 +38,11 @@ function buildDendrites(branchCount: number, seed: number) {
   let s = seed;
   const rnd = () => {
     s = (s * 1664525 + 1013904223) >>> 0;
-    return (s & 0xffffffff) / 0xffffffff;
+    return s / 0x100000000;
   };
+
+  const isFinitePoint = (v: THREE.Vector3) =>
+    Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);
 
   const paths: BranchPath[] = [];
   const somaList: number[] = [];
@@ -76,19 +79,23 @@ function buildDendrites(branchCount: number, seed: number) {
       }
       if (rnd() < 0.005) break;
     }
-    tipList.push(cur.x, cur.y, cur.z);
-    somaList.push(cur.x, cur.y, cur.z);
+    const safeSegs = segs.filter(isFinitePoint);
+    if (safeSegs.length < 4 || !Number.isFinite(total) || total <= 0) return;
 
-    const flat = new Float32Array(segs.length * 3);
-    for (let i = 0; i < segs.length; i++) {
-      flat[i * 3] = segs[i].x;
-      flat[i * 3 + 1] = segs[i].y;
-      flat[i * 3 + 2] = segs[i].z;
+    const tip = safeSegs[safeSegs.length - 1];
+    tipList.push(tip.x, tip.y, tip.z);
+    somaList.push(tip.x, tip.y, tip.z);
+
+    const flat = new Float32Array(safeSegs.length * 3);
+    for (let i = 0; i < safeSegs.length; i++) {
+      flat[i * 3] = safeSegs[i].x;
+      flat[i * 3 + 1] = safeSegs[i].y;
+      flat[i * 3 + 2] = safeSegs[i].z;
     }
-    const curve = new THREE.CatmullRomCurve3(segs, false, "catmullrom", 0.5);
+    const curve = new THREE.CatmullRomCurve3(safeSegs, false, "catmullrom", 0.5);
     paths.push({
       pts: flat,
-      count: segs.length,
+      count: safeSegs.length,
       length: total,
       curve,
       rootDir: dir.clone().normalize(),
