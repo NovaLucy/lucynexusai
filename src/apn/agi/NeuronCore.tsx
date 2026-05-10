@@ -405,8 +405,11 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
       const breath = 1 + Math.sin(t * 0.9) * 0.08;
       haloRef.current.scale.setScalar(breath);
       const m = haloRef.current.material as THREE.MeshBasicMaterial;
-      m.opacity = 0.18 + uniforms.uPulse.value * 0.3;
+      m.opacity = 0.20 + uniforms.uPulse.value * 0.35;
     }
+    // Cinematic camera dolly
+    camera.position.z = 5.2 + Math.sin(t * 0.35) * 0.18 - uniforms.uPulse.value * 0.25;
+    camera.lookAt(0, 0, 0);
   });
 
   // ── Tube shader: myeline bands + fresnel + mouse deformation + shock wave
