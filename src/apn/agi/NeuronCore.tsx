@@ -21,7 +21,7 @@ function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0): THREE.Color {
   c.setHSL(
     ((m.h + hShift) % 360) / 360,
     Math.min(1, m.s / 100 + sBoost),
-    Math.min(0.4, Math.max(0, m.l / 100 + lOff)),
+    Math.min(0.6, Math.max(0, m.l / 100 + lOff)),
   );
   return c;
 }
@@ -405,8 +405,11 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
       const breath = 1 + Math.sin(t * 0.9) * 0.08;
       haloRef.current.scale.setScalar(breath);
       const m = haloRef.current.material as THREE.MeshBasicMaterial;
-      m.opacity = 0.18 + uniforms.uPulse.value * 0.3;
+      m.opacity = 0.20 + uniforms.uPulse.value * 0.35;
     }
+    // Cinematic camera dolly
+    camera.position.z = 5.2 + Math.sin(t * 0.35) * 0.18 - uniforms.uPulse.value * 0.25;
+    camera.lookAt(0, 0, 0);
   });
 
   // ── Tube shader: myeline bands + fresnel + mouse deformation + shock wave
@@ -603,11 +606,22 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
 
   return (
     <group ref={groupRef}>
-      {/* outer halo */}
+      {/* outer halo — soft cinematic bloom */}
       <mesh ref={haloRef}>
-        <sphereGeometry args={[0.7, 32, 32]} />
+        <sphereGeometry args={[0.95, 32, 32]} />
         <meshBasicMaterial
           color={uniforms.uColor.value}
+          transparent
+          opacity={0.18}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+      {/* inner aura — tighter halo for depth */}
+      <mesh>
+        <sphereGeometry args={[0.55, 32, 32]} />
+        <meshBasicMaterial
+          color={uniforms.uColor2.value}
           transparent
           opacity={0.10}
           blending={THREE.AdditiveBlending}
@@ -634,7 +648,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
         <meshBasicMaterial
           color={uniforms.uColor2.value}
           transparent
-          opacity={0.45}
+          opacity={0.7}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
