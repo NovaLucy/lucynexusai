@@ -83,7 +83,8 @@ export default function Index() {
     if (!medicalMode) return;
     const recent = apn.messages.slice(-6).map((m) => ({ role: m.role, content: m.content }));
     const { data: sess } = await supabase.auth.getSession();
-    const token = sess.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const token = sess.session?.access_token;
+    if (!token) return; // medical extraction requires authenticated user
     fetch(MEDICAL_URL, {
       method: "POST",
       headers: {
