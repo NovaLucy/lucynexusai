@@ -21,7 +21,7 @@ function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0): THREE.Color {
   c.setHSL(
     ((m.h + hShift) % 360) / 360,
     Math.min(1, m.s / 100 + sBoost),
-    Math.min(0.4, Math.max(0, m.l / 100 + lOff)),
+    Math.min(0.6, Math.max(0, m.l / 100 + lOff)),
   );
   return c;
 }
@@ -603,11 +603,22 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
 
   return (
     <group ref={groupRef}>
-      {/* outer halo */}
+      {/* outer halo — soft cinematic bloom */}
       <mesh ref={haloRef}>
-        <sphereGeometry args={[0.7, 32, 32]} />
+        <sphereGeometry args={[0.95, 32, 32]} />
         <meshBasicMaterial
           color={uniforms.uColor.value}
+          transparent
+          opacity={0.18}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+      {/* inner aura — tighter halo for depth */}
+      <mesh>
+        <sphereGeometry args={[0.55, 32, 32]} />
+        <meshBasicMaterial
+          color={uniforms.uColor2.value}
           transparent
           opacity={0.10}
           blending={THREE.AdditiveBlending}
@@ -634,7 +645,7 @@ function NeuronWeb({ mood, state, speaking, intensity = 1 }: Props) {
         <meshBasicMaterial
           color={uniforms.uColor2.value}
           transparent
-          opacity={0.45}
+          opacity={0.7}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
