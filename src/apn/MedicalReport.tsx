@@ -22,7 +22,12 @@ export default function MedicalReport({ open, onOpenChange, sessionId }: Props) 
     setReport(null);
     (async () => {
       const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const token = sess.session?.access_token;
+      if (!token) {
+        setReport("_Connecte-toi pour générer un compte-rendu._");
+        setLoading(false);
+        return;
+      }
       try {
         const r = await fetch(MEDICAL_URL, {
           method: "POST",
