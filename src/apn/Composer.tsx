@@ -88,64 +88,91 @@ export default function Composer({
   const computedState = state ?? (micActive ? "listening" : undefined);
 
   return (
-    <form
-      onSubmit={submit}
-      className="w-full flex items-center gap-2 px-2 sm:px-3 py-2 border-t ascii-border bg-black"
-    >
-      <Face
-        mood={mood}
-        state={computedState}
-        size="xs"
-        blink
-        variant="inline"
-        expression={expression}
-        className="shrink-0 tap-target justify-center"
-        onClick={() => inputRef.current?.focus()}
+    <div className="relative">
+      {/* HUD scan-line above composer */}
+      <div
+        className="pointer-events-none absolute -top-px left-0 right-0 h-px"
+        style={{
+          background: "linear-gradient(90deg, transparent 0%, hsl(var(--mood) / 0.7) 50%, transparent 100%)",
+          boxShadow: "0 0 12px hsl(var(--mood) / 0.5)",
+        }}
+        aria-hidden
       />
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="parle-moi_"
-        aria-label="Message à APN"
-        autoComplete="off"
-        autoCapitalize="sentences"
-        enterKeyHint="send"
-        spellCheck={false}
-        className="flex-1 min-w-0 bg-transparent outline-none text-foreground placeholder:text-foreground/30 font-mono caret-transparent py-2"
-        style={{ caretColor: "hsl(var(--mood))" }}
-        disabled={disabled}
+      {/* Soft mood aura behind composer */}
+      <div
+        className="pointer-events-none absolute inset-0 -top-6"
+        style={{
+          background: "radial-gradient(ellipse at 50% 100%, hsl(var(--mood) / 0.08) 0%, transparent 70%)",
+        }}
+        aria-hidden
       />
-      {polishEnabled && polishing && value.trim().length > 3 && (
-        <span className="text-[10px] uppercase tracking-widest text-foreground/40 shrink-0 hidden sm:inline">
-          ✨ corr…
-        </span>
-      )}
-      {cameraAvailable && (
-        <button type="button" onClick={handlePhoto} className="bracket-btn" aria-label="Envoyer une photo">
-          [CAM]
-        </button>
-      )}
-      {sttSupported && (
-        <button
-          type="button"
-          onClick={onMic}
-          aria-label={micActive ? "Arrêter l'écoute" : "Parler"}
-          className={`bracket-btn ${micActive ? "bracket-btn-rec" : ""}`}
-        >
-          {micActive ? "[●REC]" : "[MIC]"}
-        </button>
-      )}
-      <button
-        type="submit"
-        disabled={!value.trim() || disabled}
-        aria-label="Envoyer"
-        className="bracket-btn bracket-btn-active disabled:bracket-btn"
+      <form
+        onSubmit={submit}
+        className="relative w-full flex items-center gap-2 px-2 sm:px-3 py-2 border-t ascii-border bg-black/90 backdrop-blur-sm"
       >
-        <span className="hidden sm:inline">[SEND ↵]</span>
-        <span className="sm:hidden">[↵]</span>
-      </button>
-    </form>
+        {/* corner brackets */}
+        <span aria-hidden className="pointer-events-none absolute top-0 left-0 w-2 h-2 border-l border-t mood-border" />
+        <span aria-hidden className="pointer-events-none absolute top-0 right-0 w-2 h-2 border-r border-t mood-border" />
+        <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 w-2 h-2 border-l border-b mood-border" />
+        <span aria-hidden className="pointer-events-none absolute bottom-0 right-0 w-2 h-2 border-r border-b mood-border" />
+
+        <Face
+          mood={mood}
+          state={computedState}
+          size="xs"
+          blink
+          variant="inline"
+          expression={expression}
+          className="shrink-0 tap-target justify-center"
+          onClick={() => inputRef.current?.focus()}
+        />
+        <span className="mood-text text-xs select-none hidden sm:inline">›</span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="parle-moi_"
+          aria-label="Message à APN"
+          autoComplete="off"
+          autoCapitalize="sentences"
+          enterKeyHint="send"
+          spellCheck={false}
+          className="flex-1 min-w-0 bg-transparent outline-none text-foreground placeholder:text-foreground/30 font-mono caret-transparent py-2 focus:placeholder:text-foreground/50 transition-colors"
+          style={{ caretColor: "hsl(var(--mood))" }}
+          disabled={disabled}
+        />
+        {polishEnabled && polishing && value.trim().length > 3 && (
+          <span className="text-[10px] uppercase tracking-widest mood-text shrink-0 hidden sm:inline animate-pulse">
+            ✨ corr…
+          </span>
+        )}
+        {cameraAvailable && (
+          <button type="button" onClick={handlePhoto} className="bracket-btn" aria-label="Envoyer une photo">
+            [CAM]
+          </button>
+        )}
+        {sttSupported && (
+          <button
+            type="button"
+            onClick={onMic}
+            aria-label={micActive ? "Arrêter l'écoute" : "Parler"}
+            className={`bracket-btn ${micActive ? "bracket-btn-rec" : ""}`}
+          >
+            {micActive ? "[●REC]" : "[MIC]"}
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={!value.trim() || disabled}
+          aria-label="Envoyer"
+          className="bracket-btn bracket-btn-active disabled:bracket-btn"
+          style={value.trim() ? { boxShadow: "0 0 16px hsl(var(--mood) / 0.45)" } : undefined}
+        >
+          <span className="hidden sm:inline">[SEND ↵]</span>
+          <span className="sm:hidden">[↵]</span>
+        </button>
+      </form>
+    </div>
   );
 }
