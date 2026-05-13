@@ -207,7 +207,7 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
         />
       </mesh>
 
-      {/* main bubble */}
+      {/* main drop — dark glassy water */}
       <mesh ref={meshRef}>
         <sphereGeometry args={[1, 128, 128]} />
         <shaderMaterial
@@ -217,12 +217,12 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
           fragmentShader={fragment}
           transparent
           depthWrite={false}
-          blending={THREE.AdditiveBlending}
+          blending={THREE.NormalBlending}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* inner glowing nucleus */}
+      {/* inner subtle nucleus — barely visible mood glow */}
       <mesh ref={innerRef}>
         <sphereGeometry args={[0.55, 64, 64]} />
         <shaderMaterial
