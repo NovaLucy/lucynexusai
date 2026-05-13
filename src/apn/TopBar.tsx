@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { STATE_LABEL, type AgentState, type Mood } from "@/apn/types";
-import Face from "@/apn/Face";
 import SyncIndicator from "@/apn/SyncIndicator";
 import type { SyncStatus } from "@/apn/useAPN";
 import { supabase } from "@/integrations/supabase/client";
+import { Archive, Settings, LogOut, Stethoscope } from "lucide-react";
 
 interface Props {
   state: AgentState;
@@ -25,79 +24,81 @@ function clock() {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export default function TopBar({ state, mood, name, onOpenLog, onOpenCfg, medicalMode, onToggleMedical, syncStatus, lastSyncAt, sessionId }: Props) {
+export default function TopBar({
+  state, mood, name, onOpenLog, onOpenCfg, medicalMode, onToggleMedical,
+  syncStatus, lastSyncAt, sessionId,
+}: Props) {
   const [time, setTime] = useState(clock());
   useEffect(() => {
     const id = setInterval(() => setTime(clock()), 1000);
     return () => clearInterval(id);
   }, []);
 
+  const iconBtn =
+    "p-2 rounded-full text-foreground/40 hover:text-foreground/90 hover:bg-foreground/[0.04] transition-colors";
+
   return (
-    <div
-      className="w-full flex items-center gap-2 px-2 sm:px-3 py-2 text-[11px] uppercase tracking-widest border-b ascii-border bg-black/80"
-      aria-live="polite"
-    >
-      <span className="shrink-0 flex items-center gap-1">
-        <Face
-          mood={mood}
-          state={state}
-          size="xs"
-          blink
-          variant="inline"
-          onClick={() =>
-            toast.message(`APN · ${STATE_LABEL[state]}`, {
-              description: `mood: ${mood}${name ? ` · usr: ${name}` : ""}`,
-            })
-          }
-        />
-      </span>
+    <div className="w-full flex items-center justify-between px-4 sm:px-8 py-4 text-[10px] uppercase tracking-[0.3em] font-light">
+      {/* Left: status */}
+      <div className="flex items-center gap-3 text-foreground/40">
+        <span className="hidden sm:inline">Status</span>
+        <span className="flex items-center gap-2 text-foreground/70">
+          <span
+            className="w-1 h-1 rounded-full"
+            style={{
+              background: "hsl(var(--mood))",
+              boxShadow: "0 0 8px hsl(var(--mood) / 0.8)",
+            }}
+          />
+          {STATE_LABEL[state]}
+        </span>
+      </div>
 
-      <span className="text-foreground/30 flex-1 truncate hidden sm:inline">
-        {"─".repeat(120)}
-      </span>
-      <span className="flex-1 sm:hidden" />
+      {/* Right: mood, time, actions */}
+      <div className="flex items-center gap-3 sm:gap-6 text-foreground/40">
+        <span className="hidden md:inline">
+          Mood <span className="ml-2 mood-text font-normal">{mood}</span>
+        </span>
+        <span className="tabular-nums hidden xs:inline sm:inline normal-case tracking-normal text-xs text-foreground/50">
+          {time}
+        </span>
 
-      <span className="text-foreground/60 hidden md:inline">
-        STATE: <span className="text-foreground">{STATE_LABEL[state].toUpperCase()}</span>
-      </span>
-      <span className="text-foreground/30 hidden md:inline">│</span>
-      <span className="text-foreground/60 hidden md:inline">
-        MOOD: <span className="mood-text">{mood.toUpperCase()}</span>
-      </span>
-      <span className="text-foreground/30 hidden lg:inline">│</span>
-      {name && (
-        <>
-          <span className="text-foreground/60 hidden lg:inline">
-            USR: <span className="text-foreground">{name.toUpperCase()}</span>
+        {name && (
+          <span className="hidden lg:inline text-foreground/40 normal-case tracking-normal">
+            {name}
           </span>
-          <span className="text-foreground/30 hidden lg:inline">│</span>
-        </>
-      )}
-      <span className="text-foreground/80 tabular-nums hidden xs:inline sm:inline">{time}</span>
-      {onToggleMedical && (
-        <button
-          onClick={onToggleMedical}
-          className={`bracket-btn ${medicalMode ? "bracket-btn-rec" : ""}`}
-          aria-label="Mode pré-médecin"
-          title="Mode pré-médecin"
-        >
-          [MED]
+        )}
+
+        <SyncIndicator status={syncStatus} lastSyncAt={lastSyncAt} sessionId={sessionId} />
+
+        {onToggleMedical && (
+          <button
+            onClick={onToggleMedical}
+            className={`${iconBtn} ${medicalMode ? "text-red-300/90 bg-red-950/30" : ""}`}
+            aria-label="Mode pré-médecin"
+            title="Mode pré-médecin"
+          >
+            <Stethoscope className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <button onClick={onOpenLog} className={iconBtn} aria-label="Journal" title="Journal">
+          <Archive className="w-3.5 h-3.5" />
         </button>
-      )}
-      <SyncIndicator status={syncStatus} lastSyncAt={lastSyncAt} sessionId={sessionId} />
-      <button onClick={onOpenLog} className="bracket-btn" aria-label="Journal">[LOG]</button>
-      <button onClick={onOpenCfg} className="bracket-btn" aria-label="Configuration">[CFG]</button>
-      <button
-        onClick={async () => {
-          await supabase.auth.signOut();
-          window.location.href = "/auth";
-        }}
-        className="bracket-btn"
-        aria-label="Déconnexion"
-        title="Déconnexion"
-      >
-        [OUT]
-      </button>
+        <button onClick={onOpenCfg} className={iconBtn} aria-label="Configuration" title="Réglages">
+          <Settings className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut();
+            window.location.href = "/auth";
+          }}
+          className={iconBtn}
+          aria-label="Déconnexion"
+          title="Déconnexion"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }

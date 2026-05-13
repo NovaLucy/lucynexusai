@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { cameraAvailable, pickPhoto } from "./camera";
 import { usePolish } from "./usePolish";
-import Face from "./Face";
+import { Mic, MicOff, Camera, ArrowRight } from "lucide-react";
 import type { Mood, AgentState } from "./types";
 
 interface Props {
@@ -21,7 +21,6 @@ interface Props {
 export default function Composer({
   onSend, onMic, onPhoto, micActive, sttSupported, disabled,
   value: extValue, onValueChange, polishEnabled = true,
-  mood = "calm", state,
 }: Props) {
   const [internal, setInternal] = useState("");
   const value = extValue !== undefined ? extValue : internal;
@@ -34,13 +33,9 @@ export default function Composer({
 
   const polish = usePolish(polishEnabled, (corrected, original) => {
     setPolishing(false);
-    // Only replace if the field still holds the version we polished
-    if (value.trim() === original.trim()) {
-      setValue(corrected);
-    }
+    if (value.trim() === original.trim()) setValue(corrected);
   });
 
-  // Trigger polish whenever value changes (debounced inside the hook)
   useEffect(() => {
     if (!polishEnabled) return;
     if (!value.trim()) return;
@@ -65,114 +60,92 @@ export default function Composer({
   };
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const [expression, setExpression] = useState<"neutral" | "wink" | "smile" | "alert">("neutral");
-  const prevDisabledRef = useRef(disabled);
-
-  // Brief smile/wink when message is sent (textarea cleared from non-empty)
-  const wasNonEmpty = useRef(false);
-  useEffect(() => {
-    if (value.trim().length > 0) wasNonEmpty.current = true;
-    else if (wasNonEmpty.current) {
-      wasNonEmpty.current = false;
-      setExpression("smile");
-      const t = window.setTimeout(() => setExpression("neutral"), 1100);
-      return () => window.clearTimeout(t);
-    }
-  }, [value]);
-
-  // Alert flash when becoming disabled then re-enabled fast (proxy for error)
-  useEffect(() => {
-    prevDisabledRef.current = disabled;
-  }, [disabled]);
-
-  const computedState = state ?? (micActive ? "listening" : undefined);
+  const hasText = value.trim().length > 0;
 
   return (
-    <div className="relative">
-      {/* HUD scan-line above composer */}
-      <div
-        className="pointer-events-none absolute -top-px left-0 right-0 h-px"
-        style={{
-          background: "linear-gradient(90deg, transparent 0%, hsl(var(--mood) / 0.7) 50%, transparent 100%)",
-          boxShadow: "0 0 12px hsl(var(--mood) / 0.5)",
-        }}
-        aria-hidden
-      />
-      {/* Soft mood aura behind composer */}
-      <div
-        className="pointer-events-none absolute inset-0 -top-6"
-        style={{
-          background: "radial-gradient(ellipse at 50% 100%, hsl(var(--mood) / 0.08) 0%, transparent 70%)",
-        }}
-        aria-hidden
-      />
-      <form
-        onSubmit={submit}
-        className="relative w-full flex items-center gap-2 px-2 sm:px-3 py-2 border-t ascii-border bg-black/90 backdrop-blur-sm"
-      >
-        {/* corner brackets */}
-        <span aria-hidden className="pointer-events-none absolute top-0 left-0 w-2 h-2 border-l border-t mood-border" />
-        <span aria-hidden className="pointer-events-none absolute top-0 right-0 w-2 h-2 border-r border-t mood-border" />
-        <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 w-2 h-2 border-l border-b mood-border" />
-        <span aria-hidden className="pointer-events-none absolute bottom-0 right-0 w-2 h-2 border-r border-b mood-border" />
+    <div className="w-full flex justify-center px-4 sm:px-6 pb-4 sm:pb-6">
+      <div className="relative w-full max-w-2xl group">
+        {/* Soft mood aura, intensifies on focus / hasText */}
+        <div
+          className="pointer-events-none absolute -inset-1 rounded-full blur-xl opacity-25 group-focus-within:opacity-90 transition-opacity duration-700"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 0%, hsl(var(--mood) / 0.35) 50%, transparent 100%)",
+            opacity: hasText ? 0.7 : undefined,
+          }}
+          aria-hidden
+        />
 
-        <Face
-          mood={mood}
-          state={computedState}
-          size="xs"
-          blink
-          variant="inline"
-          expression={expression}
-          className="shrink-0 tap-target justify-center"
-          onClick={() => inputRef.current?.focus()}
-        />
-        <span className="mood-text text-xs select-none hidden sm:inline">›</span>
-        <input
-          ref={inputRef}
-          type="text"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="parle-moi_"
-          aria-label="Message à APN"
-          autoComplete="off"
-          autoCapitalize="sentences"
-          enterKeyHint="send"
-          spellCheck={false}
-          className="flex-1 min-w-0 bg-transparent outline-none text-foreground placeholder:text-foreground/30 font-mono caret-transparent py-2 focus:placeholder:text-foreground/50 transition-colors"
-          style={{ caretColor: "hsl(var(--mood))" }}
-          disabled={disabled}
-        />
-        {polishEnabled && polishing && value.trim().length > 3 && (
-          <span className="text-[10px] uppercase tracking-widest mood-text shrink-0 hidden sm:inline animate-pulse">
-            ✨ corr…
-          </span>
-        )}
-        {cameraAvailable && (
-          <button type="button" onClick={handlePhoto} className="bracket-btn" aria-label="Envoyer une photo">
-            [CAM]
-          </button>
-        )}
-        {sttSupported && (
-          <button
-            type="button"
-            onClick={onMic}
-            aria-label={micActive ? "Arrêter l'écoute" : "Parler"}
-            className={`bracket-btn ${micActive ? "bracket-btn-rec" : ""}`}
-          >
-            {micActive ? "[●REC]" : "[MIC]"}
-          </button>
-        )}
-        <button
-          type="submit"
-          disabled={!value.trim() || disabled}
-          aria-label="Envoyer"
-          className="bracket-btn bracket-btn-active disabled:bracket-btn"
-          style={value.trim() ? { boxShadow: "0 0 16px hsl(var(--mood) / 0.45)" } : undefined}
+        <form
+          onSubmit={submit}
+          className="relative flex items-center gap-2 rounded-full border border-foreground/10 bg-background/40 backdrop-blur-2xl px-3 sm:px-4 py-2.5 transition-all duration-300 focus-within:border-[hsl(var(--mood)/0.4)] focus-within:bg-background/60"
         >
-          <span className="hidden sm:inline">[SEND ↵]</span>
-          <span className="sm:hidden">[↵]</span>
-        </button>
-      </form>
+          {cameraAvailable && (
+            <button
+              type="button"
+              onClick={handlePhoto}
+              className="shrink-0 p-2 rounded-full text-foreground/40 hover:text-foreground/80 transition-colors"
+              aria-label="Envoyer une photo"
+            >
+              <Camera className="w-4 h-4" />
+            </button>
+          )}
+
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Commencer à parler…"
+            aria-label="Message à APN"
+            autoComplete="off"
+            autoCapitalize="sentences"
+            enterKeyHint="send"
+            spellCheck={false}
+            className="flex-1 min-w-0 bg-transparent outline-none text-foreground/90 placeholder:text-foreground/30 text-sm font-light tracking-wide py-1.5 px-2"
+            disabled={disabled}
+          />
+
+          {polishEnabled && polishing && hasText && (
+            <span
+              className="text-[9px] uppercase tracking-[0.25em] mood-text shrink-0 hidden sm:inline animate-pulse"
+              aria-hidden
+            >
+              ✨
+            </span>
+          )}
+
+          {sttSupported && (
+            <button
+              type="button"
+              onClick={onMic}
+              aria-label={micActive ? "Arrêter l'écoute" : "Parler"}
+              className={`shrink-0 p-2 rounded-full transition-colors ${
+                micActive
+                  ? "text-red-300 bg-red-500/10 animate-pulse"
+                  : "text-foreground/40 hover:text-foreground/80"
+              }`}
+            >
+              {micActive ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+          )}
+
+          <button
+            type="submit"
+            disabled={!hasText || disabled}
+            aria-label="Envoyer"
+            className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{
+              background: hasText ? "hsl(var(--mood) / 0.18)" : "hsl(var(--foreground) / 0.04)",
+              border: `1px solid hsl(var(--mood) / ${hasText ? 0.45 : 0.15})`,
+              color: hasText ? "hsl(var(--mood))" : "hsl(var(--foreground) / 0.4)",
+              boxShadow: hasText ? "0 0 20px hsl(var(--mood) / 0.35)" : undefined,
+            }}
+          >
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -5,13 +5,10 @@ import TopBar from "@/apn/TopBar";
 import Composer from "@/apn/Composer";
 import ChatLog from "@/apn/ChatLog";
 import ControlsDrawer from "@/apn/ControlsDrawer";
-import AsciiSidebarLeft from "@/apn/AsciiSidebarLeft";
-import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
 import NeuralNetwork from "@/apn/agi/NeuralNetwork";
-import HUDFrame from "@/apn/agi/HUDFrame";
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/apn/auth/useAuth";
@@ -193,19 +190,15 @@ export default function Index() {
 
   return (
     <main
-      className="relative w-screen overflow-hidden bg-black flex flex-col mood-ambient cine-vignette film-grain"
+      className="relative w-screen overflow-hidden bg-black flex flex-col mood-ambient"
       style={{ height: "100dvh" }}
       data-state={apn.state}
       data-mood={apn.mood}
     >
       <h1 className="sr-only">APN — Agent Personnel Numérique</h1>
 
-      {/* Letterbox bars (cinematic) */}
-      <div className="letterbox letterbox-top" aria-hidden />
-      <div className="letterbox letterbox-bot" aria-hidden />
-
-      {/* Ambient floating chars background */}
-      <div className="absolute inset-0 pointer-events-none z-[1]">
+      {/* Ambient floating chars background (subtle) */}
+      <div className="absolute inset-0 pointer-events-none z-[1] opacity-40">
         <AmbientChars />
       </div>
 
@@ -234,46 +227,18 @@ export default function Index() {
         </div>
       )}
 
-      {/* Mobile-only compact stat strip (replaces hidden sidebars) */}
-      <div className="md:hidden relative z-20 flex items-center gap-3 px-3 py-1 text-[10px] uppercase tracking-widest border-b ascii-border bg-black/60 overflow-x-auto">
-        <span className="text-foreground/50">MSG <span className="text-foreground tabular-nums">{String(apn.profile?.message_count ?? apn.messages.length).padStart(3, "0")}</span></span>
-        <span className="text-foreground/30">│</span>
-        <span className="text-foreground/50">STATE <span className="mood-text">{apn.state.slice(0, 4).toUpperCase()}</span></span>
-        <span className="text-foreground/30">│</span>
-        <span className="text-foreground/50">MOOD <span className="mood-text">{apn.mood.slice(0, 4).toUpperCase()}</span></span>
-        {apn.profile?.last_topic && (
-          <>
-            <span className="text-foreground/30">│</span>
-            <span className="text-foreground/50 truncate">› <span className="mood-text">{apn.profile.last_topic.slice(0, 18)}</span></span>
-          </>
-        )}
-      </div>
-
-      {/* Center stage — sidebars become overlays so the core dominates */}
+      {/* Center stage — clean, sidebars removed */}
       <div className="relative z-10 flex-1 flex min-h-0">
-        <div className="hidden md:block absolute top-0 bottom-0 left-0 z-10 pointer-events-none">
-          <AsciiSidebarLeft state={apn.state} />
-        </div>
-        <div className="hidden md:block absolute top-0 bottom-0 right-0 z-10 pointer-events-none">
-          <AsciiSidebarRight
-            msgCount={apn.profile?.message_count ?? apn.messages.length}
-            topic={apn.profile?.last_topic}
-            loops={loops}
-            name={apn.profile?.display_name}
-          />
-        </div>
-
-        {/* Center: AGI core — full width, dominant */}
         <section className="relative flex-1 flex flex-col min-w-0">
-          <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-none opacity-40">
             <NeuralNetwork mood={apn.mood} state={apn.state} />
           </div>
 
-          <div className="relative flex-1 flex items-center justify-center p-2 sm:p-3 z-10">
+          <div className="relative flex-1 flex items-center justify-center p-4 sm:p-6 z-10">
             <div
               className="relative"
               style={{
-                width: isMobile ? "min(78dvh, 100%)" : "min(92dvh, 96%)",
+                width: isMobile ? "min(72dvh, 92%)" : "min(80dvh, 88%)",
                 aspectRatio: "1 / 1",
                 maxHeight: "100%",
               }}
@@ -298,27 +263,21 @@ export default function Index() {
                   intensity={intensity}
                 />
               </div>
-
-              {/* AGI HUD overlay (opacity reactive) */}
-              <div className="absolute inset-0 hud-reactive">
-                <HUDFrame
-                  state={apn.state}
-                  mood={apn.mood}
-                  msgCount={apn.profile?.message_count ?? apn.messages.length}
-                  topic={apn.profile?.last_topic}
-                  loops={apn.profile?.open_loops?.length ?? 0}
-                />
-              </div>
             </div>
           </div>
 
-          {/* Caption */}
-          <div className="px-4 pb-3 text-center relative z-20" aria-live="polite">
-            <p className="font-mono text-xs sm:text-sm md:text-base uppercase tracking-[0.3em] mood-text">
-              <span className="text-foreground/40">{">"} </span>
+          {/* Caption — soft, human */}
+          <div className="px-6 pb-4 text-center relative z-20" aria-live="polite">
+            <p className="text-base sm:text-xl md:text-2xl font-light tracking-tight text-foreground/85">
               {apn.caption}
-              <span className="cursor-blink" />
             </p>
+            <div
+              className="mt-3 h-px w-12 mx-auto"
+              style={{
+                background:
+                  "linear-gradient(90deg, transparent, hsl(var(--mood) / 0.5), transparent)",
+              }}
+            />
           </div>
         </section>
       </div>
