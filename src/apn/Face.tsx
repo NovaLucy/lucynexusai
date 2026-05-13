@@ -25,10 +25,15 @@ interface MoodFace {
 }
 
 const MOODS: Record<Mood, MoodFace> = {
-  calm:       { brows: [" ", " "], eyeL: "◉", eyeR: "◉", mouth: "◡" },
-  empathetic: { brows: ["╲", "╱"], eyeL: "♥", eyeR: "♥", mouth: "◡" },
-  focused:    { brows: ["╲", "╱"], eyeL: "◉", eyeR: "◉", mouth: "─" },
-  alert:      { brows: ["‾", "‾"], eyeL: "⊙", eyeR: "⊙", mouth: "○" },
+  calm:        { brows: [" ", " "], eyeL: "◉", eyeR: "◉", mouth: "◡" },
+  empathetic:  { brows: ["╲", "╱"], eyeL: "♥", eyeR: "♥", mouth: "◡" },
+  focused:     { brows: ["╲", "╱"], eyeL: "◉", eyeR: "◉", mouth: "─" },
+  alert:       { brows: ["‾", "‾"], eyeL: "⊙", eyeR: "⊙", mouth: "○" },
+  tender:      { brows: [" ", " "], eyeL: "♥", eyeR: "♥", mouth: "◡" },
+  playful:     { brows: ["╱", "╲"], eyeL: "^", eyeR: "^", mouth: "ᴗ" },
+  melancholic: { brows: ["‾", "‾"], eyeL: "◔", eyeR: "◔", mouth: "‿" },
+  proud:       { brows: ["╱", "╲"], eyeL: "◉", eyeR: "◉", mouth: "ᴗ" },
+  worried:     { brows: ["╱", "╲"], eyeL: "◉", eyeR: "◉", mouth: "◠" },
 };
 
 const SIZE_CLASS = {
