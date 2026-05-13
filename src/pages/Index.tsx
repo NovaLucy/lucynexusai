@@ -230,7 +230,7 @@ export default function Index() {
       {/* Center stage — clean, sidebars removed */}
       <div className="relative z-10 flex-1 flex min-h-0">
         <section className="relative flex-1 flex flex-col min-w-0">
-          <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute inset-0 pointer-events-none opacity-[0.12]">
             <NeuralNetwork mood={apn.mood} state={apn.state} />
           </div>
 
