@@ -9,7 +9,7 @@ import AsciiSidebarLeft from "@/apn/AsciiSidebarLeft";
 import AsciiSidebarRight from "@/apn/AsciiSidebarRight";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
-import VolumetricFace from "@/apn/agi/NeuronCore";
+import VolumetricFace from "@/apn/agi/MoodBubble";
 import NeuralNetwork from "@/apn/agi/NeuralNetwork";
 import HUDFrame from "@/apn/agi/HUDFrame";
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
