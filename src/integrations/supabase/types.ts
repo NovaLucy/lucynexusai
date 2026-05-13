@@ -92,6 +92,39 @@ export type Database = {
         }
         Relationships: []
       }
+      apn_persona: {
+        Row: {
+          bond_level: number
+          created_at: string
+          inside_jokes: Json
+          quirks: string[]
+          stance: string | null
+          traits: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bond_level?: number
+          created_at?: string
+          inside_jokes?: Json
+          quirks?: string[]
+          stance?: string | null
+          traits?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bond_level?: number
+          created_at?: string
+          inside_jokes?: Json
+          quirks?: string[]
+          stance?: string | null
+          traits?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       apn_user_profile: {
         Row: {
           display_name: string | null
