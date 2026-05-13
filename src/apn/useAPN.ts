@@ -23,18 +23,52 @@ type UserProfile = {
   first_seen?: string;
 };
 
+type Persona = {
+  traits?: Record<string, number>;
+  quirks?: string[];
+  bond_level?: number;
+  inside_jokes?: any[];
+  stance?: string | null;
+};
+
 export type SyncStatus = "idle" | "loading" | "saving" | "saved" | "error";
+
+async function uploadVisionImage(userId: string, dataUrl: string): Promise<string | null> {
+  try {
+    const m = dataUrl.match(/^data:(image\/\w+);base64,(.*)$/);
+    if (!m) return null;
+    const mime = m[1];
+    const ext = mime.split("/")[1] ?? "jpg";
+    const bin = atob(m[2]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const path = `${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("apn-vision")
+      .upload(path, bytes, { contentType: mime, upsert: false });
+    if (error) {
+      console.warn("vision upload failed", error);
+      return null;
+    }
+    return path;
+  } catch (e) {
+    console.warn("vision upload error", e);
+    return null;
+  }
+}
 
 export function useAPN() {
   const [userId, setUserId] = useState<string | null>(null);
   const sessionId = useRef<string>("");
   const profileRef = useRef<UserProfile | null>(null);
+  const personaRef = useRef<Persona | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [state, setState] = useState<AgentState>("standby");
   const [mood, setMood] = useState<Mood>("calm");
   const [error, setError] = useState<string | null>(null);
   const [caption, setCaption] = useState<string>("Je suis prêt.");
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [persona, setPersona] = useState<Persona | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
 
@@ -53,13 +87,13 @@ export function useAPN() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Load history + profile
+  // Load history + profile + persona
   useEffect(() => {
     if (!userId) return;
     (async () => {
       setSyncStatus("loading");
       try {
-        const [{ data: memData, error: memErr }, { data: profData, error: profErr }] = await Promise.all([
+        const [{ data: memData, error: memErr }, { data: profData, error: profErr }, { data: persData }] = await Promise.all([
           supabase
             .from("apn_memory")
             .select("user_msg, apn_msg, created_at, intent")
@@ -68,6 +102,11 @@ export function useAPN() {
             .limit(40),
           supabase
             .from("apn_user_profile")
+            .select("*")
+            .eq("user_id", userId)
+            .maybeSingle(),
+          supabase
+            .from("apn_persona")
             .select("*")
             .eq("user_id", userId)
             .maybeSingle(),
@@ -94,6 +133,11 @@ export function useAPN() {
           profileRef.current = p;
           setProfile(p);
         }
+        if (persData) {
+          const pp = persData as Persona;
+          personaRef.current = pp;
+          setPersona(pp);
+        }
         setSyncStatus("saved");
         setLastSyncAt(Date.now());
       } catch (e) {
@@ -110,7 +154,7 @@ export function useAPN() {
 
   useEffect(() => { applyMoodToRoot(mood); }, [mood]);
 
-  const persist = useCallback(async (userMsg: string, apnMsg: string, m: Mood) => {
+  const persist = useCallback(async (userMsg: string, apnMsg: string, m: Mood, imagePath: string | null) => {
     if (!userId) return;
     setSyncStatus("saving");
     const { error } = await supabase.from("apn_memory").insert({
@@ -119,7 +163,7 @@ export function useAPN() {
       user_msg: userMsg,
       apn_msg: apnMsg,
       intent: { mood: m },
-      meta: {},
+      meta: imagePath ? { image_path: imagePath } : {},
     });
     if (error) {
       console.warn("persist failed", error);
@@ -130,10 +174,8 @@ export function useAPN() {
     }
   }, [userId]);
 
-  // Fire-and-forget profile update
   const updateProfileAsync = useCallback(async (userMsg: string, apnMsg: string) => {
     try {
-      // Profile update requires an authenticated user (RLS + getUser in edge fn)
       const { data: sess } = await supabase.auth.getSession();
       if (!sess.session?.access_token) return;
       const recent = [
@@ -150,6 +192,7 @@ export function useAPN() {
         body: JSON.stringify({
           sessionId: sessionId.current,
           currentProfile: profileRef.current,
+          currentPersona: personaRef.current,
           recentExchanges: recent,
         }),
       });
@@ -159,6 +202,10 @@ export function useAPN() {
           profileRef.current = j.profile;
           setProfile(j.profile);
         }
+        if (j?.persona) {
+          personaRef.current = j.persona;
+          setPersona(j.persona);
+        }
       }
     } catch (e) {
       console.warn("profile-update failed", e);
@@ -166,14 +213,17 @@ export function useAPN() {
   }, [messages]);
 
   const streamFromGateway = useCallback(
-    async (userInput: string, history: Message[], onDelta: (chunk: string) => void) => {
-      const ctxMessages = [
-        ...history.slice(-20).map((m) => ({ role: m.role, content: m.content })),
-        { role: "user", content: userInput },
-      ];
+    async (userInput: string, imageDataUrl: string | undefined, history: Message[], onDelta: (chunk: string) => void) => {
+      const historyMsgs = history.slice(-20).map((m) => ({ role: m.role, content: m.content }));
+      const userContent = imageDataUrl
+        ? [
+            { type: "text", text: userInput || "Regarde." },
+            { type: "image_url", image_url: { url: imageDataUrl } },
+          ]
+        : userInput;
+      const ctxMessages = [...historyMsgs, { role: "user", content: userContent }];
 
-      const isFirstContact =
-        !profileRef.current && history.length === 0;
+      const isFirstContact = !profileRef.current && history.length === 0;
 
       const resp = await fetch(CHAT_URL, {
         method: "POST",
@@ -184,11 +234,12 @@ export function useAPN() {
         body: JSON.stringify({
           messages: ctxMessages,
           profile: profileRef.current,
+          persona: personaRef.current,
+          hasImage: !!imageDataUrl,
           isFirstContact,
           localHour: new Date().getHours(),
         }),
       });
-
 
       if (!resp.ok) {
         let msg = "Erreur de la passerelle IA.";
@@ -247,20 +298,34 @@ export function useAPN() {
     async (
       input: string,
       hooks: { onAssistantStart?: () => void; onAssistantEnd?: (full: string, mood: Mood) => void },
+      opts?: { imageDataUrl?: string },
     ) => {
       const text = input.trim();
-      if (!text) return;
+      if (!text && !opts?.imageDataUrl) return;
       setError(null);
-      const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: text, ts: Date.now() };
+
+      const imageDataUrl = opts?.imageDataUrl;
+      const userMsg: Message = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: text || "Regarde.",
+        ts: Date.now(),
+        imageDataUrl,
+      };
       setMessages((p) => [...p, userMsg]);
       setState("thinking");
-      setCaption("Je réfléchis…");
+      setCaption(imageDataUrl ? "Je regarde…" : "Je réfléchis…");
+
+      // Background upload (don't block)
+      const uploadPromise = imageDataUrl && userId
+        ? uploadVisionImage(userId, imageDataUrl)
+        : Promise.resolve(null);
 
       try {
         let full = "";
         let started = false;
         const assistantId = crypto.randomUUID();
-        await streamFromGateway(text, messages, (chunk) => {
+        await streamFromGateway(text || "Regarde.", imageDataUrl, messages, (chunk) => {
           full += chunk;
           if (!started) {
             started = true;
@@ -277,9 +342,9 @@ export function useAPN() {
         const m = inferMood(full);
         setMoodAndApply(m);
         setMessages((p) => p.map((mm) => (mm.id === assistantId ? { ...mm, mood: m } : mm)));
-        await persist(text, full, m);
-        // Background — n'attend pas
-        updateProfileAsync(text, full);
+        const imagePath = await uploadPromise;
+        await persist(text || "Regarde.", full, m, imagePath);
+        updateProfileAsync(text || "Regarde.", full);
         hooks.onAssistantEnd?.(full, m);
       } catch (e: any) {
         const msg = e?.message ?? "Erreur inconnue";
@@ -288,7 +353,7 @@ export function useAPN() {
         setCaption("Je suis prêt.");
       }
     },
-    [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync],
+    [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync, userId],
   );
 
   const setStandby = useCallback(() => {
@@ -302,7 +367,7 @@ export function useAPN() {
 
   return {
     sessionId: sessionId.current,
-    messages, state, mood, caption, error, profile,
+    messages, state, mood, caption, error, profile, persona,
     syncStatus, lastSyncAt,
     send, setStandby, setListeningState,
   };
