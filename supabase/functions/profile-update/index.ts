@@ -1,5 +1,4 @@
-// Background function: re-reads recent exchanges and updates the user profile.
-// Called fire-and-forget after each assistant response.
+// Background function: re-reads recent exchanges and updates the user profile + APN persona.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 const corsHeaders = {
@@ -7,6 +6,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+const DEFAULT_PERSONA = {
+  traits: { humor: 0.5, directness: 0.5, warmth: 0.6, curiosity: 0.6, playfulness: 0.4, protectiveness: 0.5 },
+  quirks: [] as string[],
+  bond_level: 0,
+  inside_jokes: [] as any[],
+  stance: null as string | null,
+};
+
+function clamp01(n: any, fallback: number): number {
+  const v = typeof n === "number" ? n : fallback;
+  return Math.max(0, Math.min(1, v));
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -32,7 +44,7 @@ Deno.serve(async (req) => {
     }
     const userId = userData.user.id;
 
-    const { sessionId, currentProfile, recentExchanges } = await req.json();
+    const { sessionId, currentProfile, currentPersona, recentExchanges } = await req.json();
     if (!Array.isArray(recentExchanges)) {
       return new Response(JSON.stringify({ error: "invalid payload" }), {
         status: 400,
@@ -49,6 +61,7 @@ Deno.serve(async (req) => {
       .map((e: any) => `[${e.role}] ${e.content}`)
       .join("\n");
 
+    // ============= 1. PROFILE UPDATE =============
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -149,7 +162,7 @@ Règles :
     merged.updated_at = new Date().toISOString();
     merged.message_count = (currentProfile?.message_count ?? 0) + 1;
 
-    // Résumé glissant tous les 10 messages — vue long terme
+    // Résumé glissant tous les 10 messages
     if (merged.message_count > 0 && merged.message_count % 10 === 0) {
       try {
         const longTranscript = recentExchanges
@@ -216,7 +229,138 @@ ${previousSummary}`,
       );
     if (upErr) console.error("upsert err", upErr);
 
-    return new Response(JSON.stringify({ ok: true, profile: merged }), {
+    // ============= 2. PERSONA UPDATE =============
+    const basePersona = currentPersona ?? DEFAULT_PERSONA;
+    let mergedPersona: any = {
+      traits: { ...DEFAULT_PERSONA.traits, ...(basePersona.traits ?? {}) },
+      quirks: Array.isArray(basePersona.quirks) ? [...basePersona.quirks] : [],
+      bond_level: typeof basePersona.bond_level === "number" ? basePersona.bond_level : 0,
+      inside_jokes: Array.isArray(basePersona.inside_jokes) ? [...basePersona.inside_jokes] : [],
+      stance: basePersona.stance ?? null,
+    };
+
+    try {
+      const personaResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "system",
+              content: `Tu fais évoluer la personnalité d'APN telle qu'elle se forge avec cette personne précise.
+
+Persona actuelle :
+${JSON.stringify(mergedPersona, null, 2)}
+
+Règles :
+- Tu ajustes les traits par PETITS pas (max ±0.05 par champ et par mise à jour). Ne jamais réinitialiser.
+- Si l'utilisateur a ri / blagué → +playfulness, +humor.
+- Si l'utilisateur a partagé qqch d'intime / vulnérable → +warmth, +protectiveness, +bond.
+- Si l'utilisateur veut du factuel rapide → +directness.
+- Si l'utilisateur a posé des questions ou s'est ouvert → +bond (+1 à +3).
+- "quirk_to_add" : UNE petite manie de langage qu'APN a vraiment développée et qui mérite d'être notée (ex: "aime les métaphores marines", "dit souvent 'tiens, c'est curieux'"). Vide la plupart du temps. Max 8 quirks total.
+- "joke_to_add" : UNE référence drôle/affectueuse vraiment partagée entre les deux. Vide la plupart du temps. Max 6.
+- "stance" : remplace seulement si APN a clairement pris/affirmé une nouvelle position notable.
+- Ne mens pas. Ne brode pas. La plupart des champs restent vides la plupart du temps.`,
+            },
+            { role: "user", content: `Derniers échanges :\n${transcript}` },
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "update_persona",
+                description: "Met à jour la personnalité d'APN avec cette personne",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    trait_deltas: {
+                      type: "object",
+                      properties: {
+                        humor: { type: "number" },
+                        directness: { type: "number" },
+                        warmth: { type: "number" },
+                        curiosity: { type: "number" },
+                        playfulness: { type: "number" },
+                        protectiveness: { type: "number" },
+                      },
+                    },
+                    bond_delta: { type: "number" },
+                    quirk_to_add: { type: "string" },
+                    joke_to_add: { type: "string" },
+                    stance: { type: "string" },
+                  },
+                },
+              },
+            },
+          ],
+          tool_choice: { type: "function", function: { name: "update_persona" } },
+        }),
+      });
+
+      if (personaResp.ok) {
+        const pj = await personaResp.json();
+        const pArgs = pj.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+        const pUpd = pArgs ? JSON.parse(pArgs) : {};
+
+        if (pUpd.trait_deltas && typeof pUpd.trait_deltas === "object") {
+          for (const k of ["humor", "directness", "warmth", "curiosity", "playfulness", "protectiveness"]) {
+            const d = Number(pUpd.trait_deltas[k]);
+            if (!isNaN(d)) {
+              const clampedDelta = Math.max(-0.05, Math.min(0.05, d));
+              mergedPersona.traits[k] = clamp01(
+                (mergedPersona.traits[k] ?? 0.5) + clampedDelta,
+                0.5,
+              );
+            }
+          }
+        }
+        if (typeof pUpd.bond_delta === "number") {
+          const d = Math.max(-2, Math.min(5, pUpd.bond_delta));
+          mergedPersona.bond_level = Math.max(0, Math.min(100, mergedPersona.bond_level + d));
+        }
+        if (typeof pUpd.quirk_to_add === "string" && pUpd.quirk_to_add.trim()) {
+          const q = pUpd.quirk_to_add.trim();
+          if (!mergedPersona.quirks.includes(q)) {
+            mergedPersona.quirks = [...mergedPersona.quirks, q].slice(-8);
+          }
+        }
+        if (typeof pUpd.joke_to_add === "string" && pUpd.joke_to_add.trim()) {
+          const j = pUpd.joke_to_add.trim();
+          const exists = mergedPersona.inside_jokes.some((x: any) => (typeof x === "string" ? x : x?.text) === j);
+          if (!exists) {
+            mergedPersona.inside_jokes = [...mergedPersona.inside_jokes, { text: j, ts: Date.now() }].slice(-6);
+          }
+        }
+        if (typeof pUpd.stance === "string" && pUpd.stance.trim()) {
+          mergedPersona.stance = pUpd.stance.trim();
+        }
+      }
+    } catch (e) {
+      console.warn("persona update failed", e);
+    }
+
+    const { error: persUpErr } = await admin
+      .from("apn_persona")
+      .upsert(
+        {
+          user_id: userId,
+          traits: mergedPersona.traits,
+          quirks: mergedPersona.quirks,
+          bond_level: mergedPersona.bond_level,
+          inside_jokes: mergedPersona.inside_jokes,
+          stance: mergedPersona.stance,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+    if (persUpErr) console.error("persona upsert err", persUpErr);
+
+    return new Response(JSON.stringify({ ok: true, profile: merged, persona: mergedPersona }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
