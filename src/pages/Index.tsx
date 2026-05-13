@@ -190,7 +190,7 @@ export default function Index() {
 
   return (
     <main
-      className="relative w-screen overflow-hidden bg-black flex flex-col mood-ambient"
+      className="relative w-screen overflow-hidden bg-background flex flex-col mood-ambient"
       style={{ height: "100dvh" }}
       data-state={apn.state}
       data-mood={apn.mood}
