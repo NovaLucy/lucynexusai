@@ -5,33 +5,34 @@
 /* APN — Brutalist Mono. Terminal aesthetic, monospace, 1px lines. */
 @layer base {
   :root {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 95%;
+    /* Dark matter — deep night with a faint cool tint */
+    --background: 220 28% 3%;
+    --foreground: 210 16% 88%;
 
-    --card: 0 0% 3%;
-    --card-foreground: 0 0% 95%;
+    --card: 220 25% 5%;
+    --card-foreground: 210 16% 88%;
 
-    --popover: 0 0% 2%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 220 28% 4%;
+    --popover-foreground: 210 16% 88%;
 
-    --primary: 0 0% 95%;
-    --primary-foreground: 0 0% 0%;
+    --primary: 210 16% 92%;
+    --primary-foreground: 220 28% 3%;
 
-    --secondary: 0 0% 8%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 220 20% 9%;
+    --secondary-foreground: 210 16% 88%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 50%;
+    --muted: 220 18% 11%;
+    --muted-foreground: 215 12% 52%;
 
-    --accent: 0 0% 95%;
-    --accent-foreground: 0 0% 0%;
+    --accent: 210 16% 92%;
+    --accent-foreground: 220 28% 3%;
 
-    --destructive: 0 80% 55%;
-    --destructive-foreground: 0 0% 95%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 210 16% 92%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 8%;
-    --ring: 0 0% 95%;
+    --border: 220 18% 14%;
+    --input: 220 20% 9%;
+    --ring: 210 16% 88%;
 
     --radius: 0px;
 
@@ -43,13 +44,13 @@
 
     /* Ambient intensity (0..1.4) — set per state via [data-state] on <main> */
     --ambient-intensity: 0.55;
-    --bg-pulse-speed: 9s;
+    --bg-pulse-speed: 14s;
 
     /* Terminal palette */
-    --bg: 0 0% 0%;
-    --fg: 0 0% 92%;
-    --dim: 0 0% 45%;
-    --line: 0 0% 18%;
+    --bg: 220 28% 3%;
+    --fg: 210 16% 88%;
+    --dim: 215 12% 48%;
+    --line: 220 18% 14%;
   }
 }
 
