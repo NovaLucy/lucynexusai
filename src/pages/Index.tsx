@@ -182,7 +182,7 @@ export default function Index() {
 
   if (auth.status === "loading") {
     return (
-      <main className="w-screen h-screen bg-black flex items-center justify-center">
+      <main className="w-screen h-screen bg-background flex items-center justify-center">
         <div className="font-mono text-xs text-foreground/40">[APN] init…</div>
       </main>
     );
@@ -190,7 +190,7 @@ export default function Index() {
 
   return (
     <main
-      className="relative w-screen overflow-hidden bg-black flex flex-col mood-ambient"
+      className="relative w-screen overflow-hidden bg-background flex flex-col mood-ambient"
       style={{ height: "100dvh" }}
       data-state={apn.state}
       data-mood={apn.mood}
@@ -198,7 +198,7 @@ export default function Index() {
       <h1 className="sr-only">APN — Agent Personnel Numérique</h1>
 
       {/* Ambient floating chars background (subtle) */}
-      <div className="absolute inset-0 pointer-events-none z-[1] opacity-40">
+      <div className="absolute inset-0 pointer-events-none z-[1] opacity-[0.08]">
         <AmbientChars />
       </div>
 
@@ -230,7 +230,7 @@ export default function Index() {
       {/* Center stage — clean, sidebars removed */}
       <div className="relative z-10 flex-1 flex min-h-0">
         <section className="relative flex-1 flex flex-col min-w-0">
-          <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute inset-0 pointer-events-none opacity-[0.12]">
             <NeuralNetwork mood={apn.mood} state={apn.state} />
           </div>
 

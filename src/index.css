@@ -5,33 +5,34 @@
 /* APN — Brutalist Mono. Terminal aesthetic, monospace, 1px lines. */
 @layer base {
   :root {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 95%;
+    /* Dark matter — deep night with a faint cool tint */
+    --background: 220 28% 3%;
+    --foreground: 210 16% 88%;
 
-    --card: 0 0% 3%;
-    --card-foreground: 0 0% 95%;
+    --card: 220 25% 5%;
+    --card-foreground: 210 16% 88%;
 
-    --popover: 0 0% 2%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 220 28% 4%;
+    --popover-foreground: 210 16% 88%;
 
-    --primary: 0 0% 95%;
-    --primary-foreground: 0 0% 0%;
+    --primary: 210 16% 92%;
+    --primary-foreground: 220 28% 3%;
 
-    --secondary: 0 0% 8%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 220 20% 9%;
+    --secondary-foreground: 210 16% 88%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 50%;
+    --muted: 220 18% 11%;
+    --muted-foreground: 215 12% 52%;
 
-    --accent: 0 0% 95%;
-    --accent-foreground: 0 0% 0%;
+    --accent: 210 16% 92%;
+    --accent-foreground: 220 28% 3%;
 
-    --destructive: 0 80% 55%;
-    --destructive-foreground: 0 0% 95%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 210 16% 92%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 8%;
-    --ring: 0 0% 95%;
+    --border: 220 18% 14%;
+    --input: 220 20% 9%;
+    --ring: 210 16% 88%;
 
     --radius: 0px;
 
@@ -43,13 +44,13 @@
 
     /* Ambient intensity (0..1.4) — set per state via [data-state] on <main> */
     --ambient-intensity: 0.55;
-    --bg-pulse-speed: 9s;
+    --bg-pulse-speed: 14s;
 
     /* Terminal palette */
-    --bg: 0 0% 0%;
-    --fg: 0 0% 92%;
-    --dim: 0 0% 45%;
-    --line: 0 0% 18%;
+    --bg: 220 28% 3%;
+    --fg: 210 16% 88%;
+    --dim: 215 12% 48%;
+    --line: 220 18% 14%;
   }
 }
 
@@ -64,7 +65,9 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background: #000;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 50%, hsl(220 30% 6%) 0%, hsl(220 30% 3%) 45%, hsl(220 32% 1.5%) 100%);
+    background-attachment: fixed;
     color: hsl(var(--fg));
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-weight: 400;
@@ -226,10 +229,10 @@
   /* ─── Cinematic 4K ambient ─────────────────────────────────────── */
 
   /* Adaptive ambient intensity per state */
-  main[data-state="standby"]   { --ambient-intensity: 0.45; --bg-pulse-speed: 11s; }
-  main[data-state="listening"] { --ambient-intensity: 0.7;  --bg-pulse-speed: 7s; }
-  main[data-state="thinking"]  { --ambient-intensity: 0.95; --bg-pulse-speed: 4.5s; }
-  main[data-state="speaking"]  { --ambient-intensity: 1.25; --bg-pulse-speed: 2.6s; }
+  main[data-state="standby"]   { --ambient-intensity: 0.35; --bg-pulse-speed: 16s; }
+  main[data-state="listening"] { --ambient-intensity: 0.5;  --bg-pulse-speed: 12s; }
+  main[data-state="thinking"]  { --ambient-intensity: 0.65; --bg-pulse-speed: 9s; }
+  main[data-state="speaking"]  { --ambient-intensity: 0.8;  --bg-pulse-speed: 6s; }
 
   /* Radial mood halo behind everything */
   .mood-ambient::before {
@@ -239,17 +242,17 @@
     pointer-events: none;
     background: radial-gradient(
       ellipse at 50% 50%,
-      hsl(var(--mood) / calc(0.06 * var(--ambient-intensity))) 0%,
-      hsl(var(--mood) / calc(0.02 * var(--ambient-intensity))) 28%,
-      transparent 62%
+      hsl(var(--mood) / calc(0.04 * var(--ambient-intensity))) 0%,
+      hsl(var(--mood) / calc(0.012 * var(--ambient-intensity))) 32%,
+      transparent 65%
     );
-    filter: blur(40px);
+    filter: blur(60px);
     animation: mood-breathe var(--bg-pulse-speed) ease-in-out infinite;
     z-index: 0;
   }
   @keyframes mood-breathe {
     0%, 100% { opacity: 0.85; transform: scale(1); }
-    50%      { opacity: 1; transform: scale(1.05); }
+    50%      { opacity: 1; transform: scale(1.03); }
   }
 
   /* Cinematic vignette */
@@ -287,11 +290,11 @@
     border-radius: 50%;
     background: radial-gradient(
       circle at center,
-      hsl(var(--mood) / calc(0.14 * var(--ambient-intensity))) 0%,
-      hsl(var(--mood) / calc(0.06 * var(--ambient-intensity))) 28%,
-      transparent 65%
+      hsl(var(--mood) / calc(0.07 * var(--ambient-intensity))) 0%,
+      hsl(var(--mood) / calc(0.025 * var(--ambient-intensity))) 32%,
+      transparent 68%
     );
-    filter: blur(36px);
+    filter: blur(54px);
     animation: mood-breathe var(--bg-pulse-speed) ease-in-out infinite;
   }
 
