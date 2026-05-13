@@ -88,7 +88,7 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
       const s = 1.45 + Math.sin(t * 0.7) * 0.06 + uniforms.uPulse.value * 0.12;
       haloRef.current.scale.setScalar(s);
       const m = haloRef.current.material as THREE.MeshBasicMaterial;
-      m.opacity = 0.18 + uniforms.uPulse.value * 0.32;
+      m.opacity = 0.06 + uniforms.uPulse.value * 0.12;
       m.color = uniforms.uColorRim.value;
     }
   });
@@ -177,14 +177,18 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
 
     void main() {
       vec3 viewDir = vec3(0.0, 0.0, 1.0);
-      float fres = pow(1.0 - abs(dot(normalize(vNormal), viewDir)), 2.2);
-      float core = smoothstep(0.6, -0.2, vDisp);
-      vec3 base = mix(uColorA, uColorB, core);
-      vec3 col = base + uColorRim * fres * (0.6 + uPulse * 0.6);
-      // soft inner shimmer
-      float shimmer = 0.5 + 0.5 * sin(vPos.y * 4.0 + uTime * 1.6);
-      col += uColorB * shimmer * 0.05 * uPulse;
-      float alpha = (0.55 + fres * 0.35) * uIntensity;
+      float ndv = abs(dot(normalize(vNormal), viewDir));
+      float fres = pow(1.0 - ndv, 3.2);
+      // dark matter base — almost black, faint mood tint deep inside
+      vec3 deep = vec3(0.008, 0.010, 0.014);
+      vec3 base = mix(deep, uColorA * 0.18, smoothstep(0.4, -0.2, vDisp));
+      // bright rim light (water meniscus / dark drop edge)
+      vec3 rim = uColorRim * fres * (1.1 + uPulse * 0.8);
+      // subtle internal caustic shimmer
+      float shimmer = 0.5 + 0.5 * sin(vPos.y * 5.0 + uTime * 1.4);
+      vec3 col = base + rim + uColorB * shimmer * 0.04 * uPulse;
+      // very transparent in the center, opaque at the rim — like a water drop
+      float alpha = (0.10 + fres * 0.75) * uIntensity;
       gl_FragColor = vec4(col, alpha);
     }
   `;
@@ -203,7 +207,7 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
         />
       </mesh>
 
-      {/* main bubble */}
+      {/* main drop — dark glassy water */}
       <mesh ref={meshRef}>
         <sphereGeometry args={[1, 128, 128]} />
         <shaderMaterial
@@ -213,12 +217,12 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
           fragmentShader={fragment}
           transparent
           depthWrite={false}
-          blending={THREE.AdditiveBlending}
+          blending={THREE.NormalBlending}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* inner glowing nucleus */}
+      {/* inner subtle nucleus — barely visible mood glow */}
       <mesh ref={innerRef}>
         <sphereGeometry args={[0.55, 64, 64]} />
         <shaderMaterial
