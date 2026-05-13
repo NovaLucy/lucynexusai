@@ -64,22 +64,22 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
     const thinking = state === "thinking";
     const listening = state === "listening";
 
-    const ampTarget = sp ? 0.34 : thinking ? 0.24 : listening ? 0.18 : 0.12;
-    const speedTarget = sp ? 1.4 : thinking ? 1.0 : listening ? 0.7 : 0.45;
-    const pulseTarget = sp ? 1.0 : thinking ? 0.6 : listening ? 0.4 : 0.18;
+    const ampTarget = sp ? 0.14 : thinking ? 0.11 : listening ? 0.09 : 0.07;
+    const speedTarget = sp ? 0.55 : thinking ? 0.45 : listening ? 0.35 : 0.25;
+    const pulseTarget = sp ? 0.45 : thinking ? 0.3 : listening ? 0.22 : 0.12;
 
-    uniforms.uAmp.value += (ampTarget - uniforms.uAmp.value) * 0.06;
-    uniforms.uSpeed.value += (speedTarget - uniforms.uSpeed.value) * 0.06;
-    uniforms.uPulse.value += (pulseTarget - uniforms.uPulse.value) * 0.06;
+    uniforms.uAmp.value += (ampTarget - uniforms.uAmp.value) * 0.025;
+    uniforms.uSpeed.value += (speedTarget - uniforms.uSpeed.value) * 0.025;
+    uniforms.uPulse.value += (pulseTarget - uniforms.uPulse.value) * 0.025;
 
     if (meshRef.current) {
-      meshRef.current.rotation.y += dt * 0.12;
-      meshRef.current.rotation.x = Math.sin(t * 0.18) * 0.15;
-      const breath = 1 + Math.sin(t * (sp ? 2.2 : 1.1)) * (sp ? 0.06 : 0.035);
+      meshRef.current.rotation.y += dt * 0.05;
+      meshRef.current.rotation.x = Math.sin(t * 0.12) * 0.1;
+      const breath = 1 + Math.sin(t * (sp ? 1.3 : 0.8)) * (sp ? 0.02 : 0.014);
       meshRef.current.scale.setScalar(breath);
     }
     if (innerRef.current) {
-      innerRef.current.rotation.y -= dt * 0.18;
+      innerRef.current.rotation.y -= dt * 0.08;
       innerRef.current.rotation.z = Math.cos(t * 0.22) * 0.2;
       const s = 0.7 + Math.sin(t * 1.4) * 0.04 + uniforms.uPulse.value * 0.05;
       innerRef.current.scale.setScalar(s);
