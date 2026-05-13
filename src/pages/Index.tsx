@@ -182,7 +182,7 @@ export default function Index() {
 
   if (auth.status === "loading") {
     return (
-      <main className="w-screen h-screen bg-black flex items-center justify-center">
+      <main className="w-screen h-screen bg-background flex items-center justify-center">
         <div className="font-mono text-xs text-foreground/40">[APN] init…</div>
       </main>
     );
