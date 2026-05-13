@@ -1,5 +1,14 @@
 export type AgentState = "standby" | "thinking" | "speaking" | "listening";
-export type Mood = "calm" | "empathetic" | "focused" | "alert";
+export type Mood =
+  | "calm"
+  | "empathetic"
+  | "focused"
+  | "alert"
+  | "tender"
+  | "playful"
+  | "melancholic"
+  | "proud"
+  | "worried";
 
 export type Role = "user" | "assistant";
 
@@ -9,6 +18,8 @@ export interface Message {
   content: string;
   mood?: Mood;
   ts: number;
+  imageDataUrl?: string;
+  imagePath?: string;
 }
 
 export const MOOD_HUE: Record<Mood, number> = {
@@ -16,13 +27,23 @@ export const MOOD_HUE: Record<Mood, number> = {
   empathetic: 330,
   focused: 270,
   alert: 20,
+  tender: 350,
+  playful: 50,
+  melancholic: 220,
+  proud: 40,
+  worried: 240,
 };
 
 export const MOOD_HSL: Record<Mood, { h: number; s: number; l: number }> = {
-  calm:       { h: 195, s: 95, l: 55 },
-  empathetic: { h: 330, s: 85, l: 62 },
-  focused:    { h: 270, s: 90, l: 65 },
-  alert:      { h: 20,  s: 95, l: 58 },
+  calm:        { h: 195, s: 95, l: 55 },
+  empathetic:  { h: 330, s: 85, l: 62 },
+  focused:     { h: 270, s: 90, l: 65 },
+  alert:       { h: 20,  s: 95, l: 58 },
+  tender:      { h: 350, s: 70, l: 70 },
+  playful:     { h: 50,  s: 95, l: 60 },
+  melancholic: { h: 220, s: 45, l: 55 },
+  proud:       { h: 40,  s: 90, l: 58 },
+  worried:     { h: 240, s: 55, l: 55 },
 };
 
 export const STATE_DOT: Record<AgentState, string> = {
