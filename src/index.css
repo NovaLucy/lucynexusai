@@ -65,7 +65,9 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background: #000;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 50%, hsl(220 30% 6%) 0%, hsl(220 30% 3%) 45%, hsl(220 32% 1.5%) 100%);
+    background-attachment: fixed;
     color: hsl(var(--fg));
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-weight: 400;
