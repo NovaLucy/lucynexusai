@@ -177,14 +177,18 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
 
     void main() {
       vec3 viewDir = vec3(0.0, 0.0, 1.0);
-      float fres = pow(1.0 - abs(dot(normalize(vNormal), viewDir)), 2.2);
-      float core = smoothstep(0.6, -0.2, vDisp);
-      vec3 base = mix(uColorA, uColorB, core);
-      vec3 col = base + uColorRim * fres * (0.6 + uPulse * 0.6);
-      // soft inner shimmer
-      float shimmer = 0.5 + 0.5 * sin(vPos.y * 4.0 + uTime * 1.6);
-      col += uColorB * shimmer * 0.05 * uPulse;
-      float alpha = (0.55 + fres * 0.35) * uIntensity;
+      float ndv = abs(dot(normalize(vNormal), viewDir));
+      float fres = pow(1.0 - ndv, 3.2);
+      // dark matter base — almost black, faint mood tint deep inside
+      vec3 deep = vec3(0.008, 0.010, 0.014);
+      vec3 base = mix(deep, uColorA * 0.18, smoothstep(0.4, -0.2, vDisp));
+      // bright rim light (water meniscus / dark drop edge)
+      vec3 rim = uColorRim * fres * (1.1 + uPulse * 0.8);
+      // subtle internal caustic shimmer
+      float shimmer = 0.5 + 0.5 * sin(vPos.y * 5.0 + uTime * 1.4);
+      vec3 col = base + rim + uColorB * shimmer * 0.04 * uPulse;
+      // very transparent in the center, opaque at the rim — like a water drop
+      float alpha = (0.10 + fres * 0.75) * uIntensity;
       gl_FragColor = vec4(col, alpha);
     }
   `;
