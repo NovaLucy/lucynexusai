@@ -109,10 +109,7 @@ export default function Index() {
       .catch(() => {});
   };
 
-  const handlePhoto = (dataUrl: string) => {
-    void dataUrl;
-    handleSend("Je viens de te partager une photo. Qu'est-ce que tu en penses ?");
-  };
+  // (vision intégrée au composer : la photo est envoyée avec le message via handleSend)
 
   const runCommand = (cmd: ReturnType<typeof matchCommand>) => {
     if (!cmd) return false;
