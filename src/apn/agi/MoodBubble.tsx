@@ -88,7 +88,7 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
       const s = 1.45 + Math.sin(t * 0.7) * 0.06 + uniforms.uPulse.value * 0.12;
       haloRef.current.scale.setScalar(s);
       const m = haloRef.current.material as THREE.MeshBasicMaterial;
-      m.opacity = 0.18 + uniforms.uPulse.value * 0.32;
+      m.opacity = 0.06 + uniforms.uPulse.value * 0.12;
       m.color = uniforms.uColorRim.value;
     }
   });
