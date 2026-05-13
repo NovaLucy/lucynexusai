@@ -290,11 +290,11 @@
     border-radius: 50%;
     background: radial-gradient(
       circle at center,
-      hsl(var(--mood) / calc(0.14 * var(--ambient-intensity))) 0%,
-      hsl(var(--mood) / calc(0.06 * var(--ambient-intensity))) 28%,
-      transparent 65%
+      hsl(var(--mood) / calc(0.07 * var(--ambient-intensity))) 0%,
+      hsl(var(--mood) / calc(0.025 * var(--ambient-intensity))) 32%,
+      transparent 68%
     );
-    filter: blur(36px);
+    filter: blur(54px);
     animation: mood-breathe var(--bg-pulse-speed) ease-in-out infinite;
   }
 
