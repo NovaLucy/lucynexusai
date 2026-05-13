@@ -229,10 +229,10 @@
   /* ─── Cinematic 4K ambient ─────────────────────────────────────── */
 
   /* Adaptive ambient intensity per state */
-  main[data-state="standby"]   { --ambient-intensity: 0.45; --bg-pulse-speed: 11s; }
-  main[data-state="listening"] { --ambient-intensity: 0.7;  --bg-pulse-speed: 7s; }
-  main[data-state="thinking"]  { --ambient-intensity: 0.95; --bg-pulse-speed: 4.5s; }
-  main[data-state="speaking"]  { --ambient-intensity: 1.25; --bg-pulse-speed: 2.6s; }
+  main[data-state="standby"]   { --ambient-intensity: 0.35; --bg-pulse-speed: 16s; }
+  main[data-state="listening"] { --ambient-intensity: 0.5;  --bg-pulse-speed: 12s; }
+  main[data-state="thinking"]  { --ambient-intensity: 0.65; --bg-pulse-speed: 9s; }
+  main[data-state="speaking"]  { --ambient-intensity: 0.8;  --bg-pulse-speed: 6s; }
 
   /* Radial mood halo behind everything */
   .mood-ambient::before {
