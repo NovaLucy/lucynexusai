@@ -198,7 +198,7 @@ export default function Index() {
       <h1 className="sr-only">APN — Agent Personnel Numérique</h1>
 
       {/* Ambient floating chars background (subtle) */}
-      <div className="absolute inset-0 pointer-events-none z-[1] opacity-40">
+      <div className="absolute inset-0 pointer-events-none z-[1] opacity-[0.08]">
         <AmbientChars />
       </div>
 
