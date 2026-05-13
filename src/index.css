@@ -242,17 +242,17 @@
     pointer-events: none;
     background: radial-gradient(
       ellipse at 50% 50%,
-      hsl(var(--mood) / calc(0.06 * var(--ambient-intensity))) 0%,
-      hsl(var(--mood) / calc(0.02 * var(--ambient-intensity))) 28%,
-      transparent 62%
+      hsl(var(--mood) / calc(0.04 * var(--ambient-intensity))) 0%,
+      hsl(var(--mood) / calc(0.012 * var(--ambient-intensity))) 32%,
+      transparent 65%
     );
-    filter: blur(40px);
+    filter: blur(60px);
     animation: mood-breathe var(--bg-pulse-speed) ease-in-out infinite;
     z-index: 0;
   }
   @keyframes mood-breathe {
     0%, 100% { opacity: 0.85; transform: scale(1); }
-    50%      { opacity: 1; transform: scale(1.05); }
+    50%      { opacity: 1; transform: scale(1.03); }
   }
 
   /* Cinematic vignette */
