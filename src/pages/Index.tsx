@@ -109,10 +109,7 @@ export default function Index() {
       .catch(() => {});
   };
 
-  const handlePhoto = (dataUrl: string) => {
-    void dataUrl;
-    handleSend("Je viens de te partager une photo. Qu'est-ce que tu en penses ?");
-  };
+  // (vision intégrée au composer : la photo est envoyée avec le message via handleSend)
 
   const runCommand = (cmd: ReturnType<typeof matchCommand>) => {
     if (!cmd) return false;
@@ -128,13 +125,13 @@ export default function Index() {
     return true;
   };
 
-  const handleSend = async (text: string) => {
+  const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
-    if (runCommand(matchCommand(text))) return;
+    if (!imageDataUrl && runCommand(matchCommand(text))) return;
     setBusy(true);
     tapLight();
     voice.stop();
-    extractHealth(text);
+    if (text) extractHealth(text);
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantEnd: (full) => {
@@ -145,7 +142,7 @@ export default function Index() {
         }
         setBusy(false);
       },
-    });
+    }, { imageDataUrl });
     setBusy(false);
   };
 
@@ -288,9 +285,8 @@ export default function Index() {
         style={{ paddingBottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 0px))" }}
       >
         <Composer
-          onSend={(t) => { setComposerText(""); handleSend(t); }}
+          onSend={(t, img) => { setComposerText(""); handleSend(t, img); }}
           onMic={handleMic}
-          onPhoto={handlePhoto}
           micActive={voice.listening}
           sttSupported={voice.sttSupported}
           disabled={busy}

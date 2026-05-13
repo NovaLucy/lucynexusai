@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { cameraAvailable, pickPhoto } from "./camera";
 import { usePolish } from "./usePolish";
-import { Mic, MicOff, Camera, ArrowRight } from "lucide-react";
+import { Mic, MicOff, Camera, ArrowRight, X } from "lucide-react";
 import type { Mood, AgentState } from "./types";
 
 interface Props {
-  onSend: (text: string) => void;
+  onSend: (text: string, imageDataUrl?: string) => void;
   onMic?: () => void;
-  onPhoto?: (dataUrl: string) => void;
   micActive?: boolean;
   sttSupported?: boolean;
   disabled?: boolean;
@@ -19,7 +18,7 @@ interface Props {
 }
 
 export default function Composer({
-  onSend, onMic, onPhoto, micActive, sttSupported, disabled,
+  onSend, onMic, micActive, sttSupported, disabled,
   value: extValue, onValueChange, polishEnabled = true,
 }: Props) {
   const [internal, setInternal] = useState("");
@@ -29,6 +28,7 @@ export default function Composer({
     else setInternal(v);
   };
   const [polishing, setPolishing] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const lastSentRef = useRef<string>("");
 
   const polish = usePolish(polishEnabled, (corrected, original) => {
@@ -48,33 +48,59 @@ export default function Composer({
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!value.trim() || disabled) return;
+    if (disabled) return;
+    const text = value.trim();
+    if (!text && !attachedImage) return;
     lastSentRef.current = value;
-    onSend(value);
+    onSend(text || "Regarde.", attachedImage ?? undefined);
     setValue("");
+    setAttachedImage(null);
   };
 
   const handlePhoto = async () => {
     const dataUrl = await pickPhoto();
-    if (dataUrl) onPhoto?.(dataUrl);
+    if (dataUrl) setAttachedImage(dataUrl);
   };
 
   const inputRef = useRef<HTMLInputElement>(null);
   const hasText = value.trim().length > 0;
+  const canSubmit = (hasText || !!attachedImage) && !disabled;
 
   return (
     <div className="w-full flex justify-center px-4 sm:px-6 pb-4 sm:pb-6">
       <div className="relative w-full max-w-2xl group">
-        {/* Soft mood aura, intensifies on focus / hasText */}
+        {/* Soft mood aura */}
         <div
-          className="pointer-events-none absolute -inset-1 rounded-full blur-xl opacity-25 group-focus-within:opacity-90 transition-opacity duration-700"
+          className="pointer-events-none absolute -inset-1 rounded-3xl blur-xl opacity-25 group-focus-within:opacity-90 transition-opacity duration-700"
           style={{
             background:
               "linear-gradient(90deg, transparent 0%, hsl(var(--mood) / 0.35) 50%, transparent 100%)",
-            opacity: hasText ? 0.7 : undefined,
+            opacity: hasText || attachedImage ? 0.7 : undefined,
           }}
           aria-hidden
         />
+
+        {/* Image preview */}
+        {attachedImage && (
+          <div className="relative mb-2 inline-flex items-start gap-2 rounded-2xl border border-foreground/10 bg-background/40 backdrop-blur-2xl p-2">
+            <img
+              src={attachedImage}
+              alt="Aperçu"
+              className="w-20 h-20 object-cover rounded-xl"
+            />
+            <button
+              type="button"
+              onClick={() => setAttachedImage(null)}
+              className="p-1 rounded-full text-foreground/50 hover:text-foreground/90 hover:bg-foreground/10 transition-colors"
+              aria-label="Retirer la photo"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <span className="self-end text-[10px] uppercase tracking-widest text-foreground/40 pr-1">
+              vue partagée
+            </span>
+          </div>
+        )}
 
         <form
           onSubmit={submit}
@@ -84,8 +110,12 @@ export default function Composer({
             <button
               type="button"
               onClick={handlePhoto}
-              className="shrink-0 p-2 rounded-full text-foreground/40 hover:text-foreground/80 transition-colors"
-              aria-label="Envoyer une photo"
+              className={`shrink-0 p-2 rounded-full transition-colors ${
+                attachedImage
+                  ? "text-[hsl(var(--mood))] bg-[hsl(var(--mood)/0.12)]"
+                  : "text-foreground/40 hover:text-foreground/80"
+              }`}
+              aria-label="Partager une photo"
             >
               <Camera className="w-4 h-4" />
             </button>
@@ -96,7 +126,7 @@ export default function Composer({
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Commencer à parler…"
+            placeholder={attachedImage ? "Dis-moi quoi regarder…" : "Commencer à parler…"}
             aria-label="Message à APN"
             autoComplete="off"
             autoCapitalize="sentences"
@@ -132,14 +162,14 @@ export default function Composer({
 
           <button
             type="submit"
-            disabled={!hasText || disabled}
+            disabled={!canSubmit}
             aria-label="Envoyer"
             className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
             style={{
-              background: hasText ? "hsl(var(--mood) / 0.18)" : "hsl(var(--foreground) / 0.04)",
-              border: `1px solid hsl(var(--mood) / ${hasText ? 0.45 : 0.15})`,
-              color: hasText ? "hsl(var(--mood))" : "hsl(var(--foreground) / 0.4)",
-              boxShadow: hasText ? "0 0 20px hsl(var(--mood) / 0.35)" : undefined,
+              background: canSubmit ? "hsl(var(--mood) / 0.18)" : "hsl(var(--foreground) / 0.04)",
+              border: `1px solid hsl(var(--mood) / ${canSubmit ? 0.45 : 0.15})`,
+              color: canSubmit ? "hsl(var(--mood))" : "hsl(var(--foreground) / 0.4)",
+              boxShadow: canSubmit ? "0 0 20px hsl(var(--mood) / 0.35)" : undefined,
             }}
           >
             <ArrowRight className="w-4 h-4" />
