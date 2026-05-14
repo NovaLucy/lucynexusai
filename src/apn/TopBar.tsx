@@ -38,7 +38,7 @@ export default function TopBar({
     "p-2 rounded-full text-foreground/40 hover:text-foreground/90 hover:bg-foreground/[0.04] transition-colors";
 
   return (
-    <div className="w-full flex items-center justify-between px-4 sm:px-8 py-4 text-[10px] uppercase tracking-[0.3em] font-light">
+    <div className="dark-matter-bar mx-3 sm:mx-6 mt-2 flex items-center justify-between px-4 sm:px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] font-light text-drop">
       {/* Left: status */}
       <div className="flex items-center gap-3 text-foreground/40">
         <span className="hidden sm:inline">Status</span>
