@@ -389,7 +389,7 @@ export function useAPN() {
         setMoodAndApply(m);
         setMessages((p) => p.map((mm) => (mm.id === assistantId ? { ...mm, mood: m } : mm)));
         const imagePath = await uploadPromise;
-        await persist(text || "Regarde.", full, m, imagePath);
+        await persist(text || "Regarde.", full, m, imagePath, reality, reality?.facing);
         updateProfileAsync(text || "Regarde.", full);
         hooks.onAssistantEnd?.(full, m);
       } catch (e: any) {
