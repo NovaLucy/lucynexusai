@@ -82,7 +82,7 @@ export default function Composer({
 
         {/* Image preview */}
         {attachedImage && (
-          <div className="dark-matter-soft relative mb-2 inline-flex items-start gap-2 rounded-2xl p-2">
+          <div className="dark-matter relative mb-2 inline-flex items-start gap-2 rounded-2xl p-2">
             <img
               src={attachedImage}
               alt="Aperçu"
@@ -104,7 +104,7 @@ export default function Composer({
 
         <form
           onSubmit={submit}
-          className="dark-matter-soft relative flex items-center gap-2 rounded-full px-3 sm:px-4 py-2.5 transition-all duration-300 focus-within:bg-background/50"
+          className="dark-matter relative flex items-center gap-2 rounded-full px-3 sm:px-4 py-2.5 transition-all duration-300"
         >
           {cameraAvailable && (
             <button
