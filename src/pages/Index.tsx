@@ -170,26 +170,50 @@ export default function Index() {
   const ttsSpokenRef = useRef(0);
 
   const flushTTS = useCallback((full: string, end?: boolean) => {
-    if (!voice.prefs.enabled) return;
     const raw = full.slice(ttsSpokenRef.current);
-    if (!raw) return;
-    // Buffer until we have a sentence boundary (or end of stream)
+    if (!raw && !end) return;
     ttsBufferRef.current += raw;
     ttsSpokenRef.current = full.length;
     if (!end) {
       const m = ttsBufferRef.current.match(/(.+?[.!?…])(\s+|$)/);
-      if (!m) return; // wait for a complete sentence
+      if (!m) return;
       const sentence = m[1].trim();
       ttsBufferRef.current = ttsBufferRef.current.slice(m[0].length);
-      voice.speakSentence(sentence);
+      setCurrentSentence(sentence);
+      if (voice.prefs.enabled) voice.speakSentence(sentence);
     } else {
-      // Flush remainder at end
       if (ttsBufferRef.current.trim()) {
-        voice.speakSentence(ttsBufferRef.current.trim());
+        const sentence = ttsBufferRef.current.trim();
+        setCurrentSentence(sentence);
+        if (voice.prefs.enabled) voice.speakSentence(sentence);
       }
       ttsBufferRef.current = "";
     }
   }, [voice]);
+
+  // Speak a synthetic line (e.g. wake greeting) — visible in subtitles + voiced.
+  const speakLine = useCallback((line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    setCurrentSentence(trimmed);
+    if (voice.prefs.enabled) voice.speakSentence(trimmed);
+    window.setTimeout(() => {
+      setCurrentSentence((cur) => (cur === trimmed ? null : cur));
+    }, Math.max(2200, trimmed.length * 70));
+  }, [voice]);
+
+  const wakeWithGreeting = useCallback(() => {
+    apn.wake();
+    const now = Date.now();
+    if (now - lastWakeGreetingAtRef.current < 30_000) return;
+    lastWakeGreetingAtRef.current = now;
+    const line = pickWakeGreeting({
+      lastInteractionAt: lastActivityRef.current,
+      displayName: apn.profile?.display_name ?? null,
+      lastTopic: apn.profile?.last_topic ?? null,
+    });
+    speakLine(line);
+  }, [apn, speakLine]);
 
   const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
