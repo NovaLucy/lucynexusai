@@ -8,7 +8,7 @@ import ControlsDrawer from "@/apn/ControlsDrawer";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
-import NeuralNetwork from "@/apn/agi/NeuralNetwork";
+
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/apn/auth/useAuth";
@@ -227,9 +227,6 @@ export default function Index() {
       {/* Center stage — clean, sidebars removed */}
       <div className="relative z-10 flex-1 flex min-h-0">
         <section className="relative flex-1 flex flex-col min-w-0">
-          <div className="absolute inset-0 pointer-events-none opacity-[0.12]">
-            <NeuralNetwork mood={apn.mood} state={apn.state} />
-          </div>
 
           <div className="relative flex-1 flex items-center justify-center p-4 sm:p-6 z-10">
             <div
