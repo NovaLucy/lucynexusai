@@ -72,7 +72,7 @@ function PermissionsSection() {
   const [cam, askCam] = usePermission("camera");
   return (
     <section className="space-y-3">
-      <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── PERMISSIONS ──</h3>
+      <h3 className="hud-label">PERMISSIONS</h3>
       <PermRow label="MICROPHONE" hint="pour parler à APN à voix haute" state={mic} onRequest={askMic} />
       <PermRow label="CAMÉRA" hint="pour qu'APN voie ce que tu regardes" state={cam} onRequest={askCam} />
     </section>
@@ -171,7 +171,7 @@ export default function ControlsDrawer(p: Props) {
 
           <div className="p-4 space-y-6 overflow-y-auto flex-1">
           <section className="space-y-4">
-            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── VOICE ──</h3>
+            <h3 className="hud-label">VOICE</h3>
             <button
               onClick={() => p.setVoiceEnabled(!p.voiceEnabled)}
               className={`bracket-btn w-full text-left ${p.voiceEnabled ? "bracket-btn-active" : ""}`}
@@ -207,7 +207,7 @@ export default function ControlsDrawer(p: Props) {
           <PermissionsSection />
 
           <section className="space-y-3">
-            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── RÉALITÉ ──</h3>
+            <h3 className="hud-label">RÉALITÉ</h3>
             <p className="text-[10px] text-foreground/40">
               // ancre APN dans ton temps, ton lieu, ton environnement
             </p>
@@ -249,7 +249,7 @@ export default function ControlsDrawer(p: Props) {
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── INPUT ──</h3>
+            <h3 className="hud-label">INPUT</h3>
             <button
               onClick={() => p.setPolishEnabled(!p.polishEnabled)}
               className={`bracket-btn w-full text-left ${p.polishEnabled ? "bracket-btn-active" : ""}`}
@@ -274,7 +274,7 @@ export default function ControlsDrawer(p: Props) {
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── PRÉ-MÉDECIN ──</h3>
+            <h3 className="hud-label">PRÉ-MÉDECIN</h3>
             <button
               onClick={() => p.setMedicalMode(!p.medicalMode)}
               className={`bracket-btn w-full text-left ${p.medicalMode ? "bracket-btn-active" : ""}`}
@@ -293,7 +293,7 @@ export default function ControlsDrawer(p: Props) {
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── VISAGE APN ──</h3>
+            <h3 className="hud-label">VISAGE APN</h3>
             <div className="grid grid-cols-4 gap-1">
               {(["off", "rare", "normal", "often"] as const).map((f) => (
                 <button
@@ -309,7 +309,7 @@ export default function ControlsDrawer(p: Props) {
           </section>
 
           <section className="space-y-4">
-            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── RENDER ──</h3>
+            <h3 className="hud-label">RENDER</h3>
             <AsciiSlider label="QUALITY" min={0.75} max={2} step={0.25} value={p.pixelRatio} onChange={p.setPixelRatio} format={(v) => `${v.toFixed(2)}x`} />
             <AsciiSlider label="INTENSITY" min={0.5} max={1.5} step={0.05} value={p.intensity} onChange={p.setIntensity} />
             <p className="text-[10px] text-foreground/40">// quality: reload to apply</p>
