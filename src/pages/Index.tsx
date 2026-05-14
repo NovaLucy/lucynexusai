@@ -280,7 +280,7 @@ export default function Index() {
               )}
 
               <div
-                className="absolute inset-0 cursor-pointer"
+                className="absolute inset-0 cursor-pointer flex items-center justify-center"
                 onClick={() => {
                   tapMedium();
                   markActivity();
@@ -294,12 +294,14 @@ export default function Index() {
                 role="button"
                 aria-label="Réveiller APN"
               >
-                <VolumetricFace
-                  mood={apn.mood}
-                  state={apn.state}
-                  speaking={speakingPinned}
-                  intensity={intensity}
-                />
+                <div className="relative" style={{ width: "85%", height: "85%" }}>
+                  <VolumetricFace
+                    mood={apn.mood}
+                    state={apn.state}
+                    speaking={speakingPinned}
+                    intensity={intensity}
+                  />
+                </div>
               </div>
             </div>
           </div>
