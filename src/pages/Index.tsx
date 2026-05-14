@@ -161,6 +161,9 @@ export default function Index() {
     voice.stop();
     playRitual("open");
     if (text) extractHealth(text);
+    // Capture le contexte réalité (temps + lieu + frame caméra ambiant si activé).
+    // On évite la double-vision : si l'utilisateur joint déjà une photo, on n'ajoute pas l'ambient.
+    const realitySnap = await reality.snapshot(!imageDataUrl);
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantEnd: (full) => {
@@ -172,7 +175,7 @@ export default function Index() {
         }
         setBusy(false);
       },
-    }, { imageDataUrl });
+    }, { imageDataUrl, reality: realitySnap });
     setBusy(false);
   };
 
