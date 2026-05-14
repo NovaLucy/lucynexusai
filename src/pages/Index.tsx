@@ -302,6 +302,7 @@ export default function Index() {
       setCurrentSentence((cur) => (cur === trimmed ? null : cur));
     }, Math.max(2200, trimmed.length * 70));
   }, [voice]);
+  speakLineRef.current = speakLine;
 
   const wakeWithGreeting = useCallback(() => {
     apn.wake();
