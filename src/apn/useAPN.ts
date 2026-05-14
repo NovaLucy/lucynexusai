@@ -506,6 +506,6 @@ export function useAPN() {
     messages, state, mood, caption, error, profile, persona,
     syncStatus, lastSyncAt,
     send, setStandby, setListeningState, setSleeping, wake,
-    clearSession,
+    clearSession, setMedicalContext,
   };
 }
