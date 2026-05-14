@@ -55,6 +55,15 @@ export default function Index() {
   const [shockKey, setShockKey] = useState(0);
   const [ritual, setRitual] = useState<"open" | "close" | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
+  const lastWakeGreetingAtRef = useRef<number>(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [currentSentence, setCurrentSentence] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  // Streaming assistant text (for live caption before first full sentence)
+  const lastAssistant = apn.messages.length > 0 && apn.messages[apn.messages.length - 1].role === "assistant"
+    ? apn.messages[apn.messages.length - 1].content
+    : "";
 
   // Mark activity (resets sleep timer + wakes if sleeping)
   const markActivity = useCallback(() => {
