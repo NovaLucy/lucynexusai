@@ -244,7 +244,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage, reality, !!isAmbientGlance, memories);
+    let systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage, reality, !!isAmbientGlance, memories, healthContext);
 
     // Anti-répétition : extrait les dernières répliques d'APN et interdit explicitement
     // la reprise de leurs ouvertures / formulations. Empêche les boucles conversationnelles.
