@@ -152,18 +152,21 @@ export default function Index() {
 
   const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
+    markActivity();
     if (!imageDataUrl && runCommand(matchCommand(text))) return;
     setBusy(true);
     tapLight();
     voice.stop();
+    playRitual("open");
     if (text) extractHealth(text);
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantEnd: (full) => {
         if (voice.prefs.enabled) {
-          voice.speak(full, () => apn.setStandby());
+          voice.speak(full, () => { apn.setStandby(); playRitual("close"); });
         } else {
           apn.setStandby();
+          playRitual("close");
         }
         setBusy(false);
       },
