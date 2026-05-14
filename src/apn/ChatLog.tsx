@@ -24,8 +24,8 @@ export default function ChatLog({ messages, open, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 bg-black apn-fade-in flex flex-col scanlines">
-      <div className="flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-widest border-b ascii-border">
+    <div className="fixed inset-0 z-40 bg-black apn-fade-in flex flex-col">
+      <div className="dark-matter rounded-full mx-4 mt-3 mb-2 flex items-center gap-2 px-4 py-2.5 text-[11px] uppercase tracking-widest text-drop">
         <span className="mood-text">── JOURNAL</span>
         <span className="text-foreground/30">{"─".repeat(40)}</span>
         <span className="text-foreground/60 tabular-nums">
