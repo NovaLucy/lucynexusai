@@ -68,7 +68,7 @@ export default function ControlsDrawer(p: Props) {
     <Sheet open={p.open} onOpenChange={p.onOpenChange}>
       <SheetContent
         side="right"
-        className="!border-0 w-[min(380px,92vw)] p-0 font-mono text-sm scanlines overflow-hidden"
+        className="!border-0 !bg-transparent !shadow-none w-[min(380px,92vw)] p-0 font-mono text-sm scanlines overflow-hidden"
       >
         <div className="dark-matter !border-0 h-full flex flex-col overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-widest">
