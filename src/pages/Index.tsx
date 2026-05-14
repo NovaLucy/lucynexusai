@@ -206,6 +206,14 @@ export default function Index() {
   const ttsBufferRef = useRef("");
   const ttsSpokenRef = useRef(0);
 
+  const subtitleFadeRef = useRef<number | null>(null);
+  const scheduleSubtitleFade = useCallback((sentence: string, ms: number) => {
+    if (subtitleFadeRef.current) window.clearTimeout(subtitleFadeRef.current);
+    subtitleFadeRef.current = window.setTimeout(() => {
+      setCurrentSentence((cur) => (cur === sentence ? null : cur));
+    }, ms);
+  }, []);
+
   const flushTTS = useCallback((full: string, end?: boolean) => {
     const raw = full.slice(ttsSpokenRef.current);
     if (!raw && !end) return;
@@ -217,6 +225,7 @@ export default function Index() {
       const sentence = m[1].trim();
       ttsBufferRef.current = ttsBufferRef.current.slice(m[0].length);
       setCurrentSentence(sentence);
+      if (subtitleFadeRef.current) window.clearTimeout(subtitleFadeRef.current);
       tapMicro();
       if (voice.prefs.enabled) voice.speakSentence(sentence);
     } else {
@@ -225,10 +234,17 @@ export default function Index() {
         setCurrentSentence(sentence);
         tapMicro();
         if (voice.prefs.enabled) voice.speakSentence(sentence);
+        scheduleSubtitleFade(sentence, Math.max(3500, sentence.length * 80));
+      } else {
+        // Last spoken sentence remains visible briefly then fades
+        setCurrentSentence((cur) => {
+          if (cur) scheduleSubtitleFade(cur, Math.max(3500, cur.length * 80));
+          return cur;
+        });
       }
       ttsBufferRef.current = "";
     }
-  }, [voice]);
+  }, [voice, scheduleSubtitleFade]);
 
   // Speak a synthetic line (e.g. wake greeting) — visible in subtitles + voiced.
   const speakLine = useCallback((line: string) => {
@@ -277,21 +293,15 @@ export default function Index() {
       onAssistantEnd: (full) => {
         flushTTS(full, true);
         if (voice.prefs.enabled) {
-          // If no native TTS fired (empty or single word), ensure we speak the full
           if (ttsSpokenRef.current === 0) {
             voice.speak(full, () => {
               apn.setStandby();
               playRitual("close");
-              window.setTimeout(() => {
-                if (!voice.listening && voice.sttSupported) handleMicRef.current();
-              }, 350);
+              scheduleSubtitleFade(full, Math.max(3500, full.length * 80));
             });
           } else {
             apn.setStandby();
             playRitual("close");
-            window.setTimeout(() => {
-              if (!voice.listening && voice.sttSupported) handleMicRef.current();
-            }, 350);
           }
         } else {
           apn.setStandby();
