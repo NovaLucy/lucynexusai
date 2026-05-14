@@ -340,6 +340,11 @@ export function useAPN() {
                 hasAmbient: !!reality.ambientImageDataUrl,
               }
             : undefined,
+          capabilities: {
+            vision: !!(reality?.ambientImageDataUrl || reality?.facing || imageDataUrl),
+            location: !!reality?.location,
+            mic: !!reality?.micActive,
+          },
         }),
       });
 
