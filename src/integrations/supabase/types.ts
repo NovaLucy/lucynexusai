@@ -59,6 +59,51 @@ export type Database = {
         }
         Relationships: []
       }
+      apn_memories: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          importance: number
+          kind: string
+          last_used_at: string | null
+          source_session_id: string | null
+          subject: string | null
+          tags: string[]
+          updated_at: string
+          use_count: number
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          importance?: number
+          kind: string
+          last_used_at?: string | null
+          source_session_id?: string | null
+          subject?: string | null
+          tags?: string[]
+          updated_at?: string
+          use_count?: number
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          importance?: number
+          kind?: string
+          last_used_at?: string | null
+          source_session_id?: string | null
+          subject?: string | null
+          tags?: string[]
+          updated_at?: string
+          use_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       apn_memory: {
         Row: {
           apn_msg: string
