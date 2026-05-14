@@ -286,6 +286,7 @@ export default function Index() {
     playRitual("open");
     if (text) extractHealth(text);
     const realitySnap = await reality.snapshot(!imageDataUrl);
+    (realitySnap as any).micActive = !!(voice.prefs?.enabled && voice.sttSupported);
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantChunk: (fullSoFar) => {
