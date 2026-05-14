@@ -104,6 +104,15 @@ interface Props {
   onOpenReport: () => void;
   faceFrequency: "off" | "rare" | "normal" | "often";
   setFaceFrequency: (v: "off" | "rare" | "normal" | "often") => void;
+  // Réalité
+  locEnabled: boolean;
+  setLocEnabled: (v: boolean) => void;
+  camEnabled: boolean;
+  setCamEnabled: (v: boolean) => void;
+  facing: "user" | "environment";
+  setFacing: (v: "user" | "environment") => void;
+  locationLabel?: string | null;
+  nowLabel?: string | null;
 }
 
 function AsciiSlider({
@@ -192,6 +201,48 @@ export default function ControlsDrawer(p: Props) {
           </section>
 
           <PermissionsSection />
+
+          <section className="space-y-3">
+            <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── RÉALITÉ ──</h3>
+            <p className="text-[10px] text-foreground/40">
+              // ancre APN dans ton temps, ton lieu, ton environnement
+            </p>
+            <div className="text-[10px] text-foreground/60 font-mono">
+              <div>⏱  {p.nowLabel ?? "—"}</div>
+              <div>📍  {p.locEnabled ? (p.locationLabel ?? "localisation…") : "désactivé"}</div>
+            </div>
+            <button
+              onClick={() => p.setLocEnabled(!p.locEnabled)}
+              className={`bracket-btn w-full text-left ${p.locEnabled ? "bracket-btn-active" : ""}`}
+            >
+              [{p.locEnabled ? "X" : " "}] LOCALISATION
+            </button>
+            <button
+              onClick={() => p.setCamEnabled(!p.camEnabled)}
+              className={`bracket-btn w-full text-left ${p.camEnabled ? "bracket-btn-active" : ""}`}
+            >
+              [{p.camEnabled ? "X" : " "}] REGARD AMBIANT
+            </button>
+            {p.camEnabled && (
+              <div className="grid grid-cols-2 gap-1">
+                <button
+                  onClick={() => p.setFacing("environment")}
+                  className={`bracket-btn ${p.facing === "environment" ? "bracket-btn-active" : ""}`}
+                >
+                  ARRIÈRE
+                </button>
+                <button
+                  onClick={() => p.setFacing("user")}
+                  className={`bracket-btn ${p.facing === "user" ? "bracket-btn-active" : ""}`}
+                >
+                  AVANT
+                </button>
+              </div>
+            )}
+            <p className="text-[10px] text-foreground/40">
+              // capture furtive d'un frame caméra à chaque message — analyse en direct
+            </p>
+          </section>
 
           <section className="space-y-3">
             <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── INPUT ──</h3>

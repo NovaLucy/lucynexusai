@@ -10,6 +10,7 @@ import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
 
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
+import { useReality } from "@/apn/useReality";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/apn/auth/useAuth";
 import { matchCommand } from "@/apn/voiceCommands";
@@ -26,6 +27,7 @@ export default function Index() {
   const apn = useAPN();
   const voice = useVoice();
   const isMobile = useIsMobile();
+  const reality = useReality();
   const [intensity, setIntensity] = useState(1.0);
   const [pixelRatio, setPixelRatio] = useState(() => (typeof window !== "undefined" && window.innerWidth < 768 ? 1.25 : 1.5));
   const [busy, setBusy] = useState(false);
@@ -159,6 +161,9 @@ export default function Index() {
     voice.stop();
     playRitual("open");
     if (text) extractHealth(text);
+    // Capture le contexte réalité (temps + lieu + frame caméra ambiant si activé).
+    // On évite la double-vision : si l'utilisateur joint déjà une photo, on n'ajoute pas l'ambient.
+    const realitySnap = await reality.snapshot(!imageDataUrl);
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantEnd: (full) => {
@@ -170,7 +175,7 @@ export default function Index() {
         }
         setBusy(false);
       },
-    }, { imageDataUrl });
+    }, { imageDataUrl, reality: realitySnap });
     setBusy(false);
   };
 
@@ -368,6 +373,14 @@ export default function Index() {
         onOpenReport={() => { setCfgOpen(false); setReportOpen(true); }}
         faceFrequency={faceFrequency}
         setFaceFrequency={setFaceFrequency}
+        locEnabled={reality.locEnabled}
+        setLocEnabled={reality.setLocEnabled}
+        camEnabled={reality.camEnabled}
+        setCamEnabled={reality.setCamEnabled}
+        facing={reality.facing}
+        setFacing={reality.setFacing}
+        locationLabel={reality.location?.label ?? (reality.location ? `${reality.location.lat.toFixed(2)}, ${reality.location.lon.toFixed(2)}` : null)}
+        nowLabel={`${reality.now.weekday} ${reality.now.dateLabel}, ${String(reality.now.hour).padStart(2, "0")}h${String(reality.now.minute).padStart(2, "0")}`}
       />
       <MedicalReport
         open={reportOpen}

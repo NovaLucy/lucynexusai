@@ -213,12 +213,20 @@ export function useAPN() {
   }, [messages]);
 
   const streamFromGateway = useCallback(
-    async (userInput: string, imageDataUrl: string | undefined, history: Message[], onDelta: (chunk: string) => void) => {
+    async (
+      userInput: string,
+      imageDataUrl: string | undefined,
+      history: Message[],
+      onDelta: (chunk: string) => void,
+      reality?: any,
+    ) => {
       const historyMsgs = history.slice(-20).map((m) => ({ role: m.role, content: m.content }));
-      const userContent = imageDataUrl
+      const visionImage = imageDataUrl ?? reality?.ambientImageDataUrl ?? undefined;
+      const isAmbient = !imageDataUrl && !!reality?.ambientImageDataUrl;
+      const userContent = visionImage
         ? [
-            { type: "text", text: userInput || "Regarde." },
-            { type: "image_url", image_url: { url: imageDataUrl } },
+            { type: "text", text: userInput || (isAmbient ? "(regard ambiant)" : "Regarde.") },
+            { type: "image_url", image_url: { url: visionImage } },
           ]
         : userInput;
       const ctxMessages = [...historyMsgs, { role: "user", content: userContent }];
@@ -235,9 +243,17 @@ export function useAPN() {
           messages: ctxMessages,
           profile: profileRef.current,
           persona: personaRef.current,
-          hasImage: !!imageDataUrl,
+          hasImage: !!visionImage,
+          isAmbientGlance: isAmbient,
           isFirstContact,
           localHour: new Date().getHours(),
+          reality: reality
+            ? {
+                now: reality.now,
+                location: reality.location,
+                hasAmbient: !!reality.ambientImageDataUrl,
+              }
+            : undefined,
         }),
       });
 
@@ -298,13 +314,14 @@ export function useAPN() {
     async (
       input: string,
       hooks: { onAssistantStart?: () => void; onAssistantEnd?: (full: string, mood: Mood) => void },
-      opts?: { imageDataUrl?: string },
+      opts?: { imageDataUrl?: string; reality?: any },
     ) => {
       const text = input.trim();
-      if (!text && !opts?.imageDataUrl) return;
+      if (!text && !opts?.imageDataUrl && !opts?.reality?.ambientImageDataUrl) return;
       setError(null);
 
       const imageDataUrl = opts?.imageDataUrl;
+      const reality = opts?.reality;
       const userMsg: Message = {
         id: crypto.randomUUID(),
         role: "user",
@@ -316,7 +333,6 @@ export function useAPN() {
       setState("thinking");
       setCaption(imageDataUrl ? "Je regarde…" : "Je réfléchis…");
 
-      // Background upload (don't block)
       const uploadPromise = imageDataUrl && userId
         ? uploadVisionImage(userId, imageDataUrl)
         : Promise.resolve(null);
@@ -338,7 +354,7 @@ export function useAPN() {
               p.map((m) => (m.id === assistantId ? { ...m, content: full } : m)),
             );
           }
-        });
+        }, reality);
         const m = inferMood(full);
         setMoodAndApply(m);
         setMessages((p) => p.map((mm) => (mm.id === assistantId ? { ...mm, mood: m } : mm)));
