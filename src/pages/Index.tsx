@@ -423,19 +423,12 @@ export default function Index() {
             </div>
           </div>
 
-          {/* Caption — soft, human */}
-          <div className="px-6 pb-4 text-center relative z-20 float-drift" aria-live="polite">
-            <p className="text-base sm:text-xl md:text-2xl font-light tracking-tight text-foreground/85">
-              {apn.caption}
-            </p>
-            <div
-              className="mt-3 h-px w-12 mx-auto"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent, hsl(var(--mood) / 0.5), transparent)",
-              }}
-            />
-          </div>
+          <Subtitles
+            streamingText={lastAssistant}
+            currentSentence={currentSentence}
+            idleCaption={apn.caption}
+            speaking={speakingPinned}
+          />
         </section>
       </div>
 
