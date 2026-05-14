@@ -360,16 +360,17 @@ export default function Index() {
               onClick={() => setMenuOpen(false)}
               aria-hidden
             />
-            <div className="absolute right-3 top-12 z-40 dark-matter !border-0 rounded-2xl py-2 px-1 min-w-[200px] flex flex-col text-xs text-foreground/80 shadow-xl">
+            <div className="absolute right-3 top-12 z-40 rounded-2xl py-2 px-1 min-w-[200px] flex flex-col text-xs shadow-xl backdrop-blur-xl"
+              style={{ background: "hsl(var(--background) / 0.55)", border: "1px solid hsl(var(--foreground) / 0.06)" }}>
               <button
                 onClick={() => { setMenuOpen(false); setLogOpen(true); }}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left"
+                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
               >
                 <Archive className="w-3.5 h-3.5 opacity-60" /> Journal
               </button>
               <button
                 onClick={() => { setMenuOpen(false); setCfgOpen(true); }}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left"
+                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
               >
                 <Settings className="w-3.5 h-3.5 opacity-60" /> Réglages
               </button>
@@ -379,14 +380,14 @@ export default function Index() {
                   setMedicalMode((v) => !v);
                   toast.info(!medicalMode ? "Mode pré-médecin activé" : "Mode pré-médecin désactivé");
                 }}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left ${medicalMode ? "text-red-300/90" : ""}`}
+                className={`ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left ${medicalMode ? "text-red-300/90" : ""}`}
               >
                 <Stethoscope className="w-3.5 h-3.5 opacity-60" /> Mode pré-médecin
               </button>
               <div className="h-px my-1 bg-foreground/[0.06]" />
               <button
                 onClick={() => { setMenuOpen(false); navigate("/logout"); }}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left"
+                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
               >
                 <LogOut className="w-3.5 h-3.5 opacity-60" /> Déconnexion
               </button>
