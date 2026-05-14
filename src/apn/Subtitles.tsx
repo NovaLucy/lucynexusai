@@ -78,8 +78,9 @@ export default function Subtitles({ currentSentence }: Props) {
       }}
     >
       <p
-        className="font-light tracking-tight text-foreground/90 text-xl sm:text-2xl md:text-3xl leading-snug max-w-3xl mx-auto"
+        className="font-light tracking-tight text-foreground/90 text-xl sm:text-2xl md:text-3xl leading-snug max-w-3xl mx-auto italic"
         style={{
+          fontFamily: "'Manrope', system-ui, sans-serif",
           textShadow:
             "0 0 24px hsl(var(--mood) / 0.35), 0 1px 2px hsl(0 0% 0% / 0.6)",
           minHeight: "1.6em",
