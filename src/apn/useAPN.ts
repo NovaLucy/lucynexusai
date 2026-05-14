@@ -302,6 +302,7 @@ export function useAPN() {
       onDelta: (chunk: string) => void,
       reality?: any,
       memories?: any[],
+      healthContext?: any,
     ) => {
       const historyMsgs = history.slice(-20).map((m) => ({ role: m.role, content: m.content }));
       const visionImage = imageDataUrl ?? reality?.ambientImageDataUrl ?? undefined;
