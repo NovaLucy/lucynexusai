@@ -115,6 +115,8 @@ interface Props {
   nowLabel?: string | null;
   kbdAutoOpen: boolean;
   setKbdAutoOpen: (v: boolean) => void;
+  wakeWordEnabled: boolean;
+  setWakeWordEnabled: (v: boolean) => void;
 }
 
 function AsciiSlider({
@@ -262,6 +264,13 @@ export default function ControlsDrawer(p: Props) {
               [{p.kbdAutoOpen ? "X" : " "}] OUVRIR AU CLAVIER
             </button>
             <p className="text-[10px] text-foreground/40">// ouvrir le composer auto quand tu tapes sur un clavier physique</p>
+            <button
+              onClick={() => p.setWakeWordEnabled(!p.wakeWordEnabled)}
+              className={`bracket-btn w-full text-left ${p.wakeWordEnabled ? "bracket-btn-active" : ""}`}
+            >
+              [{p.wakeWordEnabled ? "X" : " "}] MOT D'ÉVEIL « LUCY »
+            </button>
+            <p className="text-[10px] text-foreground/40">// dis "Lucy" en veille pour la réveiller (micro toujours à l'écoute)</p>
           </section>
 
           <section className="space-y-3">

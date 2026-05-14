@@ -21,6 +21,7 @@ import { useAPN } from "@/apn/useAPN";
 import { supabase } from "@/integrations/supabase/client";
 import { useVoice } from "@/apn/useVoice";
 import { tapLight, tapMedium, tapMicro } from "@/native";
+import { useWakeWord } from "@/apn/useWakeWord";
 import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
 
 const MEDICAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apn-medical`;
@@ -53,6 +54,12 @@ export default function Index() {
   const [kbdAutoOpen, setKbdAutoOpen] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem("lucy:kbdAutoOpen") ?? "true"); } catch { return true; }
   });
+  const [wakeWordEnabled, setWakeWordEnabled] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("lucy:wakeWord") ?? "false"); } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("lucy:wakeWord", JSON.stringify(wakeWordEnabled)); } catch {}
+  }, [wakeWordEnabled]);
   const speakingPinned = apn.state === "speaking" || apn.state === "thinking";
   const { trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
@@ -272,6 +279,19 @@ export default function Index() {
     speakLine(line);
   }, [apn, speakLine]);
   wakeRef.current = wakeWithGreeting;
+
+  // Wake-word "Lucy" — n'écoute qu'en veille / sommeil pour éviter les conflits micro
+  const wakeWordActive =
+    wakeWordEnabled &&
+    (apn.state === "standby" || apn.state === "sleeping") &&
+    !voice.listening;
+  useWakeWord({
+    enabled: wakeWordActive,
+    onWake: () => {
+      tapLight();
+      wakeWithGreeting();
+    },
+  });
 
   const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
@@ -585,6 +605,8 @@ export default function Index() {
         nowLabel={`${reality.now.weekday} ${reality.now.dateLabel}, ${String(reality.now.hour).padStart(2, "0")}h${String(reality.now.minute).padStart(2, "0")}`}
         kbdAutoOpen={kbdAutoOpen}
         setKbdAutoOpen={setKbdAutoOpen}
+        wakeWordEnabled={wakeWordEnabled}
+        setWakeWordEnabled={setWakeWordEnabled}
       />
       <MedicalReport
         open={reportOpen}
