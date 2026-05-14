@@ -68,6 +68,8 @@ export default function Index() {
     showMs: 4800,
   });
   const [shockKey, setShockKey] = useState(0);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const orbTapRef = useRef<{ ts: number; timer: number | null }>({ ts: 0, timer: null });
   const [ritual, setRitual] = useState<"open" | "close" | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const lastWakeGreetingAtRef = useRef<number>(0);
