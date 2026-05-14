@@ -471,24 +471,40 @@ export default function Index() {
         </section>
       </div>
 
-      {/* Composer at bottom */}
-      <div
-        className="relative z-20 pl-safe pr-safe transition-[padding] duration-200 float-soft"
-        style={{ paddingBottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 0px))" }}
-      >
-        <Composer
-          onSend={(t, img) => { setComposerText(""); handleSend(t, img); }}
-          onMic={handleMic}
-          micActive={voice.listening}
-          sttSupported={voice.sttSupported}
-          disabled={busy}
-          value={composerText}
-          onValueChange={(v) => { markActivity(); setComposerText(v); }}
-          polishEnabled={polishEnabled && !voice.listening}
-          mood={apn.mood}
-          state={apn.state}
-        />
+      {/* Floating keyboard toggle (bottom-right) */}
+      <div className="absolute bottom-0 right-0 z-30 pb-safe pr-safe pointer-events-none">
+        <button
+          onClick={() => setComposerOpen((v) => !v)}
+          className="ghost-btn m-3 p-2 rounded-full pointer-events-auto"
+          data-active={composerOpen ? "true" : "false"}
+          style={{ opacity: speakingPinned && !composerOpen ? 0.35 : 1 }}
+          aria-label={composerOpen ? "Masquer le clavier" : "Afficher le clavier"}
+          title={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
+        >
+          <Keyboard className="w-4 h-4" />
+        </button>
       </div>
+
+      {/* Composer at bottom — collapsible */}
+      {composerOpen && (
+        <div
+          className="relative z-20 pl-safe pr-safe transition-[padding] duration-200 composer-rise"
+          style={{ paddingBottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 0px))" }}
+        >
+          <Composer
+            onSend={(t, img) => { setComposerText(""); handleSend(t, img); }}
+            onMic={handleMic}
+            micActive={voice.listening}
+            sttSupported={voice.sttSupported}
+            disabled={busy}
+            value={composerText}
+            onValueChange={(v) => { markActivity(); setComposerText(v); }}
+            polishEnabled={polishEnabled && !voice.listening}
+            mood={apn.mood}
+            state={apn.state}
+          />
+        </div>
+      )}
 
       {/* Overlays */}
       <ChatLog
