@@ -104,7 +104,7 @@ export default function Composer({
 
         <form
           onSubmit={submit}
-          className="relative flex items-center gap-2 rounded-full border border-foreground/10 bg-background/40 backdrop-blur-2xl px-3 sm:px-4 py-2.5 transition-all duration-300 focus-within:border-[hsl(var(--mood)/0.4)] focus-within:bg-background/60"
+          className="dark-matter-soft relative flex items-center gap-2 rounded-full px-3 sm:px-4 py-2.5 transition-all duration-300 focus-within:bg-background/50"
         >
           {cameraAvailable && (
             <button
