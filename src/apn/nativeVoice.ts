@@ -53,15 +53,53 @@ export async function nativeRequestSttPerms(): Promise<boolean> {
   }
 }
 
-export async function nativeStartListening(onResult: (text: string) => void): Promise<boolean> {
+/**
+ * Start listening with intelligent silence detection.
+ * - Calls onPartial for each interim result.
+ * - Calls onFinal once silence (no new partial) lasts `silenceMs` (default 1800ms),
+ *   OR after `maxMs` hard limit (default 20s).
+ * Returns true if started.
+ */
+export async function nativeStartListening(
+  onPartial: (text: string) => void,
+  onFinal?: (text: string) => void,
+  opts: { silenceMs?: number; maxMs?: number } = {},
+): Promise<boolean> {
   if (!isNative) return false;
   const ok = await nativeRequestSttPerms();
   if (!ok) return false;
+
+  const silenceMs = opts.silenceMs ?? 1800;
+  const maxMs = opts.maxMs ?? 20000;
+  let last = "";
+  let silenceTimer: number | null = null;
+  let hardTimer: number | null = null;
+  let stopped = false;
+
+  const finish = async () => {
+    if (stopped) return;
+    stopped = true;
+    if (silenceTimer != null) clearTimeout(silenceTimer);
+    if (hardTimer != null) clearTimeout(hardTimer);
+    try { await SpeechRecognition.stop(); } catch {}
+    onFinal?.(last.trim());
+  };
+
+  const armSilence = () => {
+    if (silenceTimer != null) clearTimeout(silenceTimer);
+    silenceTimer = window.setTimeout(() => {
+      if (last.trim()) finish();
+    }, silenceMs);
+  };
+
   try {
     await SpeechRecognition.removeAllListeners();
     await SpeechRecognition.addListener("partialResults", (data: any) => {
       const t = data?.matches?.[0];
-      if (t) onResult(t);
+      if (!t) return;
+      last = t;
+      onPartial(t);
+      armSilence();
     });
     await SpeechRecognition.start({
       language: "fr-FR",
@@ -70,6 +108,8 @@ export async function nativeStartListening(onResult: (text: string) => void): Pr
       partialResults: true,
       popup: false,
     });
+    armSilence();
+    hardTimer = window.setTimeout(finish, maxMs);
     return true;
   } catch (e) {
     console.warn("nativeStartListening failed", e);
