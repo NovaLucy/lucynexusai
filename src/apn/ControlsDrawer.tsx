@@ -115,6 +115,8 @@ interface Props {
   nowLabel?: string | null;
   kbdAutoOpen: boolean;
   setKbdAutoOpen: (v: boolean) => void;
+  wakeWordEnabled: boolean;
+  setWakeWordEnabled: (v: boolean) => void;
 }
 
 function AsciiSlider({
