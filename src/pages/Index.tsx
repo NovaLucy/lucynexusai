@@ -347,7 +347,16 @@ export default function Index() {
       </div>
 
       {/* Overlays */}
-      <ChatLog messages={apn.messages} open={logOpen} onClose={() => setLogOpen(false)} />
+      <ChatLog
+        messages={apn.messages}
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        onClear={async () => {
+          await apn.clearSession();
+          toast.success("Session effacée");
+        }}
+        sessionId={apn.sessionId}
+      />
       <ControlsDrawer
         open={cfgOpen}
         onOpenChange={setCfgOpen}
