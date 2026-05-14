@@ -328,6 +328,7 @@ export function useAPN() {
           profile: profileRef.current,
           persona: personaRef.current,
           memories: memories ?? [],
+          healthContext: healthContext ?? null,
           hasImage: !!visionImage,
           isAmbientGlance: isAmbient,
           isFirstContact,
