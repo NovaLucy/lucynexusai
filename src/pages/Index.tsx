@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 // OrbCanvas remplacé par VolumetricFace (AGI core)
 import TopBar from "@/apn/TopBar";
