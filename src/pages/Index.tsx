@@ -512,13 +512,13 @@ export default function Index() {
               style={{ background: "hsl(var(--background) / 0.55)", border: "1px solid hsl(var(--foreground) / 0.06)" }}>
               <button
                 onClick={() => { setMenuOpen(false); setLogOpen(true); }}
-                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
+                className="ghost-row hud-label flex items-center gap-3 px-3 py-2.5 rounded-lg text-left"
               >
                 <Archive className="w-3.5 h-3.5 opacity-60" /> Journal
               </button>
               <button
                 onClick={() => { setMenuOpen(false); setCfgOpen(true); }}
-                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
+                className="ghost-row hud-label flex items-center gap-3 px-3 py-2.5 rounded-lg text-left"
               >
                 <Settings className="w-3.5 h-3.5 opacity-60" /> Réglages
               </button>
@@ -528,14 +528,14 @@ export default function Index() {
                   setMedicalMode((v) => !v);
                   toast.info(!medicalMode ? "Mode pré-médecin activé" : "Mode pré-médecin désactivé");
                 }}
-                className={`ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left ${medicalMode ? "text-red-300/90" : ""}`}
+                className={`ghost-row hud-label flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${medicalMode ? "text-red-300/90" : ""}`}
               >
                 <Stethoscope className="w-3.5 h-3.5 opacity-60" /> Mode pré-médecin
               </button>
               <div className="h-px my-1 bg-foreground/[0.06]" />
               <button
                 onClick={() => { setMenuOpen(false); navigate("/logout"); }}
-                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
+                className="ghost-row hud-label flex items-center gap-3 px-3 py-2.5 rounded-lg text-left"
               >
                 <LogOut className="w-3.5 h-3.5 opacity-60" /> Déconnexion
               </button>
