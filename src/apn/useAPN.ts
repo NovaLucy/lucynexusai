@@ -6,6 +6,8 @@ import type { AgentState, Message, Mood } from "./types";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const PROFILE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/profile-update`;
+const RECALL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/memory-recall`;
+const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/memory-extract`;
 
 async function getAuthHeader(): Promise<string> {
   const { data } = await supabase.auth.getSession();
