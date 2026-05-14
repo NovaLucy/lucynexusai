@@ -1,4 +1,4 @@
-export type AgentState = "standby" | "thinking" | "speaking" | "listening";
+export type AgentState = "standby" | "thinking" | "speaking" | "listening" | "sleeping";
 export type Mood =
   | "calm"
   | "empathetic"
@@ -51,6 +51,7 @@ export const STATE_DOT: Record<AgentState, string> = {
   thinking:  "#a78bfa",
   speaking:  "#6ee7ff",
   listening: "#34d399",
+  sleeping:  "#3b4252",
 };
 
 export const STATE_LABEL: Record<AgentState, string> = {
@@ -58,6 +59,7 @@ export const STATE_LABEL: Record<AgentState, string> = {
   thinking:  "Réflexion",
   speaking:  "Parole",
   listening: "Écoute",
+  sleeping:  "Veille",
 };
 
 export const ENERGY_TARGET: Record<AgentState, number> = {
@@ -65,4 +67,5 @@ export const ENERGY_TARGET: Record<AgentState, number> = {
   thinking: 0.72,
   speaking: 1.00,
   listening: 0.50,
+  sleeping: 0.08,
 };
