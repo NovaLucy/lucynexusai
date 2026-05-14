@@ -74,6 +74,8 @@ export function useAPN() {
   const [persona, setPersona] = useState<Persona | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+  const medicalModeRef = useRef<boolean>(false);
+  const setMedicalContext = useCallback((on: boolean) => { medicalModeRef.current = on; }, []);
 
   // Bind to auth user
   useEffect(() => {
