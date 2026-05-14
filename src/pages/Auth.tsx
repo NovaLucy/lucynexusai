@@ -16,10 +16,16 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const goNext = () => {
+    let welcomed = false;
+    try { welcomed = !!localStorage.getItem("lucy:welcomed"); } catch {}
+    nav(welcomed ? "/" : "/welcome", { replace: true });
+  };
+
   useEffect(() => {
     document.title = mode === "signup" ? "Lucy — Créer un compte" : "Lucy — Connexion";
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) nav("/", { replace: true });
+      if (data.session) goNext();
     });
   }, [mode, nav]);
 
@@ -38,7 +44,7 @@ export default function Auth() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        nav("/", { replace: true });
+        goNext();
       }
     } catch (err: any) {
       toast.error(err?.message ?? "Erreur d'authentification");
@@ -58,7 +64,7 @@ export default function Auth() {
       return;
     }
     if (result.redirected) return;
-    nav("/", { replace: true });
+    goNext();
   };
 
   return (
