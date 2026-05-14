@@ -175,6 +175,7 @@ export default function Index() {
   };
 
   const handleMic = () => {
+    markActivity();
     if (voice.listening) {
       voice.stopListening();
       apn.setListeningState(false);
@@ -333,7 +334,7 @@ export default function Index() {
           sttSupported={voice.sttSupported}
           disabled={busy}
           value={composerText}
-          onValueChange={setComposerText}
+          onValueChange={(v) => { markActivity(); setComposerText(v); }}
           polishEnabled={polishEnabled && !voice.listening}
           mood={apn.mood}
           state={apn.state}
