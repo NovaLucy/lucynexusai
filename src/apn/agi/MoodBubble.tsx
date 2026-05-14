@@ -16,9 +16,18 @@ interface Props {
   medicalMode?: boolean;
 }
 
-function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0): THREE.Color {
-  const m = MOOD_HSL[mood];
+function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0, medical = false): THREE.Color {
   const c = new THREE.Color();
+  if (medical) {
+    // Vivid crimson heartbeat — high saturation, deep but luminous red
+    c.setHSL(
+      ((355 + hShift + 360) % 360) / 360,
+      Math.min(1, 0.92 + sBoost),
+      Math.min(0.65, Math.max(0.08, 0.22 + lOff)),
+    );
+    return c;
+  }
+  const m = MOOD_HSL[mood];
   c.setHSL(
     ((m.h + hShift + 360) % 360) / 360,
     Math.min(1, Math.max(0, m.s / 100 + sBoost)),
