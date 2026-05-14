@@ -3,8 +3,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Default voice: a calm French male voice. Can be overridden via body.voiceId.
-const DEFAULT_VOICE_ID = "pNInz6obpgDQGcFmaJgB"; // Adam — multilingual, neutral
+// Locked voice: soft female (Lily) — multilingual, gentle.
+const DEFAULT_VOICE_ID = "pFZP5JQG7iQjIQuC4Bku"; // Lily — soft female
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
