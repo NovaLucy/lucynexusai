@@ -38,6 +38,9 @@ export default function Index() {
   const [cfgOpen, setCfgOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
+  const [composerOpen, setComposerOpen] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("lucy:composer") ?? "false"); } catch { return false; }
+  });
   const [polishEnabled, setPolishEnabled] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem("apn:polish") ?? "true"); } catch { return true; }
   });
