@@ -10,7 +10,7 @@ import VolumetricFace from "@/apn/agi/MoodBubble";
 import Subtitles from "@/apn/Subtitles";
 import { pickWakeGreeting } from "@/apn/wakeGreeting";
 import { useNavigate } from "react-router-dom";
-import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut } from "lucide-react";
+import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut, Keyboard } from "lucide-react";
 
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useReality } from "@/apn/useReality";
@@ -38,6 +38,9 @@ export default function Index() {
   const [cfgOpen, setCfgOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
+  const [composerOpen, setComposerOpen] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("lucy:composer") ?? "false"); } catch { return false; }
+  });
   const [polishEnabled, setPolishEnabled] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem("apn:polish") ?? "true"); } catch { return true; }
   });
@@ -88,6 +91,26 @@ export default function Index() {
     setRitual(kind);
     window.setTimeout(() => setRitual(null), kind === "open" ? 4800 : 1500);
   }, []);
+
+  // Persist composer visibility
+  useEffect(() => {
+    try { localStorage.setItem("lucy:composer", JSON.stringify(composerOpen)); } catch {}
+  }, [composerOpen]);
+
+  // Auto-open composer when user starts typing on a physical keyboard
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (composerOpen) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key.length === 1 || e.key === "Backspace") {
+        setComposerOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [composerOpen]);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
@@ -323,7 +346,8 @@ export default function Index() {
       <div className="absolute top-0 right-0 z-30 pt-safe pr-safe">
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="m-3 p-2 rounded-full text-foreground/30 hover:text-foreground/80 hover:bg-foreground/[0.04] transition-colors"
+          className="ghost-btn m-3 p-2 rounded-full"
+          data-active={menuOpen ? "true" : "false"}
           aria-label="Menu"
           title="Menu"
         >
@@ -336,16 +360,17 @@ export default function Index() {
               onClick={() => setMenuOpen(false)}
               aria-hidden
             />
-            <div className="absolute right-3 top-12 z-40 dark-matter !border-0 rounded-2xl py-2 px-1 min-w-[200px] flex flex-col text-xs text-foreground/80 shadow-xl">
+            <div className="absolute right-3 top-12 z-40 rounded-2xl py-2 px-1 min-w-[200px] flex flex-col text-xs shadow-xl backdrop-blur-xl"
+              style={{ background: "hsl(var(--background) / 0.55)", border: "1px solid hsl(var(--foreground) / 0.06)" }}>
               <button
                 onClick={() => { setMenuOpen(false); setLogOpen(true); }}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left"
+                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
               >
                 <Archive className="w-3.5 h-3.5 opacity-60" /> Journal
               </button>
               <button
                 onClick={() => { setMenuOpen(false); setCfgOpen(true); }}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left"
+                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
               >
                 <Settings className="w-3.5 h-3.5 opacity-60" /> Réglages
               </button>
@@ -355,14 +380,14 @@ export default function Index() {
                   setMedicalMode((v) => !v);
                   toast.info(!medicalMode ? "Mode pré-médecin activé" : "Mode pré-médecin désactivé");
                 }}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left ${medicalMode ? "text-red-300/90" : ""}`}
+                className={`ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left ${medicalMode ? "text-red-300/90" : ""}`}
               >
                 <Stethoscope className="w-3.5 h-3.5 opacity-60" /> Mode pré-médecin
               </button>
               <div className="h-px my-1 bg-foreground/[0.06]" />
               <button
                 onClick={() => { setMenuOpen(false); navigate("/logout"); }}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left"
+                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
               >
                 <LogOut className="w-3.5 h-3.5 opacity-60" /> Déconnexion
               </button>
@@ -401,18 +426,29 @@ export default function Index() {
                 className="absolute inset-0 cursor-pointer flex items-center justify-center"
                 onClick={() => {
                   tapMedium();
+                  triggerFace(5400, "reveal");
                   if (apn.state === "sleeping") {
                     playRitual("open");
                     wakeWithGreeting();
                     lastActivityRef.current = Date.now();
-                  } else {
-                    markActivity();
-                    setShockKey((k) => k + 1);
-                    triggerFace(5400, "reveal");
+                    // Start listening shortly after the greeting begins
+                    window.setTimeout(() => {
+                      if (!voice.listening && voice.sttSupported) handleMicRef.current();
+                    }, 1400);
+                    return;
                   }
+                  if (apn.state === "speaking" || apn.state === "thinking") {
+                    voice.stop();
+                    apn.setStandby();
+                    return;
+                  }
+                  // standby or listening — toggle mic
+                  markActivity();
+                  setShockKey((k) => k + 1);
+                  handleMicRef.current();
                 }}
                 role="button"
-                aria-label="Réveiller APN"
+                aria-label="Parler à Lucy"
               >
                 <div className="relative" style={{ width: "85%", height: "85%" }}>
                   <VolumetricFace
@@ -435,24 +471,40 @@ export default function Index() {
         </section>
       </div>
 
-      {/* Composer at bottom */}
-      <div
-        className="relative z-20 pl-safe pr-safe transition-[padding] duration-200 float-soft"
-        style={{ paddingBottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 0px))" }}
-      >
-        <Composer
-          onSend={(t, img) => { setComposerText(""); handleSend(t, img); }}
-          onMic={handleMic}
-          micActive={voice.listening}
-          sttSupported={voice.sttSupported}
-          disabled={busy}
-          value={composerText}
-          onValueChange={(v) => { markActivity(); setComposerText(v); }}
-          polishEnabled={polishEnabled && !voice.listening}
-          mood={apn.mood}
-          state={apn.state}
-        />
+      {/* Floating keyboard toggle (bottom-right) */}
+      <div className="absolute bottom-0 right-0 z-30 pb-safe pr-safe pointer-events-none">
+        <button
+          onClick={() => setComposerOpen((v) => !v)}
+          className="ghost-btn m-3 p-2 rounded-full pointer-events-auto"
+          data-active={composerOpen ? "true" : "false"}
+          style={{ opacity: speakingPinned && !composerOpen ? 0.35 : 1 }}
+          aria-label={composerOpen ? "Masquer le clavier" : "Afficher le clavier"}
+          title={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
+        >
+          <Keyboard className="w-4 h-4" />
+        </button>
       </div>
+
+      {/* Composer at bottom — collapsible */}
+      {composerOpen && (
+        <div
+          className="relative z-20 pl-safe pr-safe transition-[padding] duration-200 composer-rise"
+          style={{ paddingBottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 0px))" }}
+        >
+          <Composer
+            onSend={(t, img) => { setComposerText(""); handleSend(t, img); }}
+            onMic={handleMic}
+            micActive={voice.listening}
+            sttSupported={voice.sttSupported}
+            disabled={busy}
+            value={composerText}
+            onValueChange={(v) => { markActivity(); setComposerText(v); }}
+            polishEnabled={polishEnabled && !voice.listening}
+            mood={apn.mood}
+            state={apn.state}
+          />
+        </div>
+      )}
 
       {/* Overlays */}
       <ChatLog
