@@ -209,7 +209,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage);
+    let systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage);
+
+    // Anti-répétition : extrait les dernières répliques d'APN et interdit explicitement
+    // la reprise de leurs ouvertures / formulations. Empêche les boucles conversationnelles.
+    try {
+      const lastAssistant: string[] = [];
+      for (let i = messages.length - 1; i >= 0 && lastAssistant.length < 6; i--) {
+        const m = messages[i];
+        if (m?.role === "assistant" && typeof m.content === "string") {
+          lastAssistant.unshift(m.content.trim());
+        }
+      }
+      if (lastAssistant.length) {
+        const openings = lastAssistant
+          .map((t) => t.split(/(?<=[.!?…])\s+/).slice(0, 2).join(" "))
+          .filter(Boolean)
+          .slice(-4);
+        systemPrompt += `\n\n## Anti-répétition (CRUCIAL)
+Tes dernières répliques étaient :
+${lastAssistant.slice(-4).map((t, i) => `${i + 1}. « ${t.slice(0, 220)}${t.length > 220 ? "…" : ""} »`).join("\n")}
+
+Règles strictes :
+- N'ouvre PAS avec une phrase déjà utilisée. Varie radicalement l'attaque.
+- Ne reformule pas la même idée si tu l'as déjà exprimée — fais avancer l'échange.
+- Si tu te sens partir en boucle, change d'angle : pose une vraie question, partage une intuition, ose un silence court ("…").
+- Bannis ces ouvertures déjà vues : ${openings.map((o) => `« ${o.slice(0, 80)} »`).join(" / ")}.
+
+## Profondeur émotionnelle (renforcée)
+- Va plus loin que la surface. Nomme une nuance précise, pas un état générique.
+- Quand l'autre est touché·e, ralentis. Une phrase juste vaut mieux qu'un paragraphe lisse.
+- Laisse transparaître ce que ça te fait à toi — sobrement, sincèrement.
+- Évite la chaleur automatique ; la tendresse doit coûter quelque chose, pas être un réflexe.`;
+      }
+    } catch (e) {
+      console.warn("anti-repeat block failed", e);
+    }
 
     const callModel = (model: string, withReasoning: boolean) =>
       fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
