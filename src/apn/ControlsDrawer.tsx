@@ -1,4 +1,83 @@
+import { useEffect, useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { toast } from "sonner";
+
+type PermState = "granted" | "denied" | "prompt" | "unknown";
+
+function usePermission(name: "microphone" | "camera"): [PermState, () => Promise<void>] {
+  const [state, setState] = useState<PermState>("unknown");
+
+  useEffect(() => {
+    let cancelled = false;
+    let status: PermissionStatus | null = null;
+    const onChange = () => { if (!cancelled && status) setState(status.state as PermState); };
+    (async () => {
+      try {
+        status = await navigator.permissions?.query({ name: name as PermissionName });
+        if (!status || cancelled) return;
+        setState(status.state as PermState);
+        status.addEventListener?.("change", onChange);
+      } catch {
+        setState("unknown");
+      }
+    })();
+    return () => { cancelled = true; status?.removeEventListener?.("change", onChange); };
+  }, [name]);
+
+  const request = async () => {
+    try {
+      const constraints = name === "microphone" ? { audio: true } : { video: true };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      stream.getTracks().forEach((t) => t.stop());
+      setState("granted");
+      toast.success(name === "microphone" ? "Micro autorisé" : "Caméra autorisée");
+    } catch (e: any) {
+      setState("denied");
+      toast.error(
+        e?.name === "NotAllowedError"
+          ? "Permission refusée — active-la dans les réglages du navigateur."
+          : "Impossible d'accéder à ce périphérique.",
+      );
+    }
+  };
+
+  return [state, request];
+}
+
+function PermRow({ label, hint, state, onRequest }: { label: string; hint: string; state: PermState; onRequest: () => void }) {
+  const dot = state === "granted" ? "●" : state === "denied" ? "✕" : state === "prompt" ? "○" : "?";
+  const color =
+    state === "granted" ? "text-[hsl(var(--mood))]"
+      : state === "denied" ? "text-red-400"
+      : "text-foreground/50";
+  return (
+    <div className="space-y-1">
+      <button
+        onClick={onRequest}
+        disabled={state === "granted"}
+        className={`bracket-btn w-full text-left ${state === "granted" ? "bracket-btn-active" : ""}`}
+      >
+        <span className={`mr-2 ${color}`}>[{dot}]</span>{label}
+        <span className="ml-2 text-foreground/40 text-[10px]">
+          {state === "granted" ? "AUTORISÉ" : state === "denied" ? "REFUSÉ" : "AUTORISER"}
+        </span>
+      </button>
+      <p className="text-[10px] text-foreground/40">// {hint}</p>
+    </div>
+  );
+}
+
+function PermissionsSection() {
+  const [mic, askMic] = usePermission("microphone");
+  const [cam, askCam] = usePermission("camera");
+  return (
+    <section className="space-y-3">
+      <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── PERMISSIONS ──</h3>
+      <PermRow label="MICROPHONE" hint="pour parler à APN à voix haute" state={mic} onRequest={askMic} />
+      <PermRow label="CAMÉRA" hint="pour qu'APN voie ce que tu regardes" state={cam} onRequest={askCam} />
+    </section>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -111,6 +190,8 @@ export default function ControlsDrawer(p: Props) {
               <button onClick={p.onStopVoice} className="bracket-btn flex-1">[STOP]</button>
             </div>
           </section>
+
+          <PermissionsSection />
 
           <section className="space-y-3">
             <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── INPUT ──</h3>
