@@ -8,6 +8,8 @@ import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
 import Subtitles from "@/apn/Subtitles";
+import HintLine from "@/apn/HintLine";
+import FirstRunIntro from "@/apn/FirstRunIntro";
 import { pickWakeGreeting } from "@/apn/wakeGreeting";
 import { useNavigate } from "react-router-dom";
 import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut, Keyboard } from "lucide-react";
@@ -66,6 +68,8 @@ export default function Index() {
     showMs: 4800,
   });
   const [shockKey, setShockKey] = useState(0);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const orbTapRef = useRef<{ ts: number; timer: number | null }>({ ts: 0, timer: null });
   const [ritual, setRitual] = useState<"open" | "close" | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const lastWakeGreetingAtRef = useRef<number>(0);
@@ -195,8 +199,16 @@ export default function Index() {
 
   // (vision intégrée au composer : la photo est envoyée avec le message via handleSend)
 
+  const lastAssistantRef = useRef<string>("");
+  const speakLineRef = useRef<((line: string) => void) | null>(null);
+  useEffect(() => {
+    const last = [...apn.messages].reverse().find((m) => m.role === "assistant");
+    if (last?.content) lastAssistantRef.current = last.content;
+  }, [apn.messages]);
+
   const runCommand = (cmd: ReturnType<typeof matchCommand>) => {
     if (!cmd) return false;
+    const ack = cmd.ack;
     switch (cmd.action.type) {
       case "medical": setMedicalMode(cmd.action.value); break;
       case "voice":   voice.setPrefs({ ...voice.prefs, enabled: cmd.action.value }); break;
@@ -204,6 +216,35 @@ export default function Index() {
       case "openLog": setLogOpen(true); break;
       case "openCfg": setCfgOpen(true); break;
       case "report":  setReportOpen(true); break;
+      case "wakeWord": setWakeWordEnabled(cmd.action.value); break;
+      case "rateDelta": {
+        const next = Math.max(0.6, Math.min(1.6, voice.prefs.rate + cmd.action.value));
+        voice.setPrefs({ ...voice.prefs, rate: next });
+        break;
+      }
+      case "pitchDelta": {
+        const next = Math.max(0.6, Math.min(1.6, voice.prefs.pitch + cmd.action.value));
+        voice.setPrefs({ ...voice.prefs, pitch: next });
+        break;
+      }
+      case "stopSpeaking": voice.stop(); apn.setStandby(); break;
+      case "repeat": {
+        if (lastAssistantRef.current) speakLineRef.current?.(lastAssistantRef.current);
+        break;
+      }
+      case "shorter": {
+        toast.info("Lucy parlera plus court");
+        // Le system prompt encourage déjà la concision ; flag éphémère côté UI suffit.
+        break;
+      }
+      case "clearChat": {
+        apn.clearSession();
+        break;
+      }
+    }
+    if (ack && voice.prefs.enabled) {
+      // Petit mot prononcé en confirmation
+      window.setTimeout(() => speakLineRef.current?.(ack), 80);
     }
     toast.success(`⌘ ${cmd.label}`);
     return true;
@@ -265,6 +306,7 @@ export default function Index() {
       setCurrentSentence((cur) => (cur === trimmed ? null : cur));
     }, Math.max(2200, trimmed.length * 70));
   }, [voice]);
+  speakLineRef.current = speakLine;
 
   const wakeWithGreeting = useCallback(() => {
     apn.wake();
@@ -377,6 +419,40 @@ export default function Index() {
 
   const loops = apn.profile?.open_loops?.length ?? 0;
 
+  // Swipe-up depuis le bas → ouvre le composer (geste mobile naturel)
+  useEffect(() => {
+    let startY = 0;
+    let startX = 0;
+    let active = false;
+    const onStart = (e: TouchEvent) => {
+      if (composerOpen) return;
+      const t = e.touches[0];
+      if (!t) return;
+      // ne déclenche que si le doigt part dans la moitié basse de l'écran
+      if (t.clientY < window.innerHeight * 0.55) return;
+      startY = t.clientY; startX = t.clientX; active = true;
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!active) return;
+      active = false;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dy = startY - t.clientY;
+      const dx = Math.abs(t.clientX - startX);
+      if (dy > 60 && dx < 50) {
+        setHasInteracted(true);
+        setComposerOpen(true);
+        tapLight();
+      }
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [composerOpen]);
+
   if (auth.status === "loading") {
     return (
       <main className="w-screen h-screen bg-background flex items-center justify-center">
@@ -482,30 +558,48 @@ export default function Index() {
               <div
                 className="absolute inset-0 cursor-pointer flex items-center justify-center"
                 onClick={() => {
-                  tapMedium();
-                  triggerFace(5400, "reveal");
-                  if (apn.state === "sleeping") {
-                    playRitual("open");
-                    wakeWithGreeting();
-                    lastActivityRef.current = Date.now();
-                    // Start listening shortly after the greeting begins
-                    window.setTimeout(() => {
-                      if (!voice.listening && voice.sttSupported) handleMicRef.current();
-                    }, 1400);
+                  setHasInteracted(true);
+                  const now = Date.now();
+                  const isDouble = now - orbTapRef.current.ts < 300;
+                  orbTapRef.current.ts = now;
+
+                  if (isDouble) {
+                    // Double-tap → ouvre le composer (mode écriture)
+                    if (orbTapRef.current.timer) {
+                      window.clearTimeout(orbTapRef.current.timer);
+                      orbTapRef.current.timer = null;
+                    }
+                    tapMedium();
+                    setComposerOpen(true);
                     return;
                   }
-                  if (apn.state === "speaking" || apn.state === "thinking") {
-                    voice.stop();
-                    apn.setStandby();
-                    return;
-                  }
-                  // standby or listening — toggle mic
-                  markActivity();
-                  setShockKey((k) => k + 1);
-                  handleMicRef.current();
+
+                  // Single-tap : on attend 280ms pour distinguer du double
+                  orbTapRef.current.timer = window.setTimeout(() => {
+                    orbTapRef.current.timer = null;
+                    tapMedium();
+                    triggerFace(5400, "reveal");
+                    if (apn.state === "sleeping") {
+                      playRitual("open");
+                      wakeWithGreeting();
+                      lastActivityRef.current = Date.now();
+                      window.setTimeout(() => {
+                        if (!voice.listening && voice.sttSupported) handleMicRef.current();
+                      }, 1400);
+                      return;
+                    }
+                    if (apn.state === "speaking" || apn.state === "thinking") {
+                      voice.stop();
+                      apn.setStandby();
+                      return;
+                    }
+                    markActivity();
+                    setShockKey((k) => k + 1);
+                    handleMicRef.current();
+                  }, 280);
                 }}
                 role="button"
-                aria-label="Parler à Lucy"
+                aria-label="Parler à Lucy (double-tap pour écrire)"
               >
                 <div className="relative" style={{ width: "85%", height: "85%" }}>
                   <VolumetricFace
@@ -521,22 +615,30 @@ export default function Index() {
           </div>
 
           <Subtitles currentSentence={currentSentence} />
+          <HintLine
+            state={apn.state}
+            micActive={voice.listening}
+            hide={hasInteracted || composerOpen}
+          />
         </section>
       </div>
 
       {/* Floating keyboard toggle (bottom-right) */}
       <div className="absolute bottom-0 right-0 z-30 pb-safe pr-safe pointer-events-none">
         <button
-          onClick={() => setComposerOpen((v) => !v)}
-          className="ghost-btn m-3 p-2 rounded-full pointer-events-auto"
+          onClick={() => { setHasInteracted(true); setComposerOpen((v) => !v); }}
+          className="ghost-btn m-3 pointer-events-auto inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] uppercase tracking-[0.22em]"
           data-active={composerOpen ? "true" : "false"}
-          style={{ opacity: speakingPinned && !composerOpen ? 0.35 : 1 }}
-          aria-label={composerOpen ? "Masquer le clavier" : "Afficher le clavier"}
+          style={{ opacity: speakingPinned && !composerOpen ? 0.4 : 1 }}
+          aria-label={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
           title={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
         >
           <Keyboard className="w-4 h-4" />
+          {!composerOpen && <span className="hidden sm:inline">Écrire</span>}
         </button>
       </div>
+
+      <FirstRunIntro />
 
       {/* Composer at bottom — collapsible */}
       {composerOpen && (

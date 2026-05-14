@@ -1,82 +1,77 @@
-# Avancées majeures proposées pour Lucy
 
-Voici 5 axes d'évolution ambitieux, classés par impact. Tu peux en valider un seul, plusieurs, ou demander de prioriser.
+## Objectif
 
----
+Rendre la prise de parole plus fiable, les commandes vocales plus naturelles, et l'accès à la conversation plus évident — sans casser ce qui fonctionne déjà (wake-word, halo, rituels).
 
-## 1. Mémoire vivante & continuité émotionnelle 🧠
-**Le problème** : Lucy oublie les nuances entre sessions. Elle a un `profile` mais pas de vraie mémoire sémantique.
+## 1. Prise de voix (mic) — plus fluide et tolérante
 
-**Avancée** :
-- Table `memories` (faits, événements, personnes, préférences) avec embeddings (pgvector)
-- Extraction automatique en arrière-plan après chaque échange (via edge function)
-- Recherche sémantique des souvenirs pertinents injectés dans le contexte du chat
-- "Humeur relationnelle" persistante : Lucy se souvient du *ton* des derniers échanges
-- Timeline privée consultable ("souviens-toi de…")
+**Problèmes actuels**
+- `nativeStartListening` coupe brutalement après **6 s fixes**, même si l'utilisateur parle encore.
+- Sur le web, Scribe se déconnecte sur silence VAD mais **aucun garde-fou** si la connexion ws tombe (1006 vu dans les logs) → le mic reste "listening" en UI.
+- Pas d'indicateur clair "je t'écoute" quand le micro s'ouvre.
 
-**Impact** : Lucy passe d'assistant à *présence continue*.
+**Propositions**
+- **Silence-detect natif** : remplacer le `setTimeout(6000)` par une boucle qui prolonge tant que `last` change (reset du timer à chaque partial), max 20 s. Couper après 1.8 s sans nouveau partial.
+- **Auto-recovery web** : sur erreur Scribe / WebSocket 1006, repasser proprement en `listening = false` + toast discret « micro coupé, retape pour reprendre ».
+- **Onde audible courte** (existant `tapMedium` + petit son optionnel) à l'ouverture du micro pour confirmer.
+- **Push-to-talk long-press** sur l'orbe : appui court = toggle (actuel), appui maintenu = micro ouvert tant que doigt posé, ferme à relâchement → utile en environnement bruyant.
 
----
+## 2. Commandes vocales — plus naturelles
 
-## 2. Mode Présence Ambiante (always-on intelligent) 🌊
-**Le problème** : Lucy n'existe que quand on la sollicite.
+**Problèmes actuels**
+- `voiceCommands.ts` n'a que ~10 patterns rigides ; toute variante échoue silencieusement.
+- Les commandes sont exécutées **avant** d'arriver à Lucy : impossible d'enchaîner « ouvre le journal et parle moins fort ».
+- Pas de feedback vocal — juste un toast.
 
-**Avancée** :
-- Wake-word local ("Lucy…") via VAD + petit modèle on-device — pas de streaming permanent au cloud
-- Détection de contexte passive : heure, lieu, agenda → interventions *rares* mais justes
-- Notifications proactives intelligentes (déjà ébauché) enrichies par la mémoire
-- "Mode veille active" : la matière noire respire doucement, réagit subtilement aux sons ambiants sans répondre
+**Propositions**
+- **Élargir les patterns** : ajouter
+  - couper / réactiver le wake-word (« arrête de m'écouter », « écoute en continu »)
+  - voix plus douce / plus forte / plus lente / plus rapide (mappés sur `prefs.rate`/`pitch`)
+  - mode sombre/clair si pertinent
+  - « répète », « plus court », « tais-toi » (= `voice.stop()` immédiat)
+  - « efface la conversation » (confirm via toast action)
+- **Confirmation vocale courte** : au lieu d'un toast seul, Lucy dit 1 mot (« voilà », « ok », « coupé ») via `speakLine`, puis exécute.
+- **Fallback LLM** : si `matchCommand` échoue mais que la phrase commence par un verbe d'action court (« ouvre… », « coupe… »), envoyer au chat avec un flag `intent: "command"` — laisser Lucy interpréter et répondre via une `client_tool_call`-like (déjà partiellement en place côté chat).
 
-**Impact** : Compagnon plutôt qu'outil.
+## 3. Accès à la conversation — plus intuitif
 
----
+**Problèmes actuels**
+- Le bouton clavier en bas-droite est petit, sans label, opacifié quand Lucy parle.
+- L'orbe est cliquable mais rien ne dit qu'on peut **taper** au lieu de parler.
+- Le composer s'ouvre auto au clavier physique mais sur mobile, rien n'invite à taper.
+- `ChatLog` (le journal) est caché derrière un menu « … ».
 
-## 3. Vision continue & compréhension du monde 👁️
-**Le problème** : La caméra est ponctuelle, Lucy ne *voit* pas vraiment.
+**Propositions**
 
-**Avancée** :
-- Flux vidéo en arrière-plan (frames espacées, 1/3s) avec analyse multimodale Gemini Flash
-- Détection de scène : lieu, objets, personnes (anonymisées), activité
-- Lucy peut commenter *si demandée* (cohérent avec règle existante) mais comprend le contexte visuel en permanence
-- Mode "regarde avec moi" : analyse temps réel pendant qu'on lui montre quelque chose
-- Capture de moments : Lucy reconnaît un instant marquant et propose de le garder
+a. **Hint contextuel sous l'orbe** (à côté de Subtitles) — micro-texte qui change selon l'état :
+- standby : « tape pour écrire · touche pour parler »
+- listening : « je t'écoute… »
+- sleeping : « touche pour me réveiller »
+S'efface dès la première interaction.
 
-**Impact** : Conscience spatiale réelle.
+b. **Double-tap orbe = ouvre le composer** (au lieu de devoir viser le petit bouton clavier). Tap simple reste = mic.
 
----
+c. **Swipe-up depuis le bas** = ouvre le composer (geste mobile naturel). Swipe-down sur le composer = referme.
 
-## 4. Mode Pré-Médecin V2 — suivi longitudinal 🩺
-**Le problème** : Le mode médical existe mais reste réactif.
+d. **Bouton clavier élargi** : passer en pill « Écrire » avec icône + label sur mobile, plutôt qu'un rond opaque. Devient un FAB plus lisible.
 
-**Avancée** :
-- Carnet de santé structuré (symptômes, prises, sommeil, douleur 0-10)
-- Graphiques de tendances + détection d'anomalies
-- Rappels intelligents ("hier tu avais 7/10 au dos, comment ce matin ?")
-- Export PDF formaté pour vrai médecin (ordonné, dates, fréquences)
-- Intégration HealthKit / Google Fit (Capacitor) pour rythme cardiaque, sommeil, pas
-- Alertes drapeaux rouges déjà présentes → enrichies par historique
+e. **Raccourci journal** : ajouter un swipe latéral (gauche→droite) ou un bouton discret en haut-gauche (pendant du « … » à droite) qui ouvre directement le `ChatLog`, vu que c'est l'élément le plus consulté.
 
-**Impact** : Vraie valeur clinique préparatoire.
+f. **Premier lancement** : un petit onboarding 3-cards (« touche pour parler · tape pour écrire · dis "Lucy" pour me réveiller ») affiché 1 fois, dismissible, stocké dans localStorage.
 
----
+## Découpage des fichiers
 
-## 5. Personnalité incarnée & expressivité 🎭
-**Le problème** : La matière noire est belle mais la personnalité de Lucy reste générique.
+- `src/apn/nativeVoice.ts` — silence-detect intelligent
+- `src/apn/useVoice.ts` — auto-recovery WebSocket
+- `src/apn/voiceCommands.ts` — patterns étendus + retour parlé
+- `src/apn/Composer.tsx` + `src/pages/Index.tsx` — hint contextuel, double-tap, swipe-up, FAB élargi
+- `src/apn/Onboarding.tsx` (nouveau composant léger ou réutilise l'existant) — 3-cards intro
 
-**Avancée** :
-- "Tempérament" configurable (rythme, humour, distance) qui module *vraiment* le system prompt + la voix
-- Synthèse vocale émotionnelle (ElevenLabs v3 avec tags émotion `[whispers]`, `[laughs]`)
-- Variations visuelles fines de la matière noire selon l'émotion détectée dans la réponse (joie = particules dorées, doute = ralenti, tendresse = pulsations chaudes)
-- "Silences habités" : Lucy peut choisir de ne pas répondre par mots, juste un mouvement de matière
-- Voice cloning optionnel (voix proche / familière, opt-in fort)
+## Priorité suggérée
 
-**Impact** : Lucy devient *quelqu'un*, pas *quelque chose*.
+1. Silence-detect + auto-recovery (impact immédiat sur fiabilité)
+2. Hint contextuel + FAB élargi (clarté UX)
+3. Patterns commandes étendus + retour parlé
+4. Double-tap / swipe-up + onboarding (raffinements)
 
----
-
-## Recommandation
-Si je devais en choisir **un seul** pour maximiser l'effet "wow + utilité" : **#1 Mémoire vivante**. C'est le socle qui rend les 4 autres beaucoup plus puissants.
-
-Si tu veux du **visible immédiat** : **#5 Personnalité incarnée** (résultats sensibles dès la 1re interaction).
-
-Dis-moi lequel (ou lesquels) tu veux que je détaille en plan d'implémentation concret.
+Dis-moi si tu veux que je fasse les **4 d'un coup** ou seulement les **priorités 1-2** d'abord.
