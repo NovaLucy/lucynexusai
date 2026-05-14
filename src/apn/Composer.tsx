@@ -110,11 +110,8 @@ export default function Composer({
             <button
               type="button"
               onClick={handlePhoto}
-              className={`shrink-0 p-2 rounded-full transition-colors ${
-                attachedImage
-                  ? "text-[hsl(var(--mood))] bg-[hsl(var(--mood)/0.12)]"
-                  : "text-foreground/40 hover:text-foreground/80"
-              }`}
+              className="ghost-btn shrink-0 p-2 rounded-full"
+              data-active={attachedImage ? "true" : "false"}
               aria-label="Partager une photo"
             >
               <Camera className="w-4 h-4" />
@@ -150,11 +147,8 @@ export default function Composer({
               type="button"
               onClick={onMic}
               aria-label={micActive ? "Arrêter l'écoute" : "Parler"}
-              className={`shrink-0 p-2 rounded-full transition-colors ${
-                micActive
-                  ? "text-red-300 bg-red-500/10 animate-pulse"
-                  : "text-foreground/40 hover:text-foreground/80"
-              }`}
+              className="ghost-btn shrink-0 p-2 rounded-full"
+              data-mic={micActive ? "true" : "false"}
             >
               {micActive ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
@@ -164,13 +158,8 @@ export default function Composer({
             type="submit"
             disabled={!canSubmit}
             aria-label="Envoyer"
-            className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
-            style={{
-              background: canSubmit ? "hsl(var(--mood) / 0.18)" : "hsl(var(--foreground) / 0.04)",
-              border: `1px solid hsl(var(--mood) / ${canSubmit ? 0.45 : 0.15})`,
-              color: canSubmit ? "hsl(var(--mood))" : "hsl(var(--foreground) / 0.4)",
-              boxShadow: canSubmit ? "0 0 20px hsl(var(--mood) / 0.35)" : undefined,
-            }}
+            className="ghost-btn shrink-0 w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+            data-active={canSubmit ? "true" : "false"}
           >
             <ArrowRight className="w-4 h-4" />
           </button>
