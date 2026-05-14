@@ -255,6 +255,13 @@ export default function ControlsDrawer(p: Props) {
               [{p.polishEnabled ? "X" : " "}] AUTO-CORRECTION ✨
             </button>
             <p className="text-[10px] text-foreground/40">// corrige fautes & ponctuation pendant la saisie</p>
+            <button
+              onClick={() => p.setKbdAutoOpen(!p.kbdAutoOpen)}
+              className={`bracket-btn w-full text-left ${p.kbdAutoOpen ? "bracket-btn-active" : ""}`}
+            >
+              [{p.kbdAutoOpen ? "X" : " "}] OUVRIR AU CLAVIER
+            </button>
+            <p className="text-[10px] text-foreground/40">// ouvrir le composer auto quand tu tapes sur un clavier physique</p>
           </section>
 
           <section className="space-y-3">
