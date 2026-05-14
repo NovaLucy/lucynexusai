@@ -280,6 +280,19 @@ export default function Index() {
   }, [apn, speakLine]);
   wakeRef.current = wakeWithGreeting;
 
+  // Wake-word "Lucy" — n'écoute qu'en veille / sommeil pour éviter les conflits micro
+  const wakeWordActive =
+    wakeWordEnabled &&
+    (apn.state === "standby" || apn.state === "sleeping") &&
+    !voice.listening;
+  useWakeWord({
+    enabled: wakeWordActive,
+    onWake: () => {
+      tapLight();
+      wakeWithGreeting();
+    },
+  });
+
   const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
     markActivity();
