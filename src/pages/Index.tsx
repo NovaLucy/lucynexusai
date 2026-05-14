@@ -217,11 +217,13 @@ export default function Index() {
       const sentence = m[1].trim();
       ttsBufferRef.current = ttsBufferRef.current.slice(m[0].length);
       setCurrentSentence(sentence);
+      tapMicro();
       if (voice.prefs.enabled) voice.speakSentence(sentence);
     } else {
       if (ttsBufferRef.current.trim()) {
         const sentence = ttsBufferRef.current.trim();
         setCurrentSentence(sentence);
+        tapMicro();
         if (voice.prefs.enabled) voice.speakSentence(sentence);
       }
       ttsBufferRef.current = "";
