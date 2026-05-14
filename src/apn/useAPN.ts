@@ -6,6 +6,8 @@ import type { AgentState, Message, Mood } from "./types";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const PROFILE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/profile-update`;
+const RECALL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/memory-recall`;
+const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/memory-extract`;
 
 async function getAuthHeader(): Promise<string> {
   const { data } = await supabase.auth.getSession();
@@ -242,6 +244,38 @@ export function useAPN() {
     }
   }, [messages]);
 
+  const recallMemories = useCallback(async (query: string): Promise<any[]> => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.access_token) return [];
+      const r = await fetch(RECALL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: await getAuthHeader() },
+        body: JSON.stringify({ query, limit: 6 }),
+      });
+      if (!r.ok) return [];
+      const j = await r.json();
+      return Array.isArray(j?.memories) ? j.memories : [];
+    } catch { return []; }
+  }, []);
+
+  const extractMemoriesAsync = useCallback(async (userMsg: string, apnMsg: string) => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.access_token) return;
+      const recent = [
+        ...messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: userMsg },
+        { role: "assistant", content: apnMsg },
+      ];
+      await fetch(EXTRACT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: await getAuthHeader() },
+        body: JSON.stringify({ recent, sessionId: sessionId.current }),
+      });
+    } catch (e) { console.warn("memory-extract failed", e); }
+  }, [messages]);
+
   const streamFromGateway = useCallback(
     async (
       userInput: string,
@@ -249,6 +283,7 @@ export function useAPN() {
       history: Message[],
       onDelta: (chunk: string) => void,
       reality?: any,
+      memories?: any[],
     ) => {
       const historyMsgs = history.slice(-20).map((m) => ({ role: m.role, content: m.content }));
       const visionImage = imageDataUrl ?? reality?.ambientImageDataUrl ?? undefined;
@@ -273,6 +308,7 @@ export function useAPN() {
           messages: ctxMessages,
           profile: profileRef.current,
           persona: personaRef.current,
+          memories: memories ?? [],
           hasImage: !!visionImage,
           isAmbientGlance: isAmbient,
           isFirstContact,
@@ -369,6 +405,10 @@ export function useAPN() {
       }
 
       try {
+        // Recall relevant memories in parallel with the UI transition
+        const memoriesPromise = recallMemories(text || "Regarde.");
+        const recalled = await memoriesPromise;
+
         let full = "";
         let started = false;
         const assistantId = crypto.randomUUID();
@@ -386,13 +426,14 @@ export function useAPN() {
             );
           }
           hooks.onAssistantChunk?.(full);
-        }, reality);
+        }, reality, recalled);
         const m = inferMood(full);
         setMoodAndApply(m);
         setMessages((p) => p.map((mm) => (mm.id === assistantId ? { ...mm, mood: m } : mm)));
-        // Persist & profile update are background — don't await, keep dialogue snappy
+        // Persist + profile + memory extraction in background — keep dialogue snappy
         void persist(text || "Regarde.", full, m, null, reality, reality?.facing);
         void updateProfileAsync(text || "Regarde.", full);
+        void extractMemoriesAsync(text || "Regarde.", full);
         hooks.onAssistantEnd?.(full, m);
       } catch (e: any) {
         const msg = e?.message ?? "Erreur inconnue";
@@ -401,7 +442,7 @@ export function useAPN() {
         setCaption("Je suis prêt.");
       }
     },
-    [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync, userId],
+    [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync, recallMemories, extractMemoriesAsync, userId],
   );
 
   const setStandby = useCallback(() => {

@@ -136,7 +136,18 @@ function buildRealityBlock(reality: any, isAmbientGlance?: boolean): string {
   return lines.join("\n");
 }
 
-function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean, reality?: any, isAmbientGlance?: boolean): string {
+function buildMemoriesBlock(memories: any[]): string {
+  if (!Array.isArray(memories) || memories.length === 0) return "";
+  const lines: string[] = ["\n\n## Ce dont tu te souviens d'elle (mémoire vivante)"];
+  lines.push("(Ces souvenirs viennent d'échanges passés. Mobilise-les naturellement quand c'est pertinent — JAMAIS en les récitant. Tu sais, c'est tout.)");
+  for (const m of memories.slice(0, 10)) {
+    const tag = m.kind ? `[${m.kind}]` : "";
+    lines.push(`- ${tag} ${m.content}`);
+  }
+  return lines.join("\n");
+}
+
+function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean, reality?: any, isAmbientGlance?: boolean, memories?: any[]): string {
   let p = BASE_PROMPT;
   if (hasImage) p += VISION_PROMPT;
 
@@ -151,6 +162,7 @@ function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, 
   }
 
   p += buildPersonaBlock(persona);
+  p += buildMemoriesBlock(memories ?? []);
 
   if (profile?.traits?.summary && typeof profile.traits.summary === "string") {
     p += `\n\n## Résumé des échanges précédents (vue long terme)\n${profile.traits.summary.trim()}`;
@@ -191,7 +203,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, profile, persona, isFirstContact, localHour, hasImage, reality, isAmbientGlance } = await req.json();
+    const { messages, profile, persona, isFirstContact, localHour, hasImage, reality, isAmbientGlance, memories } = await req.json();
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages must be an array" }), {
         status: 400,
@@ -207,7 +219,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage, reality, !!isAmbientGlance);
+    let systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage, reality, !!isAmbientGlance, memories);
 
     // Anti-répétition : extrait les dernières répliques d'APN et interdit explicitement
     // la reprise de leurs ouvertures / formulations. Empêche les boucles conversationnelles.
