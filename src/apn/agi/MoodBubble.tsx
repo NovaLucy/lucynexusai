@@ -63,32 +63,50 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
     const sp = speaking || state === "speaking";
     const thinking = state === "thinking";
     const listening = state === "listening";
+    const sleeping = state === "sleeping";
 
-    const ampTarget = sp ? 0.14 : thinking ? 0.11 : listening ? 0.09 : 0.07;
-    const speedTarget = sp ? 0.55 : thinking ? 0.45 : listening ? 0.35 : 0.25;
-    const pulseTarget = sp ? 0.45 : thinking ? 0.3 : listening ? 0.22 : 0.12;
+    // Cinematic mix: standby = breath, listening = particle pull,
+    // thinking = inner agitation, speaking = surface vibration, sleeping = near-zero.
+    const ampTarget    = sleeping ? 0.02 : sp ? 0.18 : thinking ? 0.13 : listening ? 0.10 : 0.07;
+    const speedTarget  = sleeping ? 0.08 : sp ? 0.75 : thinking ? 0.55 : listening ? 0.32 : 0.22;
+    const pulseTarget  = sleeping ? 0.02 : sp ? 0.55 : thinking ? 0.38 : listening ? 0.28 : 0.12;
 
-    uniforms.uAmp.value += (ampTarget - uniforms.uAmp.value) * 0.025;
-    uniforms.uSpeed.value += (speedTarget - uniforms.uSpeed.value) * 0.025;
-    uniforms.uPulse.value += (pulseTarget - uniforms.uPulse.value) * 0.025;
+    uniforms.uAmp.value   += (ampTarget   - uniforms.uAmp.value)   * 0.04;
+    uniforms.uSpeed.value += (speedTarget - uniforms.uSpeed.value) * 0.04;
+    uniforms.uPulse.value += (pulseTarget - uniforms.uPulse.value) * 0.04;
+
+    // Effective intensity dims when sleeping
+    const intTarget = sleeping ? intensity * 0.25 : intensity;
+    uniforms.uIntensity.value += (intTarget - uniforms.uIntensity.value) * 0.05;
 
     if (meshRef.current) {
-      meshRef.current.rotation.y += dt * 0.05;
-      meshRef.current.rotation.x = Math.sin(t * 0.12) * 0.1;
-      const breath = 1 + Math.sin(t * (sp ? 1.3 : 0.8)) * (sp ? 0.02 : 0.014);
-      meshRef.current.scale.setScalar(breath);
+      // Speaking → faster spin + tiny vertical jitter (voice surface vibration)
+      const spinBase = sleeping ? 0.005 : sp ? 0.18 : thinking ? 0.12 : listening ? 0.06 : 0.04;
+      meshRef.current.rotation.y += dt * spinBase;
+      meshRef.current.rotation.x = Math.sin(t * (sleeping ? 0.05 : 0.12)) * (sleeping ? 0.04 : 0.1);
+      const breathFreq = sleeping ? 0.35 : sp ? 1.5 : thinking ? 1.05 : 0.8;
+      const breathAmp  = sleeping ? 0.006 : sp ? 0.028 : thinking ? 0.02 : 0.014;
+      const vibrato    = sp ? Math.sin(t * 18) * 0.004 : 0;
+      meshRef.current.scale.setScalar(1 + Math.sin(t * breathFreq) * breathAmp + vibrato);
+      // Sleeping → slight downward sag
+      meshRef.current.position.y = sleeping ? -0.04 : 0;
     }
     if (innerRef.current) {
-      innerRef.current.rotation.y -= dt * 0.08;
-      innerRef.current.rotation.z = Math.cos(t * 0.22) * 0.2;
-      const s = 0.7 + Math.sin(t * 1.4) * 0.04 + uniforms.uPulse.value * 0.05;
+      // Thinking → inner whorl spins faster (mental agitation)
+      const innerSpin = sleeping ? -0.005 : thinking ? -0.35 : sp ? -0.18 : -0.08;
+      innerRef.current.rotation.y += dt * innerSpin;
+      innerRef.current.rotation.z = Math.cos(t * (thinking ? 0.6 : 0.22)) * (thinking ? 0.45 : 0.2);
+      const s = 0.7 + Math.sin(t * (sp ? 1.8 : 1.4)) * 0.04 + uniforms.uPulse.value * 0.05;
       innerRef.current.scale.setScalar(s);
     }
     if (haloRef.current) {
-      const s = 1.45 + Math.sin(t * 0.7) * 0.06 + uniforms.uPulse.value * 0.12;
+      // Listening → halo gently expands & contracts as if attracting particles
+      const listenPull = listening ? Math.sin(t * 1.4) * 0.08 : 0;
+      const s = 1.45 + Math.sin(t * (sleeping ? 0.3 : 0.7)) * 0.06 + uniforms.uPulse.value * 0.12 + listenPull;
       haloRef.current.scale.setScalar(s);
       const m = haloRef.current.material as THREE.MeshBasicMaterial;
-      m.opacity = 0.06 + uniforms.uPulse.value * 0.12;
+      const haloOp = sleeping ? 0.015 : 0.06 + uniforms.uPulse.value * 0.12;
+      m.opacity = haloOp;
       m.color = uniforms.uColorRim.value;
     }
   });

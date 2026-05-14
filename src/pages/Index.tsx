@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 // OrbCanvas remplacé par VolumetricFace (AGI core)
 import TopBar from "@/apn/TopBar";
@@ -48,6 +48,31 @@ export default function Index() {
     showMs: 4800,
   });
   const [shockKey, setShockKey] = useState(0);
+  const [ritual, setRitual] = useState<"open" | "close" | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+
+  // Mark activity (resets sleep timer + wakes if sleeping)
+  const markActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    if (apn.state === "sleeping") apn.wake();
+  }, [apn]);
+
+  // Auto-sleep after 90s of inactivity (only from standby)
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (apn.state !== "standby") return;
+      if (Date.now() - lastActivityRef.current > 90_000) {
+        apn.setSleeping();
+      }
+    }, 5_000);
+    return () => window.clearInterval(id);
+  }, [apn.state, apn]);
+
+  // Trigger ritual on activity transitions
+  const playRitual = useCallback((kind: "open" | "close") => {
+    setRitual(kind);
+    window.setTimeout(() => setRitual(null), kind === "open" ? 1700 : 1300);
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
@@ -127,18 +152,21 @@ export default function Index() {
 
   const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
+    markActivity();
     if (!imageDataUrl && runCommand(matchCommand(text))) return;
     setBusy(true);
     tapLight();
     voice.stop();
+    playRitual("open");
     if (text) extractHealth(text);
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantEnd: (full) => {
         if (voice.prefs.enabled) {
-          voice.speak(full, () => apn.setStandby());
+          voice.speak(full, () => { apn.setStandby(); playRitual("close"); });
         } else {
           apn.setStandby();
+          playRitual("close");
         }
         setBusy(false);
       },
@@ -147,6 +175,7 @@ export default function Index() {
   };
 
   const handleMic = () => {
+    markActivity();
     if (voice.listening) {
       voice.stopListening();
       apn.setListeningState(false);
@@ -240,12 +269,29 @@ export default function Index() {
               {/* Pulsing mood halo behind the core */}
               <div className="core-halo" aria-hidden />
 
+              {/* Sleeping veil — darkens corners when APN dozes */}
+              <div className="sleeping-veil" aria-hidden />
+
+              {/* Ritual layer — iris + dark-matter wave on interaction edges */}
+              {ritual && (
+                <div className={`ritual-layer ritual-${ritual}`} aria-hidden>
+                  <div className="ritual-iris" />
+                  <div className="ritual-wave" />
+                  <div className="ritual-wave ritual-wave-2" />
+                </div>
+              )}
+
               <div
                 className="absolute inset-0 cursor-pointer"
                 onClick={() => {
                   tapMedium();
-                  setShockKey((k) => k + 1);
-                  triggerFace(5400, "reveal");
+                  markActivity();
+                  if (apn.state === "sleeping") {
+                    playRitual("open");
+                  } else {
+                    setShockKey((k) => k + 1);
+                    triggerFace(5400, "reveal");
+                  }
                 }}
                 role="button"
                 aria-label="Réveiller APN"
@@ -288,7 +334,7 @@ export default function Index() {
           sttSupported={voice.sttSupported}
           disabled={busy}
           value={composerText}
-          onValueChange={setComposerText}
+          onValueChange={(v) => { markActivity(); setComposerText(v); }}
           polishEnabled={polishEnabled && !voice.listening}
           mood={apn.mood}
           state={apn.state}

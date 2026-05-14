@@ -364,11 +364,19 @@ export function useAPN() {
     setState(on ? "listening" : "standby");
     setCaption(on ? "Je t'écoute…" : "Je suis prêt.");
   }, []);
+  const setSleeping = useCallback(() => {
+    setState("sleeping");
+    setCaption("…");
+  }, []);
+  const wake = useCallback(() => {
+    setState((s) => (s === "sleeping" ? "standby" : s));
+    setCaption((c) => (c === "…" ? "Je suis là." : c));
+  }, []);
 
   return {
     sessionId: sessionId.current,
     messages, state, mood, caption, error, profile, persona,
     syncStatus, lastSyncAt,
-    send, setStandby, setListeningState,
+    send, setStandby, setListeningState, setSleeping, wake,
   };
 }
