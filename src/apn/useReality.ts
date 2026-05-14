@@ -212,8 +212,9 @@ export function useReality() {
       now: computeNow(),
       location: location ?? undefined,
       ambientImageDataUrl: ambient,
+      facing: camEnabled ? facing : undefined,
     };
-  }, [captureAmbient, location]);
+  }, [captureAmbient, location, camEnabled, facing]);
 
   return {
     now,
