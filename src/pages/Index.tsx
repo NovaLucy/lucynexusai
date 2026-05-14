@@ -200,7 +200,7 @@ export default function Index() {
       </div>
 
       {/* Top bar */}
-      <div className="relative z-20 pt-safe pl-safe pr-safe">
+      <div className="relative z-20 pt-safe pl-safe pr-safe float-soft-2">
         <TopBar
           state={apn.state}
           mood={apn.mood}
@@ -264,7 +264,7 @@ export default function Index() {
           </div>
 
           {/* Caption — soft, human */}
-          <div className="px-6 pb-4 text-center relative z-20" aria-live="polite">
+          <div className="px-6 pb-4 text-center relative z-20 float-drift" aria-live="polite">
             <p className="text-base sm:text-xl md:text-2xl font-light tracking-tight text-foreground/85">
               {apn.caption}
             </p>
@@ -281,7 +281,7 @@ export default function Index() {
 
       {/* Composer at bottom */}
       <div
-        className="relative z-20 pl-safe pr-safe transition-[padding] duration-200"
+        className="relative z-20 pl-safe pr-safe transition-[padding] duration-200 float-soft"
         style={{ paddingBottom: "calc(var(--keyboard-h, 0px) + max(env(safe-area-inset-bottom), 0px))" }}
       >
         <Composer
