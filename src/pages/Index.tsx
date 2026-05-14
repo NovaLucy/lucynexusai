@@ -8,6 +8,8 @@ import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
 import Subtitles from "@/apn/Subtitles";
+import HintLine from "@/apn/HintLine";
+import FirstRunIntro from "@/apn/FirstRunIntro";
 import { pickWakeGreeting } from "@/apn/wakeGreeting";
 import { useNavigate } from "react-router-dom";
 import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut, Keyboard } from "lucide-react";
