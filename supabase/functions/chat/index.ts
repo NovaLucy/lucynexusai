@@ -162,6 +162,7 @@ function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, 
   }
 
   p += buildPersonaBlock(persona);
+  p += buildMemoriesBlock(memories ?? []);
 
   if (profile?.traits?.summary && typeof profile.traits.summary === "string") {
     p += `\n\n## Résumé des échanges précédents (vue long terme)\n${profile.traits.summary.trim()}`;
