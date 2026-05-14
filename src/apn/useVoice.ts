@@ -104,6 +104,26 @@ export function useVoice() {
     sayNext();
   }, [supported, prefs, voices]);
 
+  /**
+   * Speak a single sentence without stopping previous speech.
+   * Designed for streaming dialogue — queues utterances sequentially.
+   */
+  const speakSentence = useCallback(
+    (text: string): void => {
+      if (!prefs.enabled || !text.trim() || !supported) return;
+      const u = new SpeechSynthesisUtterance(text.trim());
+      u.lang = "fr-FR";
+      u.rate = prefs.rate;
+      u.pitch = prefs.pitch;
+      const v = voices.find((v) => v.voiceURI === prefs.voiceURI)
+        ?? voices.find((v) => v.lang?.toLowerCase().startsWith("fr"))
+        ?? voices[0];
+      if (v) u.voice = v;
+      window.speechSynthesis.speak(u);
+    },
+    [supported, prefs, voices],
+  );
+
   const speak = useCallback(
     (text: string, onEnd?: () => void): void => {
       if (!prefs.enabled || !text.trim()) {
@@ -114,7 +134,7 @@ export function useVoice() {
         nativeSpeak(text, { rate: prefs.rate, pitch: prefs.pitch }).then(() => onEnd?.());
         return;
       }
-      // Web: try ElevenLabs (high quality, reliable). Fallback to speechSynthesis.
+      // Web: try ElevenLabs (high quality). Fallback to speechSynthesis.
       stop();
       (async () => {
         try {
@@ -272,7 +292,7 @@ export function useVoice() {
   return {
     prefs, setPrefs,
     voices, supported,
-    speak, stop,
+    speak, stop, speakSentence,
     sttSupported, listening, startListening, stopListening,
   };
 }

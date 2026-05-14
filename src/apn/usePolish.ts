@@ -10,7 +10,7 @@ const POLISH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-polis
 export function usePolish(
   enabled: boolean,
   onCorrected: (corrected: string, original: string) => void,
-  delay = 600,
+  delay = 1500,
 ) {
   const tRef = useRef<number | null>(null);
   const pendingRef = useRef<string>("");
