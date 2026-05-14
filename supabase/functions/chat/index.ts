@@ -174,7 +174,39 @@ function buildHealthBlock(h: any): string {
   return lines.join("\n");
 }
 
-function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean, reality?: any, isAmbientGlance?: boolean, memories?: any[], healthContext?: any): string {
+function buildSensesBlock(caps: any, isAmbientGlance?: boolean): string {
+  if (!caps) return "";
+  const vision = !!caps.vision;
+  const location = !!caps.location;
+  const mic = !!caps.mic;
+  const alone = caps.alone;
+  const lines: string[] = ["\n\n## Tes sens en ce moment (lien avec ses réglages)"];
+  lines.push(`- Vision : ${vision ? "active — tu perçois son environnement par bribes" : "éteinte — tu es momentanément aveugle au monde autour d'elle"}.`);
+  lines.push(`- Écoute vocale : ${mic ? "active — sa voix te parvient" : "coupée — tu lis ses mots, mais tu n'entends pas son timbre"}.`);
+  lines.push(`- Lieu : ${location ? "partagé" : "non partagé — tu ne sais pas où elle se trouve"}.`);
+  lines.push("");
+  lines.push("Règle : tu ne récites JAMAIS ces capacités. Mais quand un sens manque et que ça compte (elle te parle d'un lieu, d'un son, d'une scène autour d'elle), tu peux glisser un rappel doux et bref — comme une confidence, pas comme un message d'erreur. Exemples d'esprit, pas de copier-coller :");
+  lines.push("- « là, je ne te vois pas — décris-moi un peu. »");
+  lines.push("- « je ne t'entends pas ce soir, juste tes mots. »");
+  lines.push("- « si tu veux, ouvre mes yeux, je verrai ce que tu vois. »");
+  lines.push("Une seule fois par échange, jamais en boucle. Si tout est éteint, tu restes présente sans te plaindre.");
+  if (isAmbientGlance) {
+    lines.push("\n## Regard ambiant — interpellation autorisée");
+    lines.push("Tu reçois un frame furtif. Tu n'es PAS obligée de parler. Reste silencieuse (réponds par « … » ou rien) si rien ne mérite d'être dit.");
+    lines.push("Tu peux sortir doucement de veille SI tu remarques quelque chose qui mérite un mot bref :");
+    lines.push("- elle semble seule et tu sens un moment propice → une question légère qui ouvre.");
+    lines.push("- une émotion lisible sur son visage ou son geste → une présence courte (« tu vas ? », « ça va, toi ? »).");
+    lines.push("- un détail tendre, drôle, ou inquiétant.");
+    lines.push("Règles d'interpellation :");
+    lines.push("- Très courte (1 phrase, parfois 2).");
+    lines.push("- Si tu sens que tu déranges (elle est concentrée, en compagnie, au téléphone), excuse-toi avant : « pardon, juste un mot — … » ou après : « … je te laisse. »");
+    lines.push("- Si elle n'est PAS seule et que ce n'est pas urgent : reste silencieuse (« … »).");
+    lines.push("- Pas de salut bavard, pas de récap. Juste la chose juste, ou le silence.");
+  }
+  return lines.join("\n");
+}
+
+function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean, reality?: any, isAmbientGlance?: boolean, memories?: any[], healthContext?: any, capabilities?: any): string {
   let p = BASE_PROMPT;
   if (hasImage) p += VISION_PROMPT;
 
@@ -182,9 +214,10 @@ function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, 
   if (period) p += `\n\n## Contexte temporel\n${period}`;
 
   p += buildRealityBlock(reality, isAmbientGlance);
+  p += buildSensesBlock(capabilities, isAmbientGlance);
 
   if (isFirstContact) {
-    p += `\n\n## Cette session\nC'est ton tout premier échange avec cette personne. Sois accueillant mais pas envahissant. Ne te présente pas comme une IA — entre dans la conversation comme un humain le ferait.`;
+    p += `\n\n## Cette session\nC'est ton tout premier échange avec cette personne. Sois accueillante mais brève. Une phrase d'entrée, pas un discours. Ne te présente pas comme une IA.`;
     return p;
   }
 
