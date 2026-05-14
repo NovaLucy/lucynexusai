@@ -66,10 +66,7 @@ export default function Index() {
   const [currentSentence, setCurrentSentence] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Streaming assistant text (for live caption before first full sentence)
-  const lastAssistant = apn.messages.length > 0 && apn.messages[apn.messages.length - 1].role === "assistant"
-    ? apn.messages[apn.messages.length - 1].content
-    : "";
+  // (subtitles only show the currently-spoken sentence — no streamed/idle text)
 
   // Mark activity (resets sleep timer + wakes if sleeping)
   const wakeRef = useRef<() => void>(() => {});
