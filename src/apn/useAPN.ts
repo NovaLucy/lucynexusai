@@ -276,6 +276,8 @@ export function useAPN() {
       return j?.context ?? null;
     } catch { return null; }
   }, []);
+
+  const extractMemoriesAsync = useCallback(async (userMsg: string, apnMsg: string) => {
     try {
       const { data: sess } = await supabase.auth.getSession();
       if (!sess.session?.access_token) return;
