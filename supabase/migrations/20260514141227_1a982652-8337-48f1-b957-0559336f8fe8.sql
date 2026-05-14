@@ -1,0 +1,2 @@
+CREATE POLICY "users delete own memory" ON public.apn_memory FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "users delete own health" ON public.apn_health_records FOR DELETE TO authenticated USING (auth.uid() = user_id);

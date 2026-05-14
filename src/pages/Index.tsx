@@ -152,6 +152,8 @@ export default function Index() {
     return true;
   };
 
+  const handleMicRef = useRef<() => void>(() => {});
+
   const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
     markActivity();
@@ -161,14 +163,20 @@ export default function Index() {
     voice.stop();
     playRitual("open");
     if (text) extractHealth(text);
-    // Capture le contexte réalité (temps + lieu + frame caméra ambiant si activé).
-    // On évite la double-vision : si l'utilisateur joint déjà une photo, on n'ajoute pas l'ambient.
     const realitySnap = await reality.snapshot(!imageDataUrl);
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantEnd: (full) => {
         if (voice.prefs.enabled) {
-          voice.speak(full, () => { apn.setStandby(); playRitual("close"); });
+          voice.speak(full, () => {
+            apn.setStandby();
+            playRitual("close");
+            // Prise de voix automatique : ré-arme le micro après chaque réponse
+            // (sauf si l'utilisateur l'a déjà relancé manuellement).
+            window.setTimeout(() => {
+              if (!voice.listening && voice.sttSupported) handleMicRef.current();
+            }, 350);
+          });
         } else {
           apn.setStandby();
           playRitual("close");
@@ -208,6 +216,7 @@ export default function Index() {
       toast.error("La reconnaissance vocale n'est pas disponible.");
     }
   };
+  handleMicRef.current = handleMic;
 
   const loops = apn.profile?.open_loops?.length ?? 0;
 
@@ -347,7 +356,16 @@ export default function Index() {
       </div>
 
       {/* Overlays */}
-      <ChatLog messages={apn.messages} open={logOpen} onClose={() => setLogOpen(false)} />
+      <ChatLog
+        messages={apn.messages}
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        onClear={async () => {
+          await apn.clearSession();
+          toast.success("Session effacée");
+        }}
+        sessionId={apn.sessionId}
+      />
       <ControlsDrawer
         open={cfgOpen}
         onOpenChange={setCfgOpen}
