@@ -235,6 +235,7 @@ export default function Index() {
     const trimmed = line.trim();
     if (!trimmed) return;
     setCurrentSentence(trimmed);
+    tapMicro();
     if (voice.prefs.enabled) voice.speakSentence(trimmed);
     window.setTimeout(() => {
       setCurrentSentence((cur) => (cur === trimmed ? null : cur));
