@@ -400,10 +400,12 @@ export default function Index() {
                 className="absolute inset-0 cursor-pointer flex items-center justify-center"
                 onClick={() => {
                   tapMedium();
-                  markActivity();
                   if (apn.state === "sleeping") {
                     playRitual("open");
+                    wakeWithGreeting();
+                    lastActivityRef.current = Date.now();
                   } else {
+                    markActivity();
                     setShockKey((k) => k + 1);
                     triggerFace(5400, "reveal");
                   }
