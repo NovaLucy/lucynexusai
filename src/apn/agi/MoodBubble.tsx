@@ -13,11 +13,21 @@ interface Props {
   state: AgentState;
   speaking?: boolean;
   intensity?: number;
+  medicalMode?: boolean;
 }
 
-function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0): THREE.Color {
-  const m = MOOD_HSL[mood];
+function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0, medical = false): THREE.Color {
   const c = new THREE.Color();
+  if (medical) {
+    // Vivid crimson heartbeat — high saturation, deep but luminous red
+    c.setHSL(
+      ((355 + hShift + 360) % 360) / 360,
+      Math.min(1, 0.92 + sBoost),
+      Math.min(0.65, Math.max(0.08, 0.22 + lOff)),
+    );
+    return c;
+  }
+  const m = MOOD_HSL[mood];
   c.setHSL(
     ((m.h + hShift + 360) % 360) / 360,
     Math.min(1, Math.max(0, m.s / 100 + sBoost)),
@@ -26,7 +36,7 @@ function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0): THREE.Color {
   return c;
 }
 
-function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
+function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: Props) {
   const meshRef = useRef<THREE.Mesh>(null);
   const innerRef = useRef<THREE.Mesh>(null);
   const haloRef = useRef<THREE.Mesh>(null);
@@ -37,20 +47,22 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
       uTime: { value: 0 },
       uAmp: { value: 0.18 },
       uSpeed: { value: 0.6 },
-      uColorA: { value: moodColor(mood, 0.05, -10, 0.05) },
-      uColorB: { value: moodColor(mood, -0.1, 20, 0.1) },
-      uColorRim: { value: moodColor(mood, 0.25, 0, 0) },
+      uColorA: { value: moodColor(mood, 0.05, -10, 0.05, medicalMode) },
+      uColorB: { value: moodColor(mood, -0.1, 20, 0.1, medicalMode) },
+      uColorRim: { value: moodColor(mood, 0.25, 0, 0, medicalMode) },
       uIntensity: { value: intensity },
       uPulse: { value: 0 },
+      uMedical: { value: medicalMode ? 1.0 : 0.0 },
     }),
-    [],
+    [medicalMode],
   );
 
   useEffect(() => {
-    uniforms.uColorA.value = moodColor(mood, 0.05, -10, 0.05);
-    uniforms.uColorB.value = moodColor(mood, -0.1, 20, 0.1);
-    uniforms.uColorRim.value = moodColor(mood, 0.25, 0, 0);
-  }, [mood, uniforms]);
+    uniforms.uColorA.value = moodColor(mood, 0.05, -10, 0.05, medicalMode);
+    uniforms.uColorB.value = moodColor(mood, -0.1, 20, 0.1, medicalMode);
+    uniforms.uColorRim.value = moodColor(mood, 0.25, 0, 0, medicalMode);
+    uniforms.uMedical.value = medicalMode ? 1.0 : 0.0;
+  }, [mood, medicalMode, uniforms]);
 
   useEffect(() => {
     uniforms.uIntensity.value = intensity;
@@ -65,6 +77,15 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
     const listening = state === "listening";
     const sleeping = state === "sleeping";
 
+    // Soft heartbeat in medical mode (~72 bpm, gentle S1→S2)
+    let heartBeat = 0;
+    if (medicalMode && !sleeping) {
+      const phase = (t * 1.2) % 1.0; // ~72 bpm
+      const s1 = Math.exp(-Math.pow(phase * 14, 2));
+      const s2 = Math.exp(-Math.pow((phase - 0.37) * 18, 2));
+      heartBeat = s1 * 0.50 + s2 * 0.28;
+    }
+
     // Cinematic mix: standby = breath, listening = particle pull,
     // thinking = inner agitation, speaking = surface vibration, sleeping = near-zero.
     // Slowed down during interactions for a calmer, more meditative dark-matter feel.
@@ -75,10 +96,10 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
 
     uniforms.uAmp.value   += (ampTarget   - uniforms.uAmp.value)   * 0.018;
     uniforms.uSpeed.value += (speedTarget - uniforms.uSpeed.value) * 0.018;
-    uniforms.uPulse.value += (pulseTarget - uniforms.uPulse.value) * 0.018;
+    uniforms.uPulse.value += (pulseTarget + heartBeat * 1.2 - uniforms.uPulse.value) * 0.018;
 
-    // Effective intensity dims when sleeping
-    const intTarget = sleeping ? intensity * 0.25 : intensity;
+    // Effective intensity dims when sleeping; pulses in medical mode
+    const intTarget = sleeping ? intensity * 0.25 : intensity * (1.0 + heartBeat * 0.15);
     uniforms.uIntensity.value += (intTarget - uniforms.uIntensity.value) * 0.04;
 
     if (meshRef.current) {
@@ -89,7 +110,8 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
       const breathFreq = sleeping ? 0.25 : sp ? 0.55 : thinking ? 0.45 : 0.4;
       const breathAmp  = sleeping ? 0.005 : sp ? 0.012 : thinking ? 0.009 : 0.007;
       const vibrato    = sp ? Math.sin(t * 8) * 0.0016 : 0;
-      meshRef.current.scale.setScalar(1 + Math.sin(t * breathFreq) * breathAmp + vibrato);
+      const heartScale = medicalMode && !sleeping ? heartBeat * 0.035 : 0;
+      meshRef.current.scale.setScalar(1 + Math.sin(t * breathFreq) * breathAmp + vibrato + heartScale);
       // Sleeping → slight downward sag
       meshRef.current.position.y = sleeping ? -0.04 : 0;
     }
@@ -104,10 +126,11 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
     if (haloRef.current) {
       // Listening → halo gently expands & contracts as if attracting particles
       const listenPull = listening ? Math.sin(t * 1.4) * 0.08 : 0;
-      const s = 1.45 + Math.sin(t * (sleeping ? 0.3 : 0.7)) * 0.06 + uniforms.uPulse.value * 0.12 + listenPull;
+      const heartHalo = medicalMode && !sleeping ? heartBeat * 0.18 : 0;
+      const s = 1.45 + Math.sin(t * (sleeping ? 0.3 : 0.7)) * 0.06 + uniforms.uPulse.value * 0.12 + listenPull + heartHalo;
       haloRef.current.scale.setScalar(s);
       const m = haloRef.current.material as THREE.MeshBasicMaterial;
-      const haloOp = sleeping ? 0.015 : 0.06 + uniforms.uPulse.value * 0.12;
+      const haloOp = sleeping ? 0.015 : 0.06 + uniforms.uPulse.value * 0.12 + heartHalo;
       m.opacity = haloOp;
       m.color = uniforms.uColorRim.value;
     }
@@ -191,6 +214,7 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
     uniform float uPulse;
     uniform float uIntensity;
     uniform float uTime;
+    uniform float uMedical;
     varying vec3 vNormal;
     varying vec3 vPos;
     varying float vDisp;
@@ -200,15 +224,15 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
       float ndv = abs(dot(normalize(vNormal), viewDir));
       float fres = pow(1.0 - ndv, 3.2);
       // dark matter base — almost black, faint mood tint deep inside
-      vec3 deep = vec3(0.008, 0.010, 0.014);
+      vec3 deep = mix(vec3(0.008, 0.010, 0.014), vec3(0.060, 0.002, 0.002), uMedical);
       vec3 base = mix(deep, uColorA * 0.18, smoothstep(0.4, -0.2, vDisp));
       // bright rim light (water meniscus / dark drop edge)
-      vec3 rim = uColorRim * fres * (1.1 + uPulse * 0.8);
+      vec3 rim = uColorRim * fres * (1.1 + uPulse * 0.8 + uMedical * 0.6);
       // subtle internal caustic shimmer
       float shimmer = 0.5 + 0.5 * sin(vPos.y * 5.0 + uTime * 1.4);
       vec3 col = base + rim + uColorB * shimmer * 0.04 * uPulse;
       // very transparent in the center, opaque at the rim — like a water drop
-      float alpha = (0.10 + fres * 0.75) * uIntensity;
+      float alpha = (0.10 + fres * 0.75 + uMedical * 0.06) * uIntensity;
       gl_FragColor = vec4(col, alpha);
     }
   `;

@@ -491,6 +491,7 @@ export default function Index() {
                     state={apn.state}
                     speaking={speakingPinned}
                     intensity={intensity}
+                    medicalMode={medicalMode}
                   />
                 </div>
               </div>
