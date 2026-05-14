@@ -38,6 +38,7 @@ export type RealitySnapshot = {
   now: RealityNow;
   location?: RealityLocation;
   ambientImageDataUrl?: string | null;
+  facing?: "user" | "environment";
 };
 
 const LS_LOC = "apn:reality:loc";
