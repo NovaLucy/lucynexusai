@@ -25,14 +25,14 @@ export default function ChatLog({ messages, open, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 bg-black apn-fade-in flex flex-col">
-      <div className="dark-matter !border-0 rounded-full mx-4 mt-3 mb-2 flex items-center gap-2 px-4 py-2.5 text-[11px] uppercase tracking-widest text-drop">
-        <span className="mood-text">── JOURNAL</span>
-        <span className="text-foreground/30">{"─".repeat(40)}</span>
-        <span className="text-foreground/60 tabular-nums">
+      <div className="dark-matter !border-0 rounded-full mx-3 sm:mx-4 mt-3 mb-2 flex items-center gap-2 px-3 sm:px-4 py-2.5 text-[11px] uppercase tracking-widest text-drop overflow-hidden">
+        <span className="mood-text shrink-0">── JOURNAL</span>
+        <span className="text-foreground/30 hidden sm:inline truncate flex-1">{"─".repeat(40)}</span>
+        <span className="text-foreground/30 sm:hidden flex-1" />
+        <span className="text-foreground/60 tabular-nums shrink-0">
           {String(messages.length).padStart(3, "0")} MSG
         </span>
-        <span className="text-foreground/30 flex-1" />
-        <button onClick={onClose} className="bracket-btn">[X CLOSE]</button>
+        <button onClick={onClose} className="bracket-btn shrink-0">[X]</button>
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin font-mono text-sm">
         {messages.length === 0 && (
