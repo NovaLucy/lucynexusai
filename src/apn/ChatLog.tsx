@@ -38,14 +38,14 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId }:
 
   return (
     <div className="fixed inset-0 z-40 bg-black apn-fade-in flex flex-col">
-      <div className="dark-matter !border-0 rounded-full mx-3 sm:mx-4 mt-3 mb-2 flex items-center gap-2 px-3 sm:px-4 py-2.5 text-[11px] uppercase tracking-widest text-drop overflow-hidden">
-        <span className="mood-text shrink-0">── JOURNAL</span>
-        <span className="text-foreground/30 hidden sm:inline truncate flex-1">{"─".repeat(20)}</span>
-        <span className="text-foreground/30 sm:hidden flex-1" />
-        <span className="text-foreground/50 tabular-nums shrink-0 hidden sm:inline" title="Identifiant APN — identique sur toutes tes interfaces">
+      <div className="dark-matter !border-0 rounded-full mx-3 sm:mx-4 mt-3 mb-2 flex items-center gap-2 px-3 sm:px-4 py-2.5 text-drop overflow-hidden">
+        <span className="dm-text shrink-0 text-sm">Journal</span>
+        <span className="text-foreground/15 hidden sm:inline truncate flex-1">{"·".repeat(40)}</span>
+        <span className="text-foreground/15 sm:hidden flex-1" />
+        <span className="hud-label tabular-nums shrink-0 hidden sm:inline" title="Identifiant APN — identique sur toutes tes interfaces">
           APN·{idShort}
         </span>
-        <span className="text-foreground/60 tabular-nums shrink-0">
+        <span className="hud-label tabular-nums shrink-0">
           {String(messages.length).padStart(3, "0")} MSG
         </span>
         {onClear && (
