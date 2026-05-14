@@ -97,8 +97,9 @@ export default function Index() {
     try { localStorage.setItem("lucy:composer", JSON.stringify(composerOpen)); } catch {}
   }, [composerOpen]);
 
-  // Auto-open composer when user starts typing on a physical keyboard
+  // Auto-open composer when user starts typing on a physical keyboard (opt-out via settings)
   useEffect(() => {
+    if (!kbdAutoOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (composerOpen) return;
       const t = e.target as HTMLElement | null;
@@ -110,7 +111,19 @@ export default function Index() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [composerOpen]);
+  }, [composerOpen, kbdAutoOpen]);
+
+  useEffect(() => {
+    try { localStorage.setItem("lucy:kbdAutoOpen", JSON.stringify(kbdAutoOpen)); } catch {}
+  }, [kbdAutoOpen]);
+
+  // Mute mic when Lucy is speaking — avoids self-listening / parasites
+  useEffect(() => {
+    if (speakingPinned && voice.listening) {
+      voice.stopListening();
+      apn.setListeningState(false);
+    }
+  }, [speakingPinned, voice, apn]);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
