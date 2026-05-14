@@ -34,7 +34,7 @@ export default function ChatLog({ messages, open, onClose }: Props) {
         </span>
         <button onClick={onClose} className="bracket-btn shrink-0">[X]</button>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin font-mono text-sm">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3 scrollbar-thin font-mono text-sm">
         {messages.length === 0 && (
           <p className="text-foreground/40 italic text-xs">// no exchanges yet</p>
         )}
