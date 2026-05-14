@@ -196,6 +196,7 @@ export default function Index() {
   // (vision intégrée au composer : la photo est envoyée avec le message via handleSend)
 
   const lastAssistantRef = useRef<string>("");
+  const speakLineRef = useRef<((line: string) => void) | null>(null);
   useEffect(() => {
     const last = [...apn.messages].reverse().find((m) => m.role === "assistant");
     if (last?.content) lastAssistantRef.current = last.content;
