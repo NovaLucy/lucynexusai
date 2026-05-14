@@ -149,6 +149,104 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "trends") {
+      const { data: rows } = await supa
+        .from("apn_health_records")
+        .select("id, created_at, symptoms, intensity, duration, medications, allergies, red_flags, raw_text")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const all = rows ?? [];
+      // Symptom frequency
+      const freq: Record<string, number> = {};
+      for (const r of all) {
+        for (const s of (r.symptoms ?? []) as string[]) {
+          const k = String(s).trim().toLowerCase();
+          if (!k) continue;
+          freq[k] = (freq[k] ?? 0) + 1;
+        }
+      }
+      const topSymptoms = Object.entries(freq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([name, count]) => ({ name, count }));
+
+      // Intensity timeline (oldest → newest, only entries with intensity)
+      const intensityTimeline = all
+        .filter((r) => typeof r.intensity === "number")
+        .map((r) => ({ date: r.created_at, intensity: r.intensity }))
+        .reverse();
+
+      // Aggregated meds + allergies (deduped)
+      const dedup = (arr: string[]) => Array.from(new Set(arr.map((s) => s.trim()).filter(Boolean)));
+      const meds = dedup(all.flatMap((r) => (r.medications ?? []) as string[]));
+      const allergies = dedup(all.flatMap((r) => (r.allergies ?? []) as string[]));
+      const redFlagsRecent = all
+        .filter((r) => (r.red_flags ?? []).length > 0)
+        .slice(0, 5)
+        .map((r) => ({ date: r.created_at, flags: r.red_flags }));
+
+      // Latest 10 entries (raw)
+      const recent = all.slice(0, 10).map((r) => ({
+        id: r.id,
+        date: r.created_at,
+        symptoms: r.symptoms ?? [],
+        intensity: r.intensity,
+        duration: r.duration,
+        text: r.raw_text,
+      }));
+
+      return new Response(JSON.stringify({
+        total: all.length,
+        topSymptoms,
+        intensityTimeline,
+        medications: meds,
+        allergies,
+        redFlagsRecent,
+        recent,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (action === "delete") {
+      const { id } = body as { id: string };
+      if (!id) return new Response(JSON.stringify({ error: "id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      await supa.from("apn_health_records").delete().eq("id", id).eq("user_id", userId);
+      return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (action === "context") {
+      // Compact health context for injection into Lucy's chat prompt (medical mode).
+      const { data: rows } = await supa
+        .from("apn_health_records")
+        .select("created_at, symptoms, intensity, duration, medications, allergies, red_flags")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(15);
+      const all = rows ?? [];
+      if (all.length === 0) {
+        return new Response(JSON.stringify({ context: null }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const last = all[0];
+      const lastDate = new Date(last.created_at);
+      const hoursAgo = (Date.now() - lastDate.getTime()) / 36e5;
+      const meds = Array.from(new Set(all.flatMap((r) => (r.medications ?? []) as string[])));
+      const allergies = Array.from(new Set(all.flatMap((r) => (r.allergies ?? []) as string[])));
+      const recentSymptoms = Array.from(new Set(all.slice(0, 5).flatMap((r) => (r.symptoms ?? []) as string[])));
+      const intensities = all.filter((r) => typeof r.intensity === "number").slice(0, 5).map((r) => r.intensity);
+      return new Response(JSON.stringify({
+        context: {
+          lastEntryHoursAgo: Math.round(hoursAgo),
+          lastSymptoms: (last.symptoms ?? []) as string[],
+          lastIntensity: last.intensity,
+          recentSymptoms,
+          recentIntensities: intensities,
+          medications: meds,
+          allergies,
+        },
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     if (action === "report") {
       const { data: rows } = await supa
         .from("apn_health_records")

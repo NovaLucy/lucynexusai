@@ -8,6 +8,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const PROFILE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/profile-update`;
 const RECALL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/memory-recall`;
 const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/memory-extract`;
+const MEDICAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apn-medical`;
 
 async function getAuthHeader(): Promise<string> {
   const { data } = await supabase.auth.getSession();
@@ -73,6 +74,8 @@ export function useAPN() {
   const [persona, setPersona] = useState<Persona | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+  const medicalModeRef = useRef<boolean>(false);
+  const setMedicalContext = useCallback((on: boolean) => { medicalModeRef.current = on; }, []);
 
   // Bind to auth user
   useEffect(() => {
@@ -259,6 +262,21 @@ export function useAPN() {
     } catch { return []; }
   }, []);
 
+  const fetchHealthContext = useCallback(async (): Promise<any | null> => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.access_token) return null;
+      const r = await fetch(MEDICAL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: await getAuthHeader() },
+        body: JSON.stringify({ action: "context" }),
+      });
+      if (!r.ok) return null;
+      const j = await r.json();
+      return j?.context ?? null;
+    } catch { return null; }
+  }, []);
+
   const extractMemoriesAsync = useCallback(async (userMsg: string, apnMsg: string) => {
     try {
       const { data: sess } = await supabase.auth.getSession();
@@ -284,6 +302,7 @@ export function useAPN() {
       onDelta: (chunk: string) => void,
       reality?: any,
       memories?: any[],
+      healthContext?: any,
     ) => {
       const historyMsgs = history.slice(-20).map((m) => ({ role: m.role, content: m.content }));
       const visionImage = imageDataUrl ?? reality?.ambientImageDataUrl ?? undefined;
@@ -309,6 +328,7 @@ export function useAPN() {
           profile: profileRef.current,
           persona: personaRef.current,
           memories: memories ?? [],
+          healthContext: healthContext ?? null,
           hasImage: !!visionImage,
           isAmbientGlance: isAmbient,
           isFirstContact,
@@ -405,9 +425,10 @@ export function useAPN() {
       }
 
       try {
-        // Recall relevant memories in parallel with the UI transition
+        // Recall memories + (optionally) health context in parallel with UI transition
         const memoriesPromise = recallMemories(text || "Regarde.");
-        const recalled = await memoriesPromise;
+        const healthPromise = medicalModeRef.current ? fetchHealthContext() : Promise.resolve(null);
+        const [recalled, healthCtx] = await Promise.all([memoriesPromise, healthPromise]);
 
         let full = "";
         let started = false;
@@ -426,7 +447,7 @@ export function useAPN() {
             );
           }
           hooks.onAssistantChunk?.(full);
-        }, reality, recalled);
+        }, reality, recalled, healthCtx);
         const m = inferMood(full);
         setMoodAndApply(m);
         setMessages((p) => p.map((mm) => (mm.id === assistantId ? { ...mm, mood: m } : mm)));
@@ -442,7 +463,7 @@ export function useAPN() {
         setCaption("Je suis prêt.");
       }
     },
-    [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync, recallMemories, extractMemoriesAsync, userId],
+    [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync, recallMemories, extractMemoriesAsync, fetchHealthContext, userId],
   );
 
   const setStandby = useCallback(() => {
@@ -485,6 +506,6 @@ export function useAPN() {
     messages, state, mood, caption, error, profile, persona,
     syncStatus, lastSyncAt,
     send, setStandby, setListeningState, setSleeping, wake,
-    clearSession,
+    clearSession, setMedicalContext,
   };
 }

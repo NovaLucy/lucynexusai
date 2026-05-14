@@ -147,7 +147,31 @@ function buildMemoriesBlock(memories: any[]): string {
   return lines.join("\n");
 }
 
-function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean, reality?: any, isAmbientGlance?: boolean, memories?: any[]): string {
+function buildHealthBlock(h: any): string {
+  if (!h) return "";
+  const lines: string[] = ["\n\n## Mode pré-médecin — contexte santé connu (utilise avec naturel, jamais en récitant)"];
+  if (h.lastEntryHoursAgo != null) {
+    if (h.lastEntryHoursAgo < 36) lines.push(`- Dernière entrée santé il y a ~${h.lastEntryHoursAgo}h.`);
+    else lines.push(`- Dernière entrée santé il y a ${Math.round(h.lastEntryHoursAgo / 24)} jour(s).`);
+  }
+  if (Array.isArray(h.lastSymptoms) && h.lastSymptoms.length) {
+    lines.push(`- Derniers symptômes notés : ${h.lastSymptoms.join(", ")}.`);
+  }
+  if (typeof h.lastIntensity === "number") lines.push(`- Dernière intensité : ${h.lastIntensity}/10.`);
+  if (Array.isArray(h.recentIntensities) && h.recentIntensities.length > 1) {
+    lines.push(`- Tendance intensité (récent → ancien) : ${h.recentIntensities.join(" → ")}.`);
+  }
+  if (Array.isArray(h.medications) && h.medications.length) {
+    lines.push(`- Traitements en cours : ${h.medications.slice(0, 5).join(", ")}.`);
+  }
+  if (Array.isArray(h.allergies) && h.allergies.length) {
+    lines.push(`- Allergies connues : ${h.allergies.slice(0, 5).join(", ")}.`);
+  }
+  lines.push("\nQuand c'est pertinent, ouvre doucement avec un rappel ciblé (« hier tu avais X, comment ce matin ? »). Sinon, garde-le en arrière-plan. Tu n'es jamais médecin, tu prépares.");
+  return lines.join("\n");
+}
+
+function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean, reality?: any, isAmbientGlance?: boolean, memories?: any[], healthContext?: any): string {
   let p = BASE_PROMPT;
   if (hasImage) p += VISION_PROMPT;
 
@@ -194,6 +218,7 @@ function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, 
     lines.push("\nUtilise ces infos avec naturel, jamais en les récitant. Ignore ce qui n'est pas pertinent maintenant.");
     p += lines.join("\n");
   }
+  p += buildHealthBlock(healthContext);
   return p;
 }
 
@@ -203,7 +228,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, profile, persona, isFirstContact, localHour, hasImage, reality, isAmbientGlance, memories } = await req.json();
+    const { messages, profile, persona, isFirstContact, localHour, hasImage, reality, isAmbientGlance, memories, healthContext } = await req.json();
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages must be an array" }), {
         status: 400,
@@ -219,7 +244,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage, reality, !!isAmbientGlance, memories);
+    let systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage, reality, !!isAmbientGlance, memories, healthContext);
 
     // Anti-répétition : extrait les dernières répliques d'APN et interdit explicitement
     // la reprise de leurs ouvertures / formulations. Empêche les boucles conversationnelles.
