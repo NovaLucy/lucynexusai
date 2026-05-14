@@ -77,6 +77,15 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: P
     const listening = state === "listening";
     const sleeping = state === "sleeping";
 
+    // Soft heartbeat in medical mode (~72 bpm, gentle S1→S2)
+    let heartBeat = 0;
+    if (medicalMode && !sleeping) {
+      const phase = (t * 1.2) % 1.0; // ~72 bpm
+      const s1 = Math.exp(-Math.pow(phase * 14, 2));
+      const s2 = Math.exp(-Math.pow((phase - 0.37) * 18, 2));
+      heartBeat = s1 * 0.50 + s2 * 0.28;
+    }
+
     // Cinematic mix: standby = breath, listening = particle pull,
     // thinking = inner agitation, speaking = surface vibration, sleeping = near-zero.
     // Slowed down during interactions for a calmer, more meditative dark-matter feel.
@@ -87,10 +96,10 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: P
 
     uniforms.uAmp.value   += (ampTarget   - uniforms.uAmp.value)   * 0.018;
     uniforms.uSpeed.value += (speedTarget - uniforms.uSpeed.value) * 0.018;
-    uniforms.uPulse.value += (pulseTarget - uniforms.uPulse.value) * 0.018;
+    uniforms.uPulse.value += (pulseTarget + heartBeat * 1.2 - uniforms.uPulse.value) * 0.018;
 
-    // Effective intensity dims when sleeping
-    const intTarget = sleeping ? intensity * 0.25 : intensity;
+    // Effective intensity dims when sleeping; pulses in medical mode
+    const intTarget = sleeping ? intensity * 0.25 : intensity * (1.0 + heartBeat * 0.15);
     uniforms.uIntensity.value += (intTarget - uniforms.uIntensity.value) * 0.04;
 
     if (meshRef.current) {
@@ -101,7 +110,8 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: P
       const breathFreq = sleeping ? 0.25 : sp ? 0.55 : thinking ? 0.45 : 0.4;
       const breathAmp  = sleeping ? 0.005 : sp ? 0.012 : thinking ? 0.009 : 0.007;
       const vibrato    = sp ? Math.sin(t * 8) * 0.0016 : 0;
-      meshRef.current.scale.setScalar(1 + Math.sin(t * breathFreq) * breathAmp + vibrato);
+      const heartScale = medicalMode && !sleeping ? heartBeat * 0.035 : 0;
+      meshRef.current.scale.setScalar(1 + Math.sin(t * breathFreq) * breathAmp + vibrato + heartScale);
       // Sleeping → slight downward sag
       meshRef.current.position.y = sleeping ? -0.04 : 0;
     }
@@ -116,10 +126,11 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: P
     if (haloRef.current) {
       // Listening → halo gently expands & contracts as if attracting particles
       const listenPull = listening ? Math.sin(t * 1.4) * 0.08 : 0;
-      const s = 1.45 + Math.sin(t * (sleeping ? 0.3 : 0.7)) * 0.06 + uniforms.uPulse.value * 0.12 + listenPull;
+      const heartHalo = medicalMode && !sleeping ? heartBeat * 0.18 : 0;
+      const s = 1.45 + Math.sin(t * (sleeping ? 0.3 : 0.7)) * 0.06 + uniforms.uPulse.value * 0.12 + listenPull + heartHalo;
       haloRef.current.scale.setScalar(s);
       const m = haloRef.current.material as THREE.MeshBasicMaterial;
-      const haloOp = sleeping ? 0.015 : 0.06 + uniforms.uPulse.value * 0.12;
+      const haloOp = sleeping ? 0.015 : 0.06 + uniforms.uPulse.value * 0.12 + heartHalo;
       m.opacity = haloOp;
       m.color = uniforms.uColorRim.value;
     }
