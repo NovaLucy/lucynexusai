@@ -98,31 +98,13 @@
   .mood-bg     { background-color: hsl(var(--mood)); }
   .mood-border { border-color: hsl(var(--mood)); }
 
-  .ascii-border {
-    border: 1px solid hsl(var(--line));
-  }
-  .ascii-border-mood {
-    border: 1px solid hsl(var(--mood) / 0.55);
-  }
-  .ascii-border-dashed {
-    border: 1px dashed hsl(var(--line));
-  }
+  /* Borderless: kept as no-ops so legacy refs don't reintroduce separators */
+  .ascii-border,
+  .ascii-border-mood,
+  .ascii-border-dashed { border: 0 !important; }
 
-  /* CRT scanlines overlay */
-  .scanlines::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-      0deg,
-      hsl(0 0% 100% / 0.025) 0px,
-      hsl(0 0% 100% / 0.025) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-    mix-blend-mode: overlay;
-  }
+  /* Scanlines disabled — no perceptible separator on wrappers */
+  .scanlines::after { content: none; }
 
   /* Block cursor blink */
   .cursor-blink::after {
