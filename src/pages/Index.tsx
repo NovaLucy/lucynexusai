@@ -426,18 +426,29 @@ export default function Index() {
                 className="absolute inset-0 cursor-pointer flex items-center justify-center"
                 onClick={() => {
                   tapMedium();
+                  triggerFace(5400, "reveal");
                   if (apn.state === "sleeping") {
                     playRitual("open");
                     wakeWithGreeting();
                     lastActivityRef.current = Date.now();
-                  } else {
-                    markActivity();
-                    setShockKey((k) => k + 1);
-                    triggerFace(5400, "reveal");
+                    // Start listening shortly after the greeting begins
+                    window.setTimeout(() => {
+                      if (!voice.listening && voice.sttSupported) handleMicRef.current();
+                    }, 1400);
+                    return;
                   }
+                  if (apn.state === "speaking" || apn.state === "thinking") {
+                    voice.stop();
+                    apn.setStandby();
+                    return;
+                  }
+                  // standby or listening — toggle mic
+                  markActivity();
+                  setShockKey((k) => k + 1);
+                  handleMicRef.current();
                 }}
                 role="button"
-                aria-label="Réveiller APN"
+                aria-label="Parler à Lucy"
               >
                 <div className="relative" style={{ width: "85%", height: "85%" }}>
                   <VolumetricFace
