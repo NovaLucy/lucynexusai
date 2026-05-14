@@ -224,22 +224,21 @@ export function useVoice() {
       liveRef.current = "";
 
       if (isNative && nativeStt) {
-        let last = "";
         setListening(true);
-        nativeStartListening((text) => {
-          last = text;
-          onPartialRef.current?.(text);
-        }).then((ok) => {
+        nativeStartListening(
+          (partial) => {
+            onPartialRef.current?.(partial);
+          },
+          (finalText) => {
+            setListening(false);
+            if (finalText.trim()) onResultRef.current?.(finalText);
+          },
+          { silenceMs: 1800, maxMs: 20000 },
+        ).then((ok) => {
           if (!ok) {
             setListening(false);
             onErrorRef.current?.("Micro indisponible");
-            return;
           }
-          setTimeout(async () => {
-            await nativeStopListening();
-            setListening(false);
-            if (last.trim()) onResultRef.current?.(last);
-          }, 6000);
         });
         return true;
       }
