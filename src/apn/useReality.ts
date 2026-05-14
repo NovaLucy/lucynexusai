@@ -38,6 +38,7 @@ export type RealitySnapshot = {
   now: RealityNow;
   location?: RealityLocation;
   ambientImageDataUrl?: string | null;
+  facing?: "user" | "environment";
 };
 
 const LS_LOC = "apn:reality:loc";
@@ -211,8 +212,9 @@ export function useReality() {
       now: computeNow(),
       location: location ?? undefined,
       ambientImageDataUrl: ambient,
+      facing: camEnabled ? facing : undefined,
     };
-  }, [captureAmbient, location]);
+  }, [captureAmbient, location, camEnabled, facing]);
 
   return {
     now,
