@@ -462,12 +462,7 @@ export default function Index() {
             </div>
           </div>
 
-          <Subtitles
-            streamingText={lastAssistant}
-            currentSentence={currentSentence}
-            idleCaption={apn.caption}
-            speaking={speakingPinned}
-          />
+          <Subtitles currentSentence={currentSentence} />
         </section>
       </div>
 
