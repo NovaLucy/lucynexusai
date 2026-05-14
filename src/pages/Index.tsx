@@ -48,6 +48,31 @@ export default function Index() {
     showMs: 4800,
   });
   const [shockKey, setShockKey] = useState(0);
+  const [ritual, setRitual] = useState<"open" | "close" | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+
+  // Mark activity (resets sleep timer + wakes if sleeping)
+  const markActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    if (apn.state === "sleeping") apn.wake();
+  }, [apn]);
+
+  // Auto-sleep after 90s of inactivity (only from standby)
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (apn.state !== "standby") return;
+      if (Date.now() - lastActivityRef.current > 90_000) {
+        apn.setSleeping();
+      }
+    }, 5_000);
+    return () => window.clearInterval(id);
+  }, [apn.state, apn]);
+
+  // Trigger ritual on activity transitions
+  const playRitual = useCallback((kind: "open" | "close") => {
+    setRitual(kind);
+    window.setTimeout(() => setRitual(null), kind === "open" ? 1700 : 1300);
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
