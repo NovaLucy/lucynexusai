@@ -425,9 +425,10 @@ export function useAPN() {
       }
 
       try {
-        // Recall relevant memories in parallel with the UI transition
+        // Recall memories + (optionally) health context in parallel with UI transition
         const memoriesPromise = recallMemories(text || "Regarde.");
-        const recalled = await memoriesPromise;
+        const healthPromise = medicalModeRef.current ? fetchHealthContext() : Promise.resolve(null);
+        const [recalled, healthCtx] = await Promise.all([memoriesPromise, healthPromise]);
 
         let full = "";
         let started = false;
@@ -446,7 +447,7 @@ export function useAPN() {
             );
           }
           hooks.onAssistantChunk?.(full);
-        }, reality, recalled);
+        }, reality, recalled, healthCtx);
         const m = inferMood(full);
         setMoodAndApply(m);
         setMessages((p) => p.map((mm) => (mm.id === assistantId ? { ...mm, mood: m } : mm)));
