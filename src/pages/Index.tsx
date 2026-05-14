@@ -215,6 +215,7 @@ export default function Index() {
     });
     speakLine(line);
   }, [apn, speakLine]);
+  wakeRef.current = wakeWithGreeting;
 
   const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
