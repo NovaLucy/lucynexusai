@@ -183,6 +183,10 @@ export function useVoice() {
     if (isNative) nativeSttSupported().then(setNativeStt);
   }, []);
 
+  // Auto-recovery: if Scribe disconnects unexpectedly while we believe we're listening,
+  // surface any captured text and clear UI state cleanly.
+  const wasConnectedRef = useRef(false);
+
   const scribe = useScribe({
     modelId: "scribe_v2_realtime",
     commitStrategy: CommitStrategy.VAD,
