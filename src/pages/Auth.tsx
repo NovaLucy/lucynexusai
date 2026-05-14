@@ -17,7 +17,7 @@ export default function Auth() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    document.title = mode === "signup" ? "APN — Créer un compte" : "APN — Connexion";
+    document.title = mode === "signup" ? "Lucy — Créer un compte" : "Lucy — Connexion";
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) nav("/", { replace: true });
     });
@@ -66,7 +66,7 @@ export default function Auth() {
       <section className="w-full max-w-sm space-y-6 rounded-lg border border-border bg-card p-6">
         <header className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">
-            {mode === "signup" ? "Créer un compte" : "Connexion à APN"}
+            {mode === "signup" ? "Créer un compte Lucy" : "Connexion à Lucy"}
           </h1>
           <p className="text-sm text-muted-foreground">
             Tes conversations, profil et dossiers santé restent privés.

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { STATE_LABEL, type AgentState, type Mood } from "@/apn/types";
 import SyncIndicator from "@/apn/SyncIndicator";
 import type { SyncStatus } from "@/apn/useAPN";
-import { supabase } from "@/integrations/supabase/client";
 import { Archive, Settings, LogOut, Stethoscope } from "lucide-react";
 
 interface Props {
@@ -29,6 +29,7 @@ export default function TopBar({
   syncStatus, lastSyncAt, sessionId,
 }: Props) {
   const [time, setTime] = useState(clock());
+  const navigate = useNavigate();
   useEffect(() => {
     const id = setInterval(() => setTime(clock()), 1000);
     return () => clearInterval(id);
@@ -63,11 +64,9 @@ export default function TopBar({
           {time}
         </span>
 
-        {name && (
-          <span className="hidden lg:inline text-foreground/40 normal-case tracking-normal">
-            {name}
-          </span>
-        )}
+        <span className="hidden lg:inline text-foreground/40 normal-case tracking-normal">
+          {name ? `${name} · Lucy` : "Lucy"}
+        </span>
 
         <SyncIndicator status={syncStatus} lastSyncAt={lastSyncAt} sessionId={sessionId} />
 
@@ -88,10 +87,7 @@ export default function TopBar({
           <Settings className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={async () => {
-            await supabase.auth.signOut();
-            window.location.href = "/auth";
-          }}
+          onClick={() => navigate("/logout")}
           className={iconBtn}
           aria-label="Déconnexion"
           title="Déconnexion"
