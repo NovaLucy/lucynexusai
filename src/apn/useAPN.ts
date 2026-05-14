@@ -244,6 +244,38 @@ export function useAPN() {
     }
   }, [messages]);
 
+  const recallMemories = useCallback(async (query: string): Promise<any[]> => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.access_token) return [];
+      const r = await fetch(RECALL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: await getAuthHeader() },
+        body: JSON.stringify({ query, limit: 6 }),
+      });
+      if (!r.ok) return [];
+      const j = await r.json();
+      return Array.isArray(j?.memories) ? j.memories : [];
+    } catch { return []; }
+  }, []);
+
+  const extractMemoriesAsync = useCallback(async (userMsg: string, apnMsg: string) => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.access_token) return;
+      const recent = [
+        ...messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: userMsg },
+        { role: "assistant", content: apnMsg },
+      ];
+      await fetch(EXTRACT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: await getAuthHeader() },
+        body: JSON.stringify({ recent, sessionId: sessionId.current }),
+      });
+    } catch (e) { console.warn("memory-extract failed", e); }
+  }, [messages]);
+
   const streamFromGateway = useCallback(
     async (
       userInput: string,
@@ -251,6 +283,7 @@ export function useAPN() {
       history: Message[],
       onDelta: (chunk: string) => void,
       reality?: any,
+      memories?: any[],
     ) => {
       const historyMsgs = history.slice(-20).map((m) => ({ role: m.role, content: m.content }));
       const visionImage = imageDataUrl ?? reality?.ambientImageDataUrl ?? undefined;
@@ -275,6 +308,7 @@ export function useAPN() {
           messages: ctxMessages,
           profile: profileRef.current,
           persona: personaRef.current,
+          memories: memories ?? [],
           hasImage: !!visionImage,
           isAmbientGlance: isAmbient,
           isFirstContact,
