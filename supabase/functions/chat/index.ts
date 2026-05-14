@@ -136,7 +136,18 @@ function buildRealityBlock(reality: any, isAmbientGlance?: boolean): string {
   return lines.join("\n");
 }
 
-function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean, reality?: any, isAmbientGlance?: boolean): string {
+function buildMemoriesBlock(memories: any[]): string {
+  if (!Array.isArray(memories) || memories.length === 0) return "";
+  const lines: string[] = ["\n\n## Ce dont tu te souviens d'elle (mémoire vivante)"];
+  lines.push("(Ces souvenirs viennent d'échanges passés. Mobilise-les naturellement quand c'est pertinent — JAMAIS en les récitant. Tu sais, c'est tout.)");
+  for (const m of memories.slice(0, 10)) {
+    const tag = m.kind ? `[${m.kind}]` : "";
+    lines.push(`- ${tag} ${m.content}`);
+  }
+  return lines.join("\n");
+}
+
+function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean, reality?: any, isAmbientGlance?: boolean, memories?: any[]): string {
   let p = BASE_PROMPT;
   if (hasImage) p += VISION_PROMPT;
 
