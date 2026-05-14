@@ -70,15 +70,16 @@ export default function MedicalReport({ open, onOpenChange, sessionId }: Props) 
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="bg-black border-l ascii-border w-[min(520px,96vw)] p-0 font-mono text-sm scanlines"
+        className="!border-0 !bg-transparent !shadow-none w-[min(520px,96vw)] p-0 font-mono text-sm overflow-hidden"
       >
-        <div className="flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-widest border-b ascii-border">
-          <span className="mood-text">── PRÉ-CONSULTATION</span>
-          <span className="text-foreground/30 flex-1">{"─".repeat(40)}</span>
-          <button onClick={() => onOpenChange(false)} className="bracket-btn">[X]</button>
-        </div>
+        <div className="dark-matter !border-0 h-full flex flex-col overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-widest">
+            <span className="mood-text">── PRÉ-CONSULTATION</span>
+            <span className="text-foreground/30 flex-1">{"─".repeat(40)}</span>
+            <button onClick={() => onOpenChange(false)} className="bracket-btn">[X]</button>
+          </div>
 
-        <div className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: "calc(100dvh - 44px)" }}>
+          <div className="p-4 space-y-4 overflow-y-auto flex-1">
           <p className="text-[10px] text-foreground/50 leading-relaxed">
             APN n'est pas un médecin. Ce document est une aide à la préparation
             d'une consultation, jamais un diagnostic.
