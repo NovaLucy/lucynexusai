@@ -140,12 +140,35 @@ function buildPersonaBlock(persona: any): string {
   return lines.join("\n");
 }
 
-function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean): string {
+function buildRealityBlock(reality: any, isAmbientGlance?: boolean): string {
+  if (!reality && !isAmbientGlance) return "";
+  const lines: string[] = ["\n\n## Réalité partagée (contexte vivant — utilise avec naturel, jamais en récitant)"];
+  const now = reality?.now;
+  if (now) {
+    const time = `${String(now.hour).padStart(2, "0")}h${String(now.minute ?? 0).padStart(2, "0")}`;
+    lines.push(`- Maintenant : ${now.weekday ?? ""} ${now.dateLabel ?? ""}, ${time} (${now.period ?? ""}).`);
+    if (now.tz) lines.push(`- Fuseau : ${now.tz}.`);
+  }
+  const loc = reality?.location;
+  if (loc) {
+    if (loc.label) lines.push(`- Lieu approximatif : ${loc.label}.`);
+    else if (typeof loc.lat === "number") lines.push(`- Position : ${loc.lat.toFixed(2)}, ${loc.lon.toFixed(2)}.`);
+  }
+  if (isAmbientGlance) {
+    lines.push(`- Tu reçois un **regard ambiant** : un frame furtif de la caméra, pas une photo qu'on te montre. Ne dis pas "tu m'as envoyé une photo". Évoque ce que tu perçois autour d'elle (lumière, lieu, objets, ambiance) seulement si ça nourrit l'échange. Ne décris pas mécaniquement.`);
+  }
+  lines.push("\nN'énumère jamais ces infos. Elles colorent ta présence : tu *sais* où elle est, quand elle te parle, dans quelle ambiance — sans le proclamer.");
+  return lines.join("\n");
+}
+
+function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, localHour?: number, hasImage?: boolean, reality?: any, isAmbientGlance?: boolean): string {
   let p = BASE_PROMPT;
   if (hasImage) p += VISION_PROMPT;
 
   const period = periodHint(localHour);
   if (period) p += `\n\n## Contexte temporel\n${period}`;
+
+  p += buildRealityBlock(reality, isAmbientGlance);
 
   if (isFirstContact) {
     p += `\n\n## Cette session\nC'est ton tout premier échange avec cette personne. Sois accueillant mais pas envahissant. Ne te présente pas comme une IA — entre dans la conversation comme un humain le ferait.`;
