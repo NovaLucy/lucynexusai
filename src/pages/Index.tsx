@@ -261,7 +261,7 @@ export default function Index() {
             <div
               className="relative"
               style={{
-                width: isMobile ? "min(72dvh, 92%)" : "min(80dvh, 88%)",
+                width: isMobile ? "min(86dvh, 98%)" : "min(92dvh, 96%)",
                 aspectRatio: "1 / 1",
                 maxHeight: "100%",
               }}
