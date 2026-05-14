@@ -82,7 +82,7 @@ export default function Composer({
 
         {/* Image preview */}
         {attachedImage && (
-          <div className="relative mb-2 inline-flex items-start gap-2 rounded-2xl border border-foreground/10 bg-background/40 backdrop-blur-2xl p-2">
+          <div className="dark-matter-soft relative mb-2 inline-flex items-start gap-2 rounded-2xl p-2">
             <img
               src={attachedImage}
               alt="Aperçu"
