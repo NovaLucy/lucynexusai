@@ -226,6 +226,7 @@ export default function Index() {
     voice.stop();
     ttsBufferRef.current = "";
     ttsSpokenRef.current = 0;
+    setCurrentSentence(null);
     playRitual("open");
     if (text) extractHealth(text);
     const realitySnap = await reality.snapshot(!imageDataUrl);
