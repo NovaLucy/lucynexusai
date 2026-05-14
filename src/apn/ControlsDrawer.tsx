@@ -191,6 +191,8 @@ export default function ControlsDrawer(p: Props) {
             </div>
           </section>
 
+          <PermissionsSection />
+
           <section className="space-y-3">
             <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── INPUT ──</h3>
             <button
