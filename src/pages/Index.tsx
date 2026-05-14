@@ -68,8 +68,8 @@ export default function Index() {
   // Mark activity (resets sleep timer + wakes if sleeping)
   const markActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
-    if (apn.state === "sleeping") apn.wake();
-  }, [apn]);
+    if (apn.state === "sleeping") wakeWithGreeting();
+  }, [apn.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-sleep after 90s of inactivity (only from standby)
   useEffect(() => {
