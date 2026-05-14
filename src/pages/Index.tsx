@@ -50,6 +50,9 @@ export default function Index() {
   const [faceFrequency, setFaceFrequency] = useState<FaceFrequency>(() => {
     try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
   });
+  const [kbdAutoOpen, setKbdAutoOpen] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("lucy:kbdAutoOpen") ?? "true"); } catch { return true; }
+  });
   const speakingPinned = apn.state === "speaking" || apn.state === "thinking";
   const { trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
