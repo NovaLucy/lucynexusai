@@ -1,83 +1,82 @@
-## Objectif
+# Avancées majeures proposées pour Lucy
 
-Réduire encore l'interface à l'essentiel matière noire :
-
-1. **Composer (barre d'écriture) repliable** — masqué par défaut, comme le menu ⋯, accessible via un bouton discret.
-2. **Tap sur le visage = micro auto** — un clic sur le visage de Lucy lance immédiatement l'écoute vocale (au lieu du simple « réveil/secousse »).
-3. **Boutons fantomatiques** — tous les contrôles flottants (⋯ menu, bouton clavier, bouton micro éventuel, items du menu, icônes du composer) adoptent un style « matière noire » : très transparents au repos, halo mood-coloré au survol/actif.
+Voici 5 axes d'évolution ambitieux, classés par impact. Tu peux en valider un seul, plusieurs, ou demander de prioriser.
 
 ---
 
-## 1. Composer repliable
+## 1. Mémoire vivante & continuité émotionnelle 🧠
+**Le problème** : Lucy oublie les nuances entre sessions. Elle a un `profile` mais pas de vraie mémoire sémantique.
 
-**État** : nouveau `composerOpen` dans `Index.tsx`, persistant dans `localStorage` (`lucy:composer`), `false` par défaut.
+**Avancée** :
+- Table `memories` (faits, événements, personnes, préférences) avec embeddings (pgvector)
+- Extraction automatique en arrière-plan après chaque échange (via edge function)
+- Recherche sémantique des souvenirs pertinents injectés dans le contexte du chat
+- "Humeur relationnelle" persistante : Lucy se souvient du *ton* des derniers échanges
+- Timeline privée consultable ("souviens-toi de…")
 
-**Bouton bascule** : icône `Keyboard` (lucide) flottante en **bas-droite** (symétrique du ⋯ en haut-droite), même style fantomatique. Au tap : ouvre/ferme la barre.
-
-**Animation** : la barre composer glisse depuis le bas (`translateY(100%) → 0`) avec fade, ~280 ms. Quand fermée, elle est totalement retirée du DOM (ou `pointer-events:none` + opacity 0) pour laisser tout l'espace au visage et aux sous-titres.
-
-**Auto-ouverture intelligente** : si l'utilisateur tape une touche du clavier physique (event `keydown` sur `document`, hors zones de saisie déjà focusées), on ouvre automatiquement le composer et on focus l'input. Permet de garder l'écran pur tout en restant accessible.
-
-**Fermeture** : tap hors composer ou bouton ✕ intégré au composer.
-
----
-
-## 2. Tap sur le visage → micro auto
-
-Modifier le `onClick` du conteneur `.cursor-pointer` qui enveloppe `<VolumetricFace>` :
-
-- **Si Lucy dort** : `wakeWithGreeting()` (déjà en place) puis, à la fin de la salutation, déclencher automatiquement `handleMic()` (déjà fait en partie via `handleMicRef.current()` à la fin de chaque réponse — on étend ce rappel à la fin de `speakLine`).
-- **Si Lucy est en standby** : `handleMic()` directement → démarre l'écoute.
-- **Si Lucy écoute déjà** : `handleMic()` → arrête l'écoute (toggle).
-- **Si Lucy parle ou réfléchit** : tap = `voice.stop()` + `apn.setStandby()` (interruption douce — déjà naturel avec un agent humain).
-
-L'effet `triggerFace(5400, "reveal")` (apparition de visage) est conservé en parallèle pour la réaction visuelle.
-
-L'aria-label du conteneur passe de « Réveiller APN » à « Parler à Lucy ».
+**Impact** : Lucy passe d'assistant à *présence continue*.
 
 ---
 
-## 3. Style « fantomatique matière noire »
+## 2. Mode Présence Ambiante (always-on intelligent) 🌊
+**Le problème** : Lucy n'existe que quand on la sollicite.
 
-Nouvelle classe utilitaire CSS `ghost-btn` ajoutée à `src/index.css` :
+**Avancée** :
+- Wake-word local ("Lucy…") via VAD + petit modèle on-device — pas de streaming permanent au cloud
+- Détection de contexte passive : heure, lieu, agenda → interventions *rares* mais justes
+- Notifications proactives intelligentes (déjà ébauché) enrichies par la mémoire
+- "Mode veille active" : la matière noire respire doucement, réagit subtilement aux sons ambiants sans répondre
 
-```css
-.ghost-btn {
-  /* invisible au repos, juste un soupçon */
-  color: hsl(var(--foreground) / 0.18);
-  background: transparent;
-  border: 1px solid hsl(var(--foreground) / 0.04);
-  backdrop-filter: blur(6px);
-  transition: all 320ms cubic-bezier(.2,.8,.2,1);
-}
-.ghost-btn:hover, .ghost-btn[data-active="true"] {
-  color: hsl(var(--foreground) / 0.85);
-  background: hsl(var(--mood) / 0.06);
-  border-color: hsl(var(--mood) / 0.25);
-  box-shadow: 0 0 24px hsl(var(--mood) / 0.18);
-}
-.ghost-btn:active { transform: scale(0.96); }
-```
-
-**Application** :
-- Bouton ⋯ menu (haut-droite) → `ghost-btn` rond.
-- Nouveau bouton `Keyboard` (bas-droite) → `ghost-btn` rond, `data-active={composerOpen}`.
-- Items du menu déroulant (Journal, Réglages, Mode médical, Déconnexion) → variante `ghost-row` (mêmes tokens, layout en ligne).
-- Conteneur du menu : déjà `dark-matter` — on allège encore (`!bg-background/30 backdrop-blur-xl`).
-- Boutons internes du composer (mic, image, send) → déjà existants ; on les force à utiliser `ghost-btn` via override de classes passées en props si possible, sinon édition légère de `Composer.tsx` (sans toucher à la logique).
-
-**Aucun composant ne doit afficher de couleurs vives en dehors du token `--mood`.**
+**Impact** : Compagnon plutôt qu'outil.
 
 ---
 
-## Fichiers concernés
+## 3. Vision continue & compréhension du monde 👁️
+**Le problème** : La caméra est ponctuelle, Lucy ne *voit* pas vraiment.
 
-- `src/pages/Index.tsx` — état `composerOpen`, bouton clavier flottant, animation, auto-ouverture clavier physique, refonte du `onClick` visage, classes `ghost-btn` sur boutons ⋯/clavier/menu items.
-- `src/index.css` — ajout `.ghost-btn` / `.ghost-row` + keyframe slide-up pour le composer.
-- `src/apn/Composer.tsx` — léger ajustement : remplacer les classes des trois boutons internes (mic, image, envoi) par `ghost-btn`, sans changer la logique.
+**Avancée** :
+- Flux vidéo en arrière-plan (frames espacées, 1/3s) avec analyse multimodale Gemini Flash
+- Détection de scène : lieu, objets, personnes (anonymisées), activité
+- Lucy peut commenter *si demandée* (cohérent avec règle existante) mais comprend le contexte visuel en permanence
+- Mode "regarde avec moi" : analyse temps réel pendant qu'on lui montre quelque chose
+- Capture de moments : Lucy reconnaît un instant marquant et propose de le garder
 
-Aucun changement backend, aucune dépendance ajoutée.
+**Impact** : Conscience spatiale réelle.
 
-## Question
+---
 
-- Le bouton clavier doit-il **aussi disparaître** quand Lucy parle (pour un écran totalement vide pendant la parole), ou rester visible en permanence ? Je propose : **rester visible mais encore plus pâle** (opacity 0.08) pendant la parole.
+## 4. Mode Pré-Médecin V2 — suivi longitudinal 🩺
+**Le problème** : Le mode médical existe mais reste réactif.
+
+**Avancée** :
+- Carnet de santé structuré (symptômes, prises, sommeil, douleur 0-10)
+- Graphiques de tendances + détection d'anomalies
+- Rappels intelligents ("hier tu avais 7/10 au dos, comment ce matin ?")
+- Export PDF formaté pour vrai médecin (ordonné, dates, fréquences)
+- Intégration HealthKit / Google Fit (Capacitor) pour rythme cardiaque, sommeil, pas
+- Alertes drapeaux rouges déjà présentes → enrichies par historique
+
+**Impact** : Vraie valeur clinique préparatoire.
+
+---
+
+## 5. Personnalité incarnée & expressivité 🎭
+**Le problème** : La matière noire est belle mais la personnalité de Lucy reste générique.
+
+**Avancée** :
+- "Tempérament" configurable (rythme, humour, distance) qui module *vraiment* le system prompt + la voix
+- Synthèse vocale émotionnelle (ElevenLabs v3 avec tags émotion `[whispers]`, `[laughs]`)
+- Variations visuelles fines de la matière noire selon l'émotion détectée dans la réponse (joie = particules dorées, doute = ralenti, tendresse = pulsations chaudes)
+- "Silences habités" : Lucy peut choisir de ne pas répondre par mots, juste un mouvement de matière
+- Voice cloning optionnel (voix proche / familière, opt-in fort)
+
+**Impact** : Lucy devient *quelqu'un*, pas *quelque chose*.
+
+---
+
+## Recommandation
+Si je devais en choisir **un seul** pour maximiser l'effet "wow + utilité" : **#1 Mémoire vivante**. C'est le socle qui rend les 4 autres beaucoup plus puissants.
+
+Si tu veux du **visible immédiat** : **#5 Personnalité incarnée** (résultats sensibles dès la 1re interaction).
+
+Dis-moi lequel (ou lesquels) tu veux que je détaille en plan d'implémentation concret.
