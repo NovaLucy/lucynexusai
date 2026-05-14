@@ -92,6 +92,26 @@ export default function Index() {
     window.setTimeout(() => setRitual(null), kind === "open" ? 4800 : 1500);
   }, []);
 
+  // Persist composer visibility
+  useEffect(() => {
+    try { localStorage.setItem("lucy:composer", JSON.stringify(composerOpen)); } catch {}
+  }, [composerOpen]);
+
+  // Auto-open composer when user starts typing on a physical keyboard
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (composerOpen) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key.length === 1 || e.key === "Backspace") {
+        setComposerOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [composerOpen]);
+
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
   }, [polishEnabled]);
