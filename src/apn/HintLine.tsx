@@ -39,7 +39,7 @@ export default function HintLine({ state, micActive, hide }: Props) {
       aria-hidden
     >
       <div
-        className="text-[10px] sm:text-[11px] uppercase tracking-[0.3em] text-foreground/35 font-light transition-opacity duration-700"
+        className="hud-label transition-opacity duration-700"
         style={{ opacity: hide ? 0 : 1 }}
       >
         {text}
