@@ -346,7 +346,8 @@ export default function Index() {
       <div className="absolute top-0 right-0 z-30 pt-safe pr-safe">
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="m-3 p-2 rounded-full text-foreground/30 hover:text-foreground/80 hover:bg-foreground/[0.04] transition-colors"
+          className="ghost-btn m-3 p-2 rounded-full"
+          data-active={menuOpen ? "true" : "false"}
           aria-label="Menu"
           title="Menu"
         >
