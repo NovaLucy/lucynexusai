@@ -20,7 +20,7 @@ import { matchCommand } from "@/apn/voiceCommands";
 import { useAPN } from "@/apn/useAPN";
 import { supabase } from "@/integrations/supabase/client";
 import { useVoice } from "@/apn/useVoice";
-import { tapLight, tapMedium } from "@/native";
+import { tapLight, tapMedium, tapMicro } from "@/native";
 import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
 
 const MEDICAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apn-medical`;
@@ -217,11 +217,13 @@ export default function Index() {
       const sentence = m[1].trim();
       ttsBufferRef.current = ttsBufferRef.current.slice(m[0].length);
       setCurrentSentence(sentence);
+      tapMicro();
       if (voice.prefs.enabled) voice.speakSentence(sentence);
     } else {
       if (ttsBufferRef.current.trim()) {
         const sentence = ttsBufferRef.current.trim();
         setCurrentSentence(sentence);
+        tapMicro();
         if (voice.prefs.enabled) voice.speakSentence(sentence);
       }
       ttsBufferRef.current = "";
@@ -233,6 +235,7 @@ export default function Index() {
     const trimmed = line.trim();
     if (!trimmed) return;
     setCurrentSentence(trimmed);
+    tapMicro();
     if (voice.prefs.enabled) voice.speakSentence(trimmed);
     window.setTimeout(() => {
       setCurrentSentence((cur) => (cur === trimmed ? null : cur));
