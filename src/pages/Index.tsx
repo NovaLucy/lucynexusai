@@ -10,7 +10,7 @@ import VolumetricFace from "@/apn/agi/MoodBubble";
 import Subtitles from "@/apn/Subtitles";
 import { pickWakeGreeting } from "@/apn/wakeGreeting";
 import { useNavigate } from "react-router-dom";
-import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut } from "lucide-react";
+import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut, Keyboard } from "lucide-react";
 
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useReality } from "@/apn/useReality";
