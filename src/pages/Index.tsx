@@ -592,16 +592,19 @@ export default function Index() {
       {/* Floating keyboard toggle (bottom-right) */}
       <div className="absolute bottom-0 right-0 z-30 pb-safe pr-safe pointer-events-none">
         <button
-          onClick={() => setComposerOpen((v) => !v)}
-          className="ghost-btn m-3 p-2 rounded-full pointer-events-auto"
+          onClick={() => { setHasInteracted(true); setComposerOpen((v) => !v); }}
+          className="ghost-btn m-3 pointer-events-auto inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] uppercase tracking-[0.22em]"
           data-active={composerOpen ? "true" : "false"}
-          style={{ opacity: speakingPinned && !composerOpen ? 0.35 : 1 }}
-          aria-label={composerOpen ? "Masquer le clavier" : "Afficher le clavier"}
+          style={{ opacity: speakingPinned && !composerOpen ? 0.4 : 1 }}
+          aria-label={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
           title={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
         >
           <Keyboard className="w-4 h-4" />
+          {!composerOpen && <span className="hidden sm:inline">Écrire</span>}
         </button>
       </div>
+
+      <FirstRunIntro />
 
       {/* Composer at bottom — collapsible */}
       {composerOpen && (
