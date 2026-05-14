@@ -268,12 +268,29 @@ export default function Index() {
               {/* Pulsing mood halo behind the core */}
               <div className="core-halo" aria-hidden />
 
+              {/* Sleeping veil — darkens corners when APN dozes */}
+              <div className="sleeping-veil" aria-hidden />
+
+              {/* Ritual layer — iris + dark-matter wave on interaction edges */}
+              {ritual && (
+                <div className={`ritual-layer ritual-${ritual}`} aria-hidden>
+                  <div className="ritual-iris" />
+                  <div className="ritual-wave" />
+                  <div className="ritual-wave ritual-wave-2" />
+                </div>
+              )}
+
               <div
                 className="absolute inset-0 cursor-pointer"
                 onClick={() => {
                   tapMedium();
-                  setShockKey((k) => k + 1);
-                  triggerFace(5400, "reveal");
+                  markActivity();
+                  if (apn.state === "sleeping") {
+                    playRitual("open");
+                  } else {
+                    setShockKey((k) => k + 1);
+                    triggerFace(5400, "reveal");
+                  }
                 }}
                 role="button"
                 aria-label="Réveiller APN"
