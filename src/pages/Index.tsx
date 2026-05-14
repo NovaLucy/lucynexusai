@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 // OrbCanvas remplacé par VolumetricFace (AGI core)
-import TopBar from "@/apn/TopBar";
 import Composer from "@/apn/Composer";
 import ChatLog from "@/apn/ChatLog";
 import ControlsDrawer from "@/apn/ControlsDrawer";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
+import Subtitles from "@/apn/Subtitles";
+import { pickWakeGreeting } from "@/apn/wakeGreeting";
+import { useNavigate } from "react-router-dom";
+import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut } from "lucide-react";
 
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useReality } from "@/apn/useReality";
