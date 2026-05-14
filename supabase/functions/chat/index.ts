@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, profile, persona, isFirstContact, localHour, hasImage, reality, isAmbientGlance } = await req.json();
+    const { messages, profile, persona, isFirstContact, localHour, hasImage, reality, isAmbientGlance, memories } = await req.json();
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages must be an array" }), {
         status: 400,
@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage, reality, !!isAmbientGlance);
+    let systemPrompt = buildSystemPrompt(profile, persona, !!isFirstContact, localHour, !!hasImage, reality, !!isAmbientGlance, memories);
 
     // Anti-répétition : extrait les dernières répliques d'APN et interdit explicitement
     // la reprise de leurs ouvertures / formulations. Empêche les boucles conversationnelles.
