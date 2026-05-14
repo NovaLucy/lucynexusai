@@ -245,7 +245,7 @@ Règles strictes :
       console.warn("anti-repeat block failed", e);
     }
 
-    const callModel = (model: string, withReasoning: boolean) =>
+    const callModel = (model: string) =>
       fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -259,16 +259,15 @@ Règles strictes :
             ...messages,
           ],
           stream: true,
-          ...(withReasoning ? { reasoning: { effort: "low" } } : {}),
         }),
       });
 
-    // Quand il y a une image, on bascule sur Pro (vision-fort) sans reasoning pour limiter la latence
-    const primaryModel = hasImage ? "google/gemini-2.5-pro" : "google/gemini-3.1-pro-preview";
-    let response = await callModel(primaryModel, !hasImage);
+    // Modèle rapide pour dialogue fluide ; Pro vision uniquement si image
+    const primaryModel = hasImage ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash-lite";
+    let response = await callModel(primaryModel);
     if (!response.ok && (response.status === 429 || response.status >= 500)) {
       console.warn("Primary model failed", response.status, "— falling back to flash");
-      response = await callModel("google/gemini-3-flash-preview", false);
+      response = await callModel("google/gemini-2.5-flash");
     }
 
     if (!response.ok) {
