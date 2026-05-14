@@ -214,6 +214,7 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: P
     uniform float uPulse;
     uniform float uIntensity;
     uniform float uTime;
+    uniform float uMedical;
     varying vec3 vNormal;
     varying vec3 vPos;
     varying float vDisp;
@@ -223,15 +224,15 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: P
       float ndv = abs(dot(normalize(vNormal), viewDir));
       float fres = pow(1.0 - ndv, 3.2);
       // dark matter base — almost black, faint mood tint deep inside
-      vec3 deep = vec3(0.008, 0.010, 0.014);
+      vec3 deep = mix(vec3(0.008, 0.010, 0.014), vec3(0.060, 0.002, 0.002), uMedical);
       vec3 base = mix(deep, uColorA * 0.18, smoothstep(0.4, -0.2, vDisp));
       // bright rim light (water meniscus / dark drop edge)
-      vec3 rim = uColorRim * fres * (1.1 + uPulse * 0.8);
+      vec3 rim = uColorRim * fres * (1.1 + uPulse * 0.8 + uMedical * 0.6);
       // subtle internal caustic shimmer
       float shimmer = 0.5 + 0.5 * sin(vPos.y * 5.0 + uTime * 1.4);
       vec3 col = base + rim + uColorB * shimmer * 0.04 * uPulse;
       // very transparent in the center, opaque at the rim — like a water drop
-      float alpha = (0.10 + fres * 0.75) * uIntensity;
+      float alpha = (0.10 + fres * 0.75 + uMedical * 0.06) * uIntensity;
       gl_FragColor = vec4(col, alpha);
     }
   `;
