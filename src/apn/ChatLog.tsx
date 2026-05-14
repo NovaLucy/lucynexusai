@@ -47,18 +47,7 @@ export default function ChatLog({ messages, open, onClose }: Props) {
               key={m.id}
               className="dark-matter !border-0 relative rounded-xl p-3 mb-3"
             >
-              <div
-                className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full"
-                style={{
-                  background: m.role === "user"
-                    ? c ? `hsl(${c.h} ${c.s}% ${c.l}%)` : "hsl(var(--mood))"
-                    : "hsl(var(--fg))",
-                  boxShadow: `0 0 8px ${m.role === "user"
-                    ? c ? `hsl(${c.h} ${c.s}% ${c.l}%)` : "hsl(var(--mood))"
-                    : "hsl(var(--fg))"}`,
-                }}
-              />
-              <div className="text-[10px] uppercase tracking-widest text-foreground/40 mb-0.5 pl-3">
+              <div className="text-[10px] uppercase tracking-widest text-foreground/40 mb-0.5">
                 {tag} {fmt(m.ts)}] {sep}
               </div>
               {m.imageDataUrl && (
