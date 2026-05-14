@@ -475,6 +475,18 @@ export default function Index() {
         <AmbientChars />
       </div>
 
+      {/* Journal shortcut — top-left, dark-matter water surface */}
+      <div className="absolute top-0 left-0 z-30 pt-safe pl-safe">
+        <button
+          onClick={() => { setHasInteracted(true); setLogOpen(true); }}
+          className="dark-matter m-3 w-9 h-9 rounded-full flex items-center justify-center text-foreground/70 hover:text-foreground/95 transition-colors"
+          aria-label="Ouvrir le journal"
+          title="Journal"
+        >
+          <Archive className="w-4 h-4" />
+        </button>
+      </div>
+
       {/* Floating menu (replaces TopBar) — discreet access to controls */}
       <div className="absolute top-0 right-0 z-30 pt-safe pr-safe">
         <button
