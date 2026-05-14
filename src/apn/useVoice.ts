@@ -292,7 +292,7 @@ export function useVoice() {
   return {
     prefs, setPrefs,
     voices, supported,
-    speak, stop,
+    speak, stop, speakSentence,
     sttSupported, listening, startListening, stopListening,
   };
 }
