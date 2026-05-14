@@ -36,7 +36,7 @@ function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0, medical = false
   return c;
 }
 
-function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
+function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: Props) {
   const meshRef = useRef<THREE.Mesh>(null);
   const innerRef = useRef<THREE.Mesh>(null);
   const haloRef = useRef<THREE.Mesh>(null);
@@ -47,20 +47,22 @@ function Bubble({ mood, state, speaking, intensity = 1 }: Props) {
       uTime: { value: 0 },
       uAmp: { value: 0.18 },
       uSpeed: { value: 0.6 },
-      uColorA: { value: moodColor(mood, 0.05, -10, 0.05) },
-      uColorB: { value: moodColor(mood, -0.1, 20, 0.1) },
-      uColorRim: { value: moodColor(mood, 0.25, 0, 0) },
+      uColorA: { value: moodColor(mood, 0.05, -10, 0.05, medicalMode) },
+      uColorB: { value: moodColor(mood, -0.1, 20, 0.1, medicalMode) },
+      uColorRim: { value: moodColor(mood, 0.25, 0, 0, medicalMode) },
       uIntensity: { value: intensity },
       uPulse: { value: 0 },
+      uMedical: { value: medicalMode ? 1.0 : 0.0 },
     }),
-    [],
+    [medicalMode],
   );
 
   useEffect(() => {
-    uniforms.uColorA.value = moodColor(mood, 0.05, -10, 0.05);
-    uniforms.uColorB.value = moodColor(mood, -0.1, 20, 0.1);
-    uniforms.uColorRim.value = moodColor(mood, 0.25, 0, 0);
-  }, [mood, uniforms]);
+    uniforms.uColorA.value = moodColor(mood, 0.05, -10, 0.05, medicalMode);
+    uniforms.uColorB.value = moodColor(mood, -0.1, 20, 0.1, medicalMode);
+    uniforms.uColorRim.value = moodColor(mood, 0.25, 0, 0, medicalMode);
+    uniforms.uMedical.value = medicalMode ? 1.0 : 0.0;
+  }, [mood, medicalMode, uniforms]);
 
   useEffect(() => {
     uniforms.uIntensity.value = intensity;
