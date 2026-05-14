@@ -24,7 +24,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const vid = voiceId || DEFAULT_VOICE_ID;
+    // Voice is locked server-side to a soft female timbre — ignore client-supplied voiceId.
+    const vid = DEFAULT_VOICE_ID;
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${vid}/stream?output_format=mp3_44100_128`;
 
     const resp = await fetch(url, {
@@ -38,11 +39,11 @@ Deno.serve(async (req) => {
         text,
         model_id: "eleven_multilingual_v2",
         voice_settings: {
-          stability: 0.45,
-          similarity_boost: 0.75,
-          style: 0.25,
+          stability: 0.6,
+          similarity_boost: 0.8,
+          style: 0.15,
           use_speaker_boost: true,
-          speed: typeof speed === "number" ? speed : 1.0,
+          speed: typeof speed === "number" ? speed : 0.95,
         },
       }),
     });
