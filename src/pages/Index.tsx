@@ -581,6 +581,11 @@ export default function Index() {
           </div>
 
           <Subtitles currentSentence={currentSentence} />
+          <HintLine
+            state={apn.state}
+            micActive={voice.listening}
+            hide={hasInteracted || composerOpen}
+          />
         </section>
       </div>
 
