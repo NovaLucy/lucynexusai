@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 // OrbCanvas remplacé par VolumetricFace (AGI core)
-import TopBar from "@/apn/TopBar";
 import Composer from "@/apn/Composer";
 import ChatLog from "@/apn/ChatLog";
 import ControlsDrawer from "@/apn/ControlsDrawer";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
+import Subtitles from "@/apn/Subtitles";
+import { pickWakeGreeting } from "@/apn/wakeGreeting";
+import { useNavigate } from "react-router-dom";
+import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut } from "lucide-react";
 
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useReality } from "@/apn/useReality";
@@ -52,12 +55,22 @@ export default function Index() {
   const [shockKey, setShockKey] = useState(0);
   const [ritual, setRitual] = useState<"open" | "close" | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
+  const lastWakeGreetingAtRef = useRef<number>(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [currentSentence, setCurrentSentence] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  // Streaming assistant text (for live caption before first full sentence)
+  const lastAssistant = apn.messages.length > 0 && apn.messages[apn.messages.length - 1].role === "assistant"
+    ? apn.messages[apn.messages.length - 1].content
+    : "";
 
   // Mark activity (resets sleep timer + wakes if sleeping)
+  const wakeRef = useRef<() => void>(() => {});
   const markActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
-    if (apn.state === "sleeping") apn.wake();
-  }, [apn]);
+    if (apn.state === "sleeping") wakeRef.current();
+  }, [apn.state]);
 
   // Auto-sleep after 90s of inactivity (only from standby)
   useEffect(() => {
@@ -158,26 +171,51 @@ export default function Index() {
   const ttsSpokenRef = useRef(0);
 
   const flushTTS = useCallback((full: string, end?: boolean) => {
-    if (!voice.prefs.enabled) return;
     const raw = full.slice(ttsSpokenRef.current);
-    if (!raw) return;
-    // Buffer until we have a sentence boundary (or end of stream)
+    if (!raw && !end) return;
     ttsBufferRef.current += raw;
     ttsSpokenRef.current = full.length;
     if (!end) {
       const m = ttsBufferRef.current.match(/(.+?[.!?…])(\s+|$)/);
-      if (!m) return; // wait for a complete sentence
+      if (!m) return;
       const sentence = m[1].trim();
       ttsBufferRef.current = ttsBufferRef.current.slice(m[0].length);
-      voice.speakSentence(sentence);
+      setCurrentSentence(sentence);
+      if (voice.prefs.enabled) voice.speakSentence(sentence);
     } else {
-      // Flush remainder at end
       if (ttsBufferRef.current.trim()) {
-        voice.speakSentence(ttsBufferRef.current.trim());
+        const sentence = ttsBufferRef.current.trim();
+        setCurrentSentence(sentence);
+        if (voice.prefs.enabled) voice.speakSentence(sentence);
       }
       ttsBufferRef.current = "";
     }
   }, [voice]);
+
+  // Speak a synthetic line (e.g. wake greeting) — visible in subtitles + voiced.
+  const speakLine = useCallback((line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    setCurrentSentence(trimmed);
+    if (voice.prefs.enabled) voice.speakSentence(trimmed);
+    window.setTimeout(() => {
+      setCurrentSentence((cur) => (cur === trimmed ? null : cur));
+    }, Math.max(2200, trimmed.length * 70));
+  }, [voice]);
+
+  const wakeWithGreeting = useCallback(() => {
+    apn.wake();
+    const now = Date.now();
+    if (now - lastWakeGreetingAtRef.current < 30_000) return;
+    lastWakeGreetingAtRef.current = now;
+    const line = pickWakeGreeting({
+      lastInteractionAt: lastActivityRef.current,
+      displayName: apn.profile?.display_name ?? null,
+      lastTopic: apn.profile?.last_topic ?? null,
+    });
+    speakLine(line);
+  }, [apn, speakLine]);
+  wakeRef.current = wakeWithGreeting;
 
   const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
@@ -188,6 +226,7 @@ export default function Index() {
     voice.stop();
     ttsBufferRef.current = "";
     ttsSpokenRef.current = 0;
+    setCurrentSentence(null);
     playRitual("open");
     if (text) extractHealth(text);
     const realitySnap = await reality.snapshot(!imageDataUrl);
@@ -280,30 +319,57 @@ export default function Index() {
         <AmbientChars />
       </div>
 
-      {/* Top bar */}
-      <div className="relative z-20 pt-safe pl-safe pr-safe float-soft-2">
-        <TopBar
-          state={apn.state}
-          mood={apn.mood}
-          name={apn.profile?.display_name}
-          onOpenLog={() => setLogOpen(true)}
-          onOpenCfg={() => setCfgOpen(true)}
-          medicalMode={medicalMode}
-          onToggleMedical={() => {
-            setMedicalMode((v) => !v);
-            toast.info(!medicalMode ? "Mode pré-médecin activé" : "Mode pré-médecin désactivé");
-          }}
-          syncStatus={apn.syncStatus}
-          lastSyncAt={apn.lastSyncAt}
-          sessionId={apn.sessionId}
-        />
+      {/* Floating menu (replaces TopBar) — discreet access to controls */}
+      <div className="absolute top-0 right-0 z-30 pt-safe pr-safe">
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          className="m-3 p-2 rounded-full text-foreground/30 hover:text-foreground/80 hover:bg-foreground/[0.04] transition-colors"
+          aria-label="Menu"
+          title="Menu"
+        >
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
+        {menuOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-30"
+              onClick={() => setMenuOpen(false)}
+              aria-hidden
+            />
+            <div className="absolute right-3 top-12 z-40 dark-matter !border-0 rounded-2xl py-2 px-1 min-w-[200px] flex flex-col text-xs text-foreground/80 shadow-xl">
+              <button
+                onClick={() => { setMenuOpen(false); setLogOpen(true); }}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left"
+              >
+                <Archive className="w-3.5 h-3.5 opacity-60" /> Journal
+              </button>
+              <button
+                onClick={() => { setMenuOpen(false); setCfgOpen(true); }}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left"
+              >
+                <Settings className="w-3.5 h-3.5 opacity-60" /> Réglages
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  setMedicalMode((v) => !v);
+                  toast.info(!medicalMode ? "Mode pré-médecin activé" : "Mode pré-médecin désactivé");
+                }}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left ${medicalMode ? "text-red-300/90" : ""}`}
+              >
+                <Stethoscope className="w-3.5 h-3.5 opacity-60" /> Mode pré-médecin
+              </button>
+              <div className="h-px my-1 bg-foreground/[0.06]" />
+              <button
+                onClick={() => { setMenuOpen(false); navigate("/logout"); }}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.05] text-left"
+              >
+                <LogOut className="w-3.5 h-3.5 opacity-60" /> Déconnexion
+              </button>
+            </div>
+          </>
+        )}
       </div>
-
-      {medicalMode && (
-        <div className="relative z-20 px-3 py-1 text-[10px] uppercase tracking-widest text-center bg-red-950/40 text-red-200 border-b border-red-900/60">
-          ⚠ MODE PRÉ-MÉDECIN — APN n'est pas un médecin. Aide à la préparation, pas un diagnostic.
-        </div>
-      )}
 
       {/* Center stage — clean, sidebars removed */}
       <div className="relative z-10 flex-1 flex min-h-0">
@@ -335,10 +401,12 @@ export default function Index() {
                 className="absolute inset-0 cursor-pointer flex items-center justify-center"
                 onClick={() => {
                   tapMedium();
-                  markActivity();
                   if (apn.state === "sleeping") {
                     playRitual("open");
+                    wakeWithGreeting();
+                    lastActivityRef.current = Date.now();
                   } else {
+                    markActivity();
                     setShockKey((k) => k + 1);
                     triggerFace(5400, "reveal");
                   }
@@ -358,19 +426,12 @@ export default function Index() {
             </div>
           </div>
 
-          {/* Caption — soft, human */}
-          <div className="px-6 pb-4 text-center relative z-20 float-drift" aria-live="polite">
-            <p className="text-base sm:text-xl md:text-2xl font-light tracking-tight text-foreground/85">
-              {apn.caption}
-            </p>
-            <div
-              className="mt-3 h-px w-12 mx-auto"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent, hsl(var(--mood) / 0.5), transparent)",
-              }}
-            />
-          </div>
+          <Subtitles
+            streamingText={lastAssistant}
+            currentSentence={currentSentence}
+            idleCaption={apn.caption}
+            speaking={speakingPinned}
+          />
         </section>
       </div>
 
