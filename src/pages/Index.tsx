@@ -130,7 +130,8 @@ export default function Index() {
   }, [polishEnabled]);
   useEffect(() => {
     try { localStorage.setItem("apn:medical", JSON.stringify(medicalMode)); } catch {}
-  }, [medicalMode]);
+    apn.setMedicalContext?.(medicalMode);
+  }, [medicalMode, apn]);
   useEffect(() => {
     try { localStorage.setItem("apn:face", faceFrequency); } catch {}
   }, [faceFrequency]);
