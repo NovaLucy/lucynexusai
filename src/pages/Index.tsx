@@ -71,7 +71,7 @@ export default function Index() {
   // Trigger ritual on activity transitions
   const playRitual = useCallback((kind: "open" | "close") => {
     setRitual(kind);
-    window.setTimeout(() => setRitual(null), kind === "open" ? 1700 : 1300);
+    window.setTimeout(() => setRitual(null), kind === "open" ? 4800 : 1500);
   }, []);
 
   useEffect(() => {

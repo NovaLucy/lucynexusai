@@ -16,6 +16,8 @@ interface Options {
 }
 
 const VANISH_MS = 420;
+// durée du rituel d'ouverture (onde lente de matière noire)
+export const RITUAL_OPEN_MS = 4800;
 
 export function useFaceApparition(
   frequency: FaceFrequency = "normal",
