@@ -512,13 +512,13 @@ export default function Index() {
               style={{ background: "hsl(var(--background) / 0.55)", border: "1px solid hsl(var(--foreground) / 0.06)" }}>
               <button
                 onClick={() => { setMenuOpen(false); setLogOpen(true); }}
-                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
+                className="ghost-row hud-label flex items-center gap-3 px-3 py-2.5 rounded-lg text-left"
               >
                 <Archive className="w-3.5 h-3.5 opacity-60" /> Journal
               </button>
               <button
                 onClick={() => { setMenuOpen(false); setCfgOpen(true); }}
-                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
+                className="ghost-row hud-label flex items-center gap-3 px-3 py-2.5 rounded-lg text-left"
               >
                 <Settings className="w-3.5 h-3.5 opacity-60" /> Réglages
               </button>
@@ -528,14 +528,14 @@ export default function Index() {
                   setMedicalMode((v) => !v);
                   toast.info(!medicalMode ? "Mode pré-médecin activé" : "Mode pré-médecin désactivé");
                 }}
-                className={`ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left ${medicalMode ? "text-red-300/90" : ""}`}
+                className={`ghost-row hud-label flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${medicalMode ? "text-red-300/90" : ""}`}
               >
                 <Stethoscope className="w-3.5 h-3.5 opacity-60" /> Mode pré-médecin
               </button>
               <div className="h-px my-1 bg-foreground/[0.06]" />
               <button
                 onClick={() => { setMenuOpen(false); navigate("/logout"); }}
-                className="ghost-row flex items-center gap-3 px-3 py-2 rounded-lg text-left"
+                className="ghost-row hud-label flex items-center gap-3 px-3 py-2.5 rounded-lg text-left"
               >
                 <LogOut className="w-3.5 h-3.5 opacity-60" /> Déconnexion
               </button>
@@ -692,14 +692,14 @@ export default function Index() {
       <div className="absolute bottom-0 right-0 z-30 pb-safe pr-safe pointer-events-none">
         <button
           onClick={() => { setHasInteracted(true); setComposerOpen((v) => !v); }}
-          className="ghost-btn m-3 pointer-events-auto inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] uppercase tracking-[0.22em]"
+          className="ghost-btn m-3 pointer-events-auto inline-flex items-center gap-2 rounded-full px-3 py-2"
           data-active={composerOpen ? "true" : "false"}
           style={{ opacity: speakingPinned && !composerOpen ? 0.4 : 1 }}
           aria-label={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
           title={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
         >
           <Keyboard className="w-4 h-4" />
-          {!composerOpen && <span className="hidden sm:inline">Écrire</span>}
+          {!composerOpen && <span className="hud-label hidden sm:inline">Écrire</span>}
         </button>
       </div>
 

@@ -129,7 +129,7 @@ export default function Composer({
             autoCapitalize="sentences"
             enterKeyHint="send"
             spellCheck={false}
-            className="flex-1 min-w-0 bg-transparent outline-none text-foreground/90 placeholder:text-foreground/30 text-sm font-light tracking-wide py-1.5 px-2"
+            className="flex-1 min-w-0 bg-transparent outline-none chat-text placeholder:text-foreground/30 placeholder:font-light placeholder:tracking-wide text-sm py-1.5 px-2"
             disabled={disabled}
           />
 

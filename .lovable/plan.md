@@ -1,77 +1,59 @@
+## Direction retenue
 
-## Objectif
+**Onde — Sora (titres) + Manrope (corps)** · traitement **Immersif**
 
-Rendre la prise de parole plus fiable, les commandes vocales plus naturelles, et l'accès à la conversation plus évident — sans casser ce qui fonctionne déjà (wake-word, halo, rituels).
+L'idée : tout le **chrome** de Lucy (statuts, boutons, en-têtes drawers, journal, réglages) passe en typo spatiale avec micro-glow couleur humeur et tracking étiré. Les **bulles de conversation** restent en Manrope doux pour la lisibilité — pas de glow sur le contenu lu, seulement sur les habillages.
 
-## 1. Prise de voix (mic) — plus fluide et tolérante
+## Changements
 
-**Problèmes actuels**
-- `nativeStartListening` coupe brutalement après **6 s fixes**, même si l'utilisateur parle encore.
-- Sur le web, Scribe se déconnecte sur silence VAD mais **aucun garde-fou** si la connexion ws tombe (1006 vu dans les logs) → le mic reste "listening" en UI.
-- Pas d'indicateur clair "je t'écoute" quand le micro s'ouvre.
+### 1. Polices (chargement)
+- `index.html` : remplacer le bundle Google Fonts actuel (Syne + JetBrains Mono) par **Sora 300/400/600** + **Manrope 300/400/500/600** (avec `display=swap`, preconnect conservé).
+- Garder JetBrains Mono uniquement pour les zones strictement techniques (timestamps, IDs de session) si nécessaire — sinon supprimer.
 
-**Propositions**
-- **Silence-detect natif** : remplacer le `setTimeout(6000)` par une boucle qui prolonge tant que `last` change (reset du timer à chaque partial), max 20 s. Couper après 1.8 s sans nouveau partial.
-- **Auto-recovery web** : sur erreur Scribe / WebSocket 1006, repasser proprement en `listening = false` + toast discret « micro coupé, retape pour reprendre ».
-- **Onde audible courte** (existant `tapMedium` + petit son optionnel) à l'ouverture du micro pour confirmer.
-- **Push-to-talk long-press** sur l'orbe : appui court = toggle (actuel), appui maintenu = micro ouvert tant que doigt posé, ferme à relâchement → utile en environnement bruyant.
+### 2. Tokens typo (`tailwind.config.ts` + `src/index.css`)
+- Ajouter dans `theme.fontFamily` :
+  - `display: ['Sora', 'system-ui', 'sans-serif']`
+  - `sans: ['Manrope', 'system-ui', 'sans-serif']`
+  - `hud: ['Sora', 'system-ui', 'sans-serif']` (alias pour le chrome)
+- Variables CSS dans `:root` :
+  - `--font-display`, `--font-body`, `--font-hud`
+  - `--track-hud: 0.28em` (tracking large pour labels)
+  - `--track-title: 0.04em`
 
-## 2. Commandes vocales — plus naturelles
+### 3. Classes utilitaires « matière noire » pour le texte (`src/index.css`)
+- `.hud-label` : Sora 300, MAJUSCULES, `letter-spacing: 0.28em`, taille 10–11 px, `color: hsl(var(--foreground)/0.55)`, micro `text-shadow: 0 0 12px hsl(var(--mood)/0.18)`.
+- `.hud-title` : Sora 400, taille 13–15 px, tracking léger, glow puls­é doux (animation `glow-pulse 4s ease-in-out infinite`).
+- `.dm-text` (dark-matter text) : dégradé subtil `background: linear-gradient(180deg, hsl(var(--foreground)/0.95), hsl(var(--foreground)/0.7)); -webkit-background-clip: text;` + `text-shadow: 0 0 10px hsl(var(--mood)/0.15)` — pour les titres de drawer / sections.
+- `.chat-text` : Manrope 400, line-height 1.55, **pas de glow** — lisibilité avant tout.
+- Keyframe `glow-pulse` : amplitude faible (0.10 → 0.22 sur l'opacité du shadow).
 
-**Problèmes actuels**
-- `voiceCommands.ts` n'a que ~10 patterns rigides ; toute variante échoue silencieusement.
-- Les commandes sont exécutées **avant** d'arriver à Lucy : impossible d'enchaîner « ouvre le journal et parle moins fort ».
-- Pas de feedback vocal — juste un toast.
+### 4. Application aux composants
+- **Status bars / HUD** (`MicroHUD.tsx`, `Subtitles.tsx`, `HintLine.tsx`, `SyncIndicator.tsx`, `TopBar.tsx`) → `.hud-label` ou `.hud-title`.
+- **Journal** (`ChatLog.tsx`) → en-tête en `.dm-text`, métadonnées (timestamps, rôles) en `.hud-label`, contenu des messages en `.chat-text`.
+- **Réglages** (`ControlsDrawer.tsx`) → titre du drawer en `.dm-text`, libellés de sections en `.hud-label`, valeurs et descriptions en `.chat-text`.
+- **Composer** (`Composer.tsx`) → placeholder en `.hud-label` faible opacité, input en Manrope.
+- **Menu flottant** (`Index.tsx` top-right + bouton journal top-left) → entrées en `.hud-label`.
+- **Boutons** (`.ghost-btn` quand ils portent du texte → ex. « Écrire » sur le FAB clavier) → `.hud-label`.
+- **`Onboarding3` / `FirstRunIntro.tsx`** → titre en `.dm-text`, items en `.chat-text`.
+- **Subtitles** (ce que Lucy dit) → Manrope 300, italique léger, **pas de mono** — la voix doit respirer.
 
-**Propositions**
-- **Élargir les patterns** : ajouter
-  - couper / réactiver le wake-word (« arrête de m'écouter », « écoute en continu »)
-  - voix plus douce / plus forte / plus lente / plus rapide (mappés sur `prefs.rate`/`pitch`)
-  - mode sombre/clair si pertinent
-  - « répète », « plus court », « tais-toi » (= `voice.stop()` immédiat)
-  - « efface la conversation » (confirm via toast action)
-- **Confirmation vocale courte** : au lieu d'un toast seul, Lucy dit 1 mot (« voilà », « ok », « coupé ») via `speakLine`, puis exécute.
-- **Fallback LLM** : si `matchCommand` échoue mais que la phrase commence par un verbe d'action court (« ouvre… », « coupe… »), envoyer au chat avec un flag `intent: "command"` — laisser Lucy interpréter et répondre via une `client_tool_call`-like (déjà partiellement en place côté chat).
+### 5. Garde-fous lisibilité
+- Bulles de chat et long texte : **jamais** en mono ni en MAJUSCULES.
+- Glow plafonné à `0.22` opacité max pour ne pas baver sur fond sombre.
+- Tracking large uniquement sur libellés ≤ 3 mots.
 
-## 3. Accès à la conversation — plus intuitif
+## Fichiers touchés
 
-**Problèmes actuels**
-- Le bouton clavier en bas-droite est petit, sans label, opacifié quand Lucy parle.
-- L'orbe est cliquable mais rien ne dit qu'on peut **taper** au lieu de parler.
-- Le composer s'ouvre auto au clavier physique mais sur mobile, rien n'invite à taper.
-- `ChatLog` (le journal) est caché derrière un menu « … ».
+- `index.html` (polices)
+- `tailwind.config.ts` (`fontFamily`)
+- `src/index.css` (variables, `.hud-label`, `.hud-title`, `.dm-text`, `.chat-text`, keyframes)
+- `src/apn/MicroHUD.tsx`, `Subtitles.tsx`, `HintLine.tsx`, `SyncIndicator.tsx`, `TopBar.tsx`
+- `src/apn/ChatLog.tsx`
+- `src/apn/ControlsDrawer.tsx`
+- `src/apn/Composer.tsx`
+- `src/apn/FirstRunIntro.tsx`
+- `src/pages/Index.tsx` (menus flottants, FAB « Écrire », bouton journal)
 
-**Propositions**
+Pas de changement de logique métier — purement typographie + classes.
 
-a. **Hint contextuel sous l'orbe** (à côté de Subtitles) — micro-texte qui change selon l'état :
-- standby : « tape pour écrire · touche pour parler »
-- listening : « je t'écoute… »
-- sleeping : « touche pour me réveiller »
-S'efface dès la première interaction.
-
-b. **Double-tap orbe = ouvre le composer** (au lieu de devoir viser le petit bouton clavier). Tap simple reste = mic.
-
-c. **Swipe-up depuis le bas** = ouvre le composer (geste mobile naturel). Swipe-down sur le composer = referme.
-
-d. **Bouton clavier élargi** : passer en pill « Écrire » avec icône + label sur mobile, plutôt qu'un rond opaque. Devient un FAB plus lisible.
-
-e. **Raccourci journal** : ajouter un swipe latéral (gauche→droite) ou un bouton discret en haut-gauche (pendant du « … » à droite) qui ouvre directement le `ChatLog`, vu que c'est l'élément le plus consulté.
-
-f. **Premier lancement** : un petit onboarding 3-cards (« touche pour parler · tape pour écrire · dis "Lucy" pour me réveiller ») affiché 1 fois, dismissible, stocké dans localStorage.
-
-## Découpage des fichiers
-
-- `src/apn/nativeVoice.ts` — silence-detect intelligent
-- `src/apn/useVoice.ts` — auto-recovery WebSocket
-- `src/apn/voiceCommands.ts` — patterns étendus + retour parlé
-- `src/apn/Composer.tsx` + `src/pages/Index.tsx` — hint contextuel, double-tap, swipe-up, FAB élargi
-- `src/apn/Onboarding.tsx` (nouveau composant léger ou réutilise l'existant) — 3-cards intro
-
-## Priorité suggérée
-
-1. Silence-detect + auto-recovery (impact immédiat sur fiabilité)
-2. Hint contextuel + FAB élargi (clarté UX)
-3. Patterns commandes étendus + retour parlé
-4. Double-tap / swipe-up + onboarding (raffinements)
-
-Dis-moi si tu veux que je fasse les **4 d'un coup** ou seulement les **priorités 1-2** d'abord.
+Dis-moi « go » et j'enchaîne.

@@ -38,14 +38,14 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId }:
 
   return (
     <div className="fixed inset-0 z-40 bg-black apn-fade-in flex flex-col">
-      <div className="dark-matter !border-0 rounded-full mx-3 sm:mx-4 mt-3 mb-2 flex items-center gap-2 px-3 sm:px-4 py-2.5 text-[11px] uppercase tracking-widest text-drop overflow-hidden">
-        <span className="mood-text shrink-0">── JOURNAL</span>
-        <span className="text-foreground/30 hidden sm:inline truncate flex-1">{"─".repeat(20)}</span>
-        <span className="text-foreground/30 sm:hidden flex-1" />
-        <span className="text-foreground/50 tabular-nums shrink-0 hidden sm:inline" title="Identifiant APN — identique sur toutes tes interfaces">
+      <div className="dark-matter !border-0 rounded-full mx-3 sm:mx-4 mt-3 mb-2 flex items-center gap-2 px-3 sm:px-4 py-2.5 text-drop overflow-hidden">
+        <span className="dm-text shrink-0 text-sm">Journal</span>
+        <span className="text-foreground/15 hidden sm:inline truncate flex-1">{"·".repeat(40)}</span>
+        <span className="text-foreground/15 sm:hidden flex-1" />
+        <span className="hud-label tabular-nums shrink-0 hidden sm:inline" title="Identifiant APN — identique sur toutes tes interfaces">
           APN·{idShort}
         </span>
-        <span className="text-foreground/60 tabular-nums shrink-0">
+        <span className="hud-label tabular-nums shrink-0">
           {String(messages.length).padStart(3, "0")} MSG
         </span>
         {onClear && (
@@ -55,21 +55,22 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId }:
         )}
         <button onClick={onClose} className="bracket-btn shrink-0">[X]</button>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3 scrollbar-thin font-mono text-sm">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3 scrollbar-thin">
         {messages.length === 0 && (
-          <p className="text-foreground/40 italic text-xs">// no exchanges yet</p>
+          <p className="hud-label">// no exchanges yet</p>
         )}
         {messages.map((m) => {
           const c = m.mood ? MOOD_HSL[m.mood] : null;
-          const tag = m.role === "user" ? "[USR" : "[APN";
-          const sep = m.role === "user" ? ">" : "$";
+          const tag = m.role === "user" ? "USR" : "APN";
           return (
             <div
               key={m.id}
               className="dark-matter !border-0 relative rounded-xl p-3 mb-3"
             >
-              <div className="text-[10px] uppercase tracking-widest text-foreground/40 mb-0.5">
-                {tag} {fmt(m.ts)}] {sep}
+              <div className="hud-label mb-1.5 flex items-center gap-2">
+                <span>{tag}</span>
+                <span className="opacity-40">·</span>
+                <span className="opacity-70">{fmt(m.ts)}</span>
               </div>
               {m.imageDataUrl && (
                 <img
@@ -78,7 +79,7 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId }:
                   className="my-1 max-w-[220px] max-h-[160px] object-cover rounded-md"
                 />
               )}
-              <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{m.content}</div>
+              <div className="chat-text whitespace-pre-wrap text-sm">{m.content}</div>
             </div>
           );
         })}

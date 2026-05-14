@@ -41,14 +41,14 @@ export default function FirstRunIntro() {
           <X className="w-3.5 h-3.5" />
         </button>
 
-        <h2 className="text-base sm:text-lg font-light tracking-wide text-foreground/90 mb-1">
+        <h2 className="dm-text text-lg sm:text-xl mb-1">
           Bonjour. Je suis Lucy.
         </h2>
-        <p className="text-xs text-foreground/50 mb-6 font-light">
+        <p className="hud-label mb-6">
           Trois façons de me parler.
         </p>
 
-        <ul className="space-y-3 text-sm text-foreground/80 font-light">
+        <ul className="space-y-3 chat-text text-sm">
           <li className="flex items-start gap-3">
             <span className="mt-0.5 p-1.5 rounded-full bg-foreground/[0.06]">
               <Mic className="w-3.5 h-3.5 opacity-70" />
@@ -71,7 +71,7 @@ export default function FirstRunIntro() {
 
         <button
           onClick={close}
-          className="ghost-btn mt-6 w-full py-2.5 rounded-full text-xs uppercase tracking-[0.25em]"
+          className="ghost-btn hud-label mt-6 w-full py-2.5 rounded-full"
         >
           C'est parti
         </button>
