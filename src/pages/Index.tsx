@@ -154,6 +154,31 @@ export default function Index() {
 
   const handleMicRef = useRef<() => void>(() => {});
 
+  const ttsBufferRef = useRef("");
+  const ttsSpokenRef = useRef(0);
+
+  const flushTTS = useCallback((full: string, end?: boolean) => {
+    if (!voice.prefs.enabled) return;
+    const raw = full.slice(ttsSpokenRef.current);
+    if (!raw) return;
+    // Buffer until we have a sentence boundary (or end of stream)
+    ttsBufferRef.current += raw;
+    ttsSpokenRef.current = full.length;
+    if (!end) {
+      const m = ttsBufferRef.current.match(/(.+?[.!?…])(\s+|$)/);
+      if (!m) return; // wait for a complete sentence
+      const sentence = m[1].trim();
+      ttsBufferRef.current = ttsBufferRef.current.slice(m[0].length);
+      voice.speakSentence(sentence);
+    } else {
+      // Flush remainder at end
+      if (ttsBufferRef.current.trim()) {
+        voice.speakSentence(ttsBufferRef.current.trim());
+      }
+      ttsBufferRef.current = "";
+    }
+  }, [voice]);
+
   const handleSend = async (text: string, imageDataUrl?: string) => {
     if (busy) return;
     markActivity();
@@ -161,22 +186,35 @@ export default function Index() {
     setBusy(true);
     tapLight();
     voice.stop();
+    ttsBufferRef.current = "";
+    ttsSpokenRef.current = 0;
     playRitual("open");
     if (text) extractHealth(text);
     const realitySnap = await reality.snapshot(!imageDataUrl);
     await apn.send(text, {
       onAssistantStart: () => {},
+      onAssistantChunk: (fullSoFar) => {
+        flushTTS(fullSoFar);
+      },
       onAssistantEnd: (full) => {
+        flushTTS(full, true);
         if (voice.prefs.enabled) {
-          voice.speak(full, () => {
+          // If no native TTS fired (empty or single word), ensure we speak the full
+          if (ttsSpokenRef.current === 0) {
+            voice.speak(full, () => {
+              apn.setStandby();
+              playRitual("close");
+              window.setTimeout(() => {
+                if (!voice.listening && voice.sttSupported) handleMicRef.current();
+              }, 350);
+            });
+          } else {
             apn.setStandby();
             playRitual("close");
-            // Prise de voix automatique : ré-arme le micro après chaque réponse
-            // (sauf si l'utilisateur l'a déjà relancé manuellement).
             window.setTimeout(() => {
               if (!voice.listening && voice.sttSupported) handleMicRef.current();
             }, 350);
-          });
+          }
         } else {
           apn.setStandby();
           playRitual("close");
