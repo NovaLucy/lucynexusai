@@ -378,3 +378,26 @@
   94% { opacity: 1; }
 }
 .flicker { animation: flicker 4s linear infinite; }
+
+/* ─── Floating in the void — gentle suspension ─────────────────── */
+@keyframes float-soft {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -6px, 0); }
+}
+@keyframes float-soft-delayed {
+  0%, 100% { transform: translate3d(0, -2px, 0); }
+  50%      { transform: translate3d(0, 4px, 0); }
+}
+@keyframes float-drift {
+  0%       { transform: translate3d(0, 0, 0); }
+  33%      { transform: translate3d(2px, -4px, 0); }
+  66%      { transform: translate3d(-2px, -2px, 0); }
+  100%     { transform: translate3d(0, 0, 0); }
+}
+.float-soft     { animation: float-soft 9s ease-in-out infinite; will-change: transform; }
+.float-soft-2   { animation: float-soft-delayed 11s ease-in-out infinite; will-change: transform; }
+.float-drift    { animation: float-drift 14s ease-in-out infinite; will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .float-soft, .float-soft-2, .float-drift { animation: none; }
+}
