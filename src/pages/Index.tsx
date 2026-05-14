@@ -53,6 +53,12 @@ export default function Index() {
   const [kbdAutoOpen, setKbdAutoOpen] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem("lucy:kbdAutoOpen") ?? "true"); } catch { return true; }
   });
+  const [wakeWordEnabled, setWakeWordEnabled] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("lucy:wakeWord") ?? "false"); } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("lucy:wakeWord", JSON.stringify(wakeWordEnabled)); } catch {}
+  }, [wakeWordEnabled]);
   const speakingPinned = apn.state === "speaking" || apn.state === "thinking";
   const { trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
