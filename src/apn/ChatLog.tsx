@@ -54,10 +54,10 @@ export default function ChatLog({ messages, open, onClose }: Props) {
                 <img
                   src={m.imageDataUrl}
                   alt="Vue partagée"
-                  className="my-1 max-w-[220px] max-h-[160px] object-cover rounded-md border border-foreground/10 ml-3"
+                  className="my-1 max-w-[220px] max-h-[160px] object-cover rounded-md"
                 />
               )}
-              <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed pl-3">{m.content}</div>
+              <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{m.content}</div>
             </div>
           );
         })}
