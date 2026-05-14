@@ -343,7 +343,7 @@ export function useAPN() {
   const send = useCallback(
     async (
       input: string,
-      hooks: { onAssistantStart?: () => void; onAssistantEnd?: (full: string, mood: Mood) => void },
+      hooks: { onAssistantStart?: () => void; onAssistantChunk?: (fullSoFar: string) => void; onAssistantEnd?: (full: string, mood: Mood) => void },
       opts?: { imageDataUrl?: string; reality?: any },
     ) => {
       const text = input.trim();
@@ -363,9 +363,10 @@ export function useAPN() {
       setState("thinking");
       setCaption(imageDataUrl ? "Je regarde…" : "Je réfléchis…");
 
-      const uploadPromise = imageDataUrl && userId
-        ? uploadVisionImage(userId, imageDataUrl)
-        : Promise.resolve(null);
+      // Fire-and-forget vision upload — don't block the dialogue flow
+      if (imageDataUrl && userId) {
+        void uploadVisionImage(userId, imageDataUrl);
+      }
 
       try {
         let full = "";
@@ -384,13 +385,14 @@ export function useAPN() {
               p.map((m) => (m.id === assistantId ? { ...m, content: full } : m)),
             );
           }
+          hooks.onAssistantChunk?.(full);
         }, reality);
         const m = inferMood(full);
         setMoodAndApply(m);
         setMessages((p) => p.map((mm) => (mm.id === assistantId ? { ...mm, mood: m } : mm)));
-        const imagePath = await uploadPromise;
-        await persist(text || "Regarde.", full, m, imagePath, reality, reality?.facing);
-        updateProfileAsync(text || "Regarde.", full);
+        // Persist & profile update are background — don't await, keep dialogue snappy
+        void persist(text || "Regarde.", full, m, null, reality, reality?.facing);
+        void updateProfileAsync(text || "Regarde.", full);
         hooks.onAssistantEnd?.(full, m);
       } catch (e: any) {
         const msg = e?.message ?? "Erreur inconnue";
