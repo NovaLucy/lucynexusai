@@ -27,6 +27,7 @@ export default function Index() {
   const apn = useAPN();
   const voice = useVoice();
   const isMobile = useIsMobile();
+  const reality = useReality();
   const [intensity, setIntensity] = useState(1.0);
   const [pixelRatio, setPixelRatio] = useState(() => (typeof window !== "undefined" && window.innerWidth < 768 ? 1.25 : 1.5));
   const [busy, setBusy] = useState(false);
