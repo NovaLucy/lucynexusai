@@ -113,6 +113,8 @@ interface Props {
   setFacing: (v: "user" | "environment") => void;
   locationLabel?: string | null;
   nowLabel?: string | null;
+  kbdAutoOpen: boolean;
+  setKbdAutoOpen: (v: boolean) => void;
 }
 
 function AsciiSlider({
