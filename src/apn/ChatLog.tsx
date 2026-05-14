@@ -6,6 +6,8 @@ interface Props {
   messages: Message[];
   open: boolean;
   onClose: () => void;
+  onClear?: () => void | Promise<void>;
+  sessionId?: string;
 }
 
 const fmt = (ts: number) => {
