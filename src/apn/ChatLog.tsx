@@ -25,7 +25,7 @@ export default function ChatLog({ messages, open, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 bg-black apn-fade-in flex flex-col">
-      <div className="dark-matter rounded-full mx-4 mt-3 mb-2 flex items-center gap-2 px-4 py-2.5 text-[11px] uppercase tracking-widest text-drop">
+      <div className="dark-matter !border-0 rounded-full mx-4 mt-3 mb-2 flex items-center gap-2 px-4 py-2.5 text-[11px] uppercase tracking-widest text-drop">
         <span className="mood-text">── JOURNAL</span>
         <span className="text-foreground/30">{"─".repeat(40)}</span>
         <span className="text-foreground/60 tabular-nums">
@@ -45,7 +45,7 @@ export default function ChatLog({ messages, open, onClose }: Props) {
           return (
             <div
               key={m.id}
-              className="dark-matter relative rounded-xl p-3 mb-3"
+              className="dark-matter !border-0 relative rounded-xl p-3 mb-3"
             >
               <div
                 className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full"

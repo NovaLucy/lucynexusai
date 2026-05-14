@@ -68,15 +68,16 @@ export default function ControlsDrawer(p: Props) {
     <Sheet open={p.open} onOpenChange={p.onOpenChange}>
       <SheetContent
         side="right"
-        className="bg-black border-l ascii-border w-[min(380px,92vw)] p-0 font-mono text-sm scanlines"
+        className="!border-0 w-[min(380px,92vw)] p-0 font-mono text-sm scanlines overflow-hidden"
       >
-        <div className="flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-widest border-b ascii-border">
-          <span className="mood-text">── CONFIG</span>
-          <span className="text-foreground/30 flex-1">{"─".repeat(40)}</span>
-          <button onClick={() => p.onOpenChange(false)} className="bracket-btn">[X]</button>
-        </div>
+        <div className="dark-matter !border-0 h-full flex flex-col overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-widest">
+            <span className="mood-text">── CONFIG</span>
+            <span className="text-foreground/30 flex-1">{"─".repeat(40)}</span>
+            <button onClick={() => p.onOpenChange(false)} className="bracket-btn">[X]</button>
+          </div>
 
-        <div className="p-4 space-y-6 overflow-y-auto" style={{ maxHeight: "calc(100dvh - 44px)" }}>
+          <div className="p-4 space-y-6 overflow-y-auto flex-1">
           <section className="space-y-4">
             <h3 className="text-[10px] uppercase tracking-widest text-foreground/40">── VOICE ──</h3>
             <button
@@ -91,7 +92,7 @@ export default function ControlsDrawer(p: Props) {
               <select
                 value={p.voiceURI ?? ""}
                 onChange={(e) => p.setVoiceURI(e.target.value || undefined)}
-                className="w-full bg-black text-foreground px-2 py-1.5 text-xs ascii-border outline-none focus:ascii-border-mood"
+                className="w-full bg-transparent text-foreground px-2 py-1.5 text-xs border border-foreground/15 outline-none focus:border-[hsl(var(--mood)/0.4)]"
               >
                 <option value="">AUTO (FR)</option>
                 {frVoices.map((v) => (
@@ -164,7 +165,8 @@ export default function ControlsDrawer(p: Props) {
             <p className="text-[10px] text-foreground/40">// quality: reload to apply</p>
           </section>
         </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </SheetContent>
+  </Sheet>
   );
 }
