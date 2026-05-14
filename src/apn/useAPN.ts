@@ -154,16 +154,46 @@ export function useAPN() {
 
   useEffect(() => { applyMoodToRoot(mood); }, [mood]);
 
-  const persist = useCallback(async (userMsg: string, apnMsg: string, m: Mood, imagePath: string | null) => {
+  const persist = useCallback(async (
+    userMsg: string,
+    apnMsg: string,
+    m: Mood,
+    imagePath: string | null,
+    reality?: any,
+    facing?: "user" | "environment",
+  ) => {
     if (!userId) return;
     setSyncStatus("saving");
+    const meta: Record<string, any> = {};
+    if (imagePath) meta.image_path = imagePath;
+    if (reality?.now) {
+      meta.reality = {
+        time: reality.now.iso,
+        hour: reality.now.hour,
+        minute: reality.now.minute,
+        period: reality.now.period,
+        weekday: reality.now.weekday,
+        tz: reality.now.tz,
+      };
+      if (reality.location) {
+        meta.reality.location = {
+          lat: reality.location.lat,
+          lon: reality.location.lon,
+          city: reality.location.city,
+          country: reality.location.country,
+          label: reality.location.label,
+        };
+      }
+      if (reality.ambientImageDataUrl) meta.reality.ambient_glance = true;
+      if (facing) meta.reality.facing = facing;
+    }
     const { error } = await supabase.from("apn_memory").insert({
       session_id: sessionId.current,
       user_id: userId,
       user_msg: userMsg,
       apn_msg: apnMsg,
       intent: { mood: m },
-      meta: imagePath ? { image_path: imagePath } : {},
+      meta,
     });
     if (error) {
       console.warn("persist failed", error);
