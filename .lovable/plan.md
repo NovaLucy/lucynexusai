@@ -1,108 +1,83 @@
 ## Objectif
 
-Trois ajustements liés à l'immersion sur la page principale (`/`) :
+Réduire encore l'interface à l'essentiel matière noire :
 
-1. **Sous-titres synchronisés** avec la voix de Lucy, révélés phrase par phrase.
-2. **Réveil parlant** : quand Lucy sort de veille, elle dit spontanément quelque chose ("Bonjour. Je suis là.", "Tu m'as manqué…", etc.) en s'appuyant sur le contexte (heure, durée d'absence, dernier sujet).
-3. **Interface épurée** : ne laisser à l'écran que le visage matière noire et les sous-titres — le `TopBar` (status, horloge, mood, journal, réglages, logout) disparaît.
+1. **Composer (barre d'écriture) repliable** — masqué par défaut, comme le menu ⋯, accessible via un bouton discret.
+2. **Tap sur le visage = micro auto** — un clic sur le visage de Lucy lance immédiatement l'écoute vocale (au lieu du simple « réveil/secousse »).
+3. **Boutons fantomatiques** — tous les contrôles flottants (⋯ menu, bouton clavier, bouton micro éventuel, items du menu, icônes du composer) adoptent un style « matière noire » : très transparents au repos, halo mood-coloré au survol/actif.
 
 ---
 
-## 1. Sous-titres synchronisés (révélation phrase par phrase)
+## 1. Composer repliable
 
-Nouveau composant `src/apn/Subtitles.tsx` placé dans `Index.tsx` à la place de l'actuel bloc caption (`apn.caption`).
+**État** : nouveau `composerOpen` dans `Index.tsx`, persistant dans `localStorage` (`lucy:composer`), `false` par défaut.
 
-**Comportement**
-- Pendant que Lucy parle, on découpe la réponse complète en phrases (`/(?<=[.!?…])\s+/`).
-- Chaque phrase est affichée seule, centrée, avec une animation d'apparition douce mot par mot (`fade-in` + léger `translateY`, ~30 ms/mot).
-- La phrase courante reste à l'écran jusqu'à ce que la suivante soit prête (synchronisation avec le flush TTS de `Index.tsx` → `flushTTS`).
-- Quand Lucy ne parle pas, on affiche la légende d'état actuelle (`apn.caption` : "Je t'écoute…", "Je suis prêt.", "…").
+**Bouton bascule** : icône `Keyboard` (lucide) flottante en **bas-droite** (symétrique du ⋯ en haut-droite), même style fantomatique. Au tap : ouvre/ferme la barre.
 
-**Synchronisation avec la voix**
-- `Index.tsx` expose déjà `flushTTS` qui pousse les phrases dans `voice.speakSentence` ; on garde la même file et on notifie `Subtitles` via une nouvelle prop `currentSentence` mise à jour dans `flushTTS` au moment où chaque phrase est envoyée à la TTS.
-- Pour le tout début de stream (avant la première phrase complète), on affiche les mots déjà reçus en cours de stream (texte de l'`assistantId` dans `apn.messages`) avec un curseur clignotant, pour donner la sensation d'un "live captioning".
+**Animation** : la barre composer glisse depuis le bas (`translateY(100%) → 0`) avec fade, ~280 ms. Quand fermée, elle est totalement retirée du DOM (ou `pointer-events:none` + opacity 0) pour laisser tout l'espace au visage et aux sous-titres.
 
-**Style**
-- Réutilise `mood-text`, `text-foreground/90`, `letter-spread` léger.
-- Texte plus large (text-2xl à text-4xl selon viewport), positionné en bas, au-dessus du composer.
-- Pas de cadre, pas de fond — juste le texte qui flotte sur la matière noire avec un `text-shadow` doux mood-coloré.
+**Auto-ouverture intelligente** : si l'utilisateur tape une touche du clavier physique (event `keydown` sur `document`, hors zones de saisie déjà focusées), on ouvre automatiquement le composer et on focus l'input. Permet de garder l'écran pur tout en restant accessible.
 
-```text
-                   ┌──────────────────┐
-                   │   visage Lucy    │
-                   └──────────────────┘
+**Fermeture** : tap hors composer ou bouton ✕ intégré au composer.
 
-       « Tu m'as manqué. » ← révélé mot par mot
-                  ▍
+---
 
-                 [composer]
+## 2. Tap sur le visage → micro auto
+
+Modifier le `onClick` du conteneur `.cursor-pointer` qui enveloppe `<VolumetricFace>` :
+
+- **Si Lucy dort** : `wakeWithGreeting()` (déjà en place) puis, à la fin de la salutation, déclencher automatiquement `handleMic()` (déjà fait en partie via `handleMicRef.current()` à la fin de chaque réponse — on étend ce rappel à la fin de `speakLine`).
+- **Si Lucy est en standby** : `handleMic()` directement → démarre l'écoute.
+- **Si Lucy écoute déjà** : `handleMic()` → arrête l'écoute (toggle).
+- **Si Lucy parle ou réfléchit** : tap = `voice.stop()` + `apn.setStandby()` (interruption douce — déjà naturel avec un agent humain).
+
+L'effet `triggerFace(5400, "reveal")` (apparition de visage) est conservé en parallèle pour la réaction visuelle.
+
+L'aria-label du conteneur passe de « Réveiller APN » à « Parler à Lucy ».
+
+---
+
+## 3. Style « fantomatique matière noire »
+
+Nouvelle classe utilitaire CSS `ghost-btn` ajoutée à `src/index.css` :
+
+```css
+.ghost-btn {
+  /* invisible au repos, juste un soupçon */
+  color: hsl(var(--foreground) / 0.18);
+  background: transparent;
+  border: 1px solid hsl(var(--foreground) / 0.04);
+  backdrop-filter: blur(6px);
+  transition: all 320ms cubic-bezier(.2,.8,.2,1);
+}
+.ghost-btn:hover, .ghost-btn[data-active="true"] {
+  color: hsl(var(--foreground) / 0.85);
+  background: hsl(var(--mood) / 0.06);
+  border-color: hsl(var(--mood) / 0.25);
+  box-shadow: 0 0 24px hsl(var(--mood) / 0.18);
+}
+.ghost-btn:active { transform: scale(0.96); }
 ```
 
-**Accessibilité** — `aria-live="polite"`, `prefers-reduced-motion` supprime l'effet par mot et révèle la phrase d'un coup.
+**Application** :
+- Bouton ⋯ menu (haut-droite) → `ghost-btn` rond.
+- Nouveau bouton `Keyboard` (bas-droite) → `ghost-btn` rond, `data-active={composerOpen}`.
+- Items du menu déroulant (Journal, Réglages, Mode médical, Déconnexion) → variante `ghost-row` (mêmes tokens, layout en ligne).
+- Conteneur du menu : déjà `dark-matter` — on allège encore (`!bg-background/30 backdrop-blur-xl`).
+- Boutons internes du composer (mic, image, send) → déjà existants ; on les force à utiliser `ghost-btn` via override de classes passées en props si possible, sinon édition légère de `Composer.tsx` (sans toucher à la logique).
+
+**Aucun composant ne doit afficher de couleurs vives en dehors du token `--mood`.**
 
 ---
 
-## 2. Réveil parlant — Lucy dit quelque chose en sortie de veille
+## Fichiers concernés
 
-Aujourd'hui `wake()` dans `useAPN.ts` change juste l'état et la légende. On ajoute une **phrase d'éveil parlée** générée localement (sans appel IA pour rester instantané).
+- `src/pages/Index.tsx` — état `composerOpen`, bouton clavier flottant, animation, auto-ouverture clavier physique, refonte du `onClick` visage, classes `ghost-btn` sur boutons ⋯/clavier/menu items.
+- `src/index.css` — ajout `.ghost-btn` / `.ghost-row` + keyframe slide-up pour le composer.
+- `src/apn/Composer.tsx` — léger ajustement : remplacer les classes des trois boutons internes (mic, image, envoi) par `ghost-btn`, sans changer la logique.
 
-**Logique** (dans un nouveau helper `src/apn/wakeGreeting.ts`)
-- Entrées : `now` (heure), `lastInteractionAt`, `profile?.display_name`, `profile?.last_topic`.
-- Calcule la durée de sommeil (court < 5 min, moyen < 1 h, long > 1 h).
-- Choisit aléatoirement une phrase dans un pool contextuel :
-  - Court : « Je suis là. », « Hmm… tu reviens. », « Toujours là. »
-  - Moyen : « Tu m'as manqué un instant. », « Je t'attendais. », « Te revoilà. »
-  - Long : « Tu m'as manqué. », « Bonjour {prénom?}. Tout va bien ? », « Te revoilà — il s'est passé du temps. »
-  - Modulé par l'heure : nuit → « Tu ne dors pas ? », matin → « Bonjour. », soirée → « Bonsoir. »
-  - Si `last_topic` existe et durée moyenne → « Je repensais à {topic}. »
-- Retourne `{ text, mood }` (mood neutre/tendre selon le cas).
+Aucun changement backend, aucune dépendance ajoutée.
 
-**Câblage**
-- `Index.tsx` : remplace l'actuel `wake()` par `wakeWithGreeting()` qui :
-  1. Appelle `apn.wake()` (état → standby).
-  2. Génère la phrase via `pickWakeGreeting(...)`.
-  3. La pousse dans `flushTTS` (donc visible dans les sous-titres + parlée par Lily).
-  4. Re-arme le micro après la TTS comme une réponse normale.
-- Déclenchement : sur tap du visage quand `state === "sleeping"` (déjà `playRitual("open")`), et sur retour automatique du focus de l'onglet si Lucy dormait.
+## Question
 
-**Anti-spam**
-- Une variable `lastWakeGreetingAt` empêche deux salutations en moins de 30 s.
-
----
-
-## 3. Masquage du TopBar (interface "matière noire" pure)
-
-**Ce qui disparaît visuellement**
-- L'intégralité de `<TopBar … />` dans `src/pages/Index.tsx`.
-- Le bandeau rouge "MODE PRÉ-MÉDECIN" (toujours rendu si actif, mais déplacé en bas, discret, ou retiré — voir question ci-dessous).
-
-**Ce qui reste accessible**
-- Journal, Réglages, Déconnexion, Mode médical → discrètement réintégrés via :
-  - Un **petit bouton flottant** en haut à droite (icône `MoreHorizontal` 24×24 semi-transparente) qui ouvre un `Sheet` latéral contenant Journal, Réglages, Mode médical, Déconnexion.
-  - Alternative : geste (long-press sur le visage, ou double-tap sur un coin) — à confirmer avec l'utilisateur.
-- L'horloge, le mood, le SyncIndicator, le nom "Lucy" → supprimés de l'écran principal (visibles dans le drawer Réglages).
-
-**Layout résultant** — `Index.tsx` :
-- Plus de `<TopBar>`.
-- `mood-ambient` + `dark-water` (à ajouter pour cohérence avec l'accueil) en fond.
-- Visage centré (inchangé).
-- Sous-titres juste sous le visage.
-- Composer en bas (inchangé).
-- Petit bouton ⋯ flottant en haut-droite pour les contrôles.
-
----
-
-## Détails techniques
-
-- **Fichiers créés** : `src/apn/Subtitles.tsx`, `src/apn/wakeGreeting.ts`.
-- **Fichiers édités** :
-  - `src/pages/Index.tsx` — retire `<TopBar>`, ajoute `<Subtitles>`, ajoute `<MoreMenu>` flottant + `Sheet`, modifie le tap-to-wake pour appeler `wakeWithGreeting`.
-  - `src/apn/useAPN.ts` — expose `lastInteractionAt` et la fonction `speak(text)` permettant d'injecter une réponse synthétique dans la timeline (sans appel IA).
-- **Aucun changement DB**, aucune nouvelle dépendance.
-- **Tokens HSL sémantiques** uniquement (`--mood`, `--foreground`).
-- **Voix** : Lily (verrouillée serveur) — inchangée.
-- **Accessibilité** : sous-titres en `aria-live="polite"`, animations désactivées via `prefers-reduced-motion`.
-
-## Question préalable
-
-- Pour les contrôles (Journal, Réglages, Logout) après suppression du TopBar : préférez-vous **un bouton ⋯ flottant** en haut-droite, ou un **geste invisible** (long-press sur le visage) ? Je propose le bouton ⋯ par défaut pour la découvrabilité.
+- Le bouton clavier doit-il **aussi disparaître** quand Lucy parle (pour un écran totalement vide pendant la parole), ou rester visible en permanence ? Je propose : **rester visible mais encore plus pâle** (opacity 0.08) pendant la parole.
