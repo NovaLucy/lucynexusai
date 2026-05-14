@@ -10,6 +10,7 @@ import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
 
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
+import { useReality } from "@/apn/useReality";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/apn/auth/useAuth";
 import { matchCommand } from "@/apn/voiceCommands";
