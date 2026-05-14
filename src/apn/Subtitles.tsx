@@ -1,14 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
-  /** Full assistant text being streamed (used as live caption while voice catches up). */
-  streamingText?: string;
   /** Sentence currently being spoken by Lucy (synchronized with TTS). */
   currentSentence?: string | null;
-  /** Fallback caption when Lucy is silent. */
-  idleCaption?: string;
-  /** True while Lucy is producing speech. */
-  speaking?: boolean;
 }
 
 /**
