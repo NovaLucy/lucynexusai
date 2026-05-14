@@ -13,8 +13,7 @@ function usePermission(name: "microphone" | "camera"): [PermState, () => Promise
     const onChange = () => { if (!cancelled && status) setState(status.state as PermState); };
     (async () => {
       try {
-        // @ts-expect-error — PermissionName union doesn't always include camera/microphone in TS lib
-        status = await navigator.permissions?.query({ name });
+        status = await navigator.permissions?.query({ name: name as PermissionName });
         if (!status || cancelled) return;
         setState(status.state as PermState);
         status.addEventListener?.("change", onChange);
