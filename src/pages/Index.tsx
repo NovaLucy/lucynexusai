@@ -591,6 +591,8 @@ export default function Index() {
         nowLabel={`${reality.now.weekday} ${reality.now.dateLabel}, ${String(reality.now.hour).padStart(2, "0")}h${String(reality.now.minute).padStart(2, "0")}`}
         kbdAutoOpen={kbdAutoOpen}
         setKbdAutoOpen={setKbdAutoOpen}
+        wakeWordEnabled={wakeWordEnabled}
+        setWakeWordEnabled={setWakeWordEnabled}
       />
       <MedicalReport
         open={reportOpen}
