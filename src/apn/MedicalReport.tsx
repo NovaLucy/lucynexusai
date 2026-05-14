@@ -103,6 +103,7 @@ export default function MedicalReport({ open, onOpenChange, sessionId }: Props) 
               </pre>
             </>
           )}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
