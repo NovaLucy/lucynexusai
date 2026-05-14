@@ -43,10 +43,24 @@ export async function initNative() {
 
 // Lightweight haptic helpers — silent no-op on web.
 export async function tapLight() {
-  if (!isNative) return;
+  if (!isNative) {
+    try { (navigator as any).vibrate?.(10); } catch {}
+    return;
+  }
   try { await Haptics.impact({ style: ImpactStyle.Light }); } catch {}
 }
 export async function tapMedium() {
-  if (!isNative) return;
+  if (!isNative) {
+    try { (navigator as any).vibrate?.(20); } catch {}
+    return;
+  }
   try { await Haptics.impact({ style: ImpactStyle.Medium }); } catch {}
+}
+// Micro-pulse — used to "tick" with the voice (per sentence / accent).
+export async function tapMicro() {
+  if (!isNative) {
+    try { (navigator as any).vibrate?.(6); } catch {}
+    return;
+  }
+  try { await Haptics.impact({ style: ImpactStyle.Light }); } catch {}
 }
