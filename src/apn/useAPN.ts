@@ -419,10 +419,29 @@ export function useAPN() {
     setCaption((c) => (c === "…" ? "Je suis là." : c));
   }, []);
 
+  const clearSession = useCallback(async () => {
+    if (!userId) {
+      setMessages([]);
+      return;
+    }
+    setSyncStatus("saving");
+    try {
+      const { error } = await supabase.from("apn_memory").delete().eq("user_id", userId);
+      if (error) throw error;
+      setMessages([]);
+      setSyncStatus("saved");
+      setLastSyncAt(Date.now());
+    } catch (e) {
+      console.warn("clearSession failed", e);
+      setSyncStatus("error");
+    }
+  }, [userId]);
+
   return {
     sessionId: sessionId.current,
     messages, state, mood, caption, error, profile, persona,
     syncStatus, lastSyncAt,
     send, setStandby, setListeningState, setSleeping, wake,
+    clearSession,
   };
 }
