@@ -71,7 +71,7 @@ export default function FirstRunIntro() {
 
         <button
           onClick={close}
-          className="ghost-btn mt-6 w-full py-2.5 rounded-full text-xs uppercase tracking-[0.25em]"
+          className="ghost-btn hud-label mt-6 w-full py-2.5 rounded-full"
         >
           C'est parti
         </button>
