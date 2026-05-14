@@ -405,6 +405,10 @@ export function useAPN() {
       }
 
       try {
+        // Recall relevant memories in parallel with the UI transition
+        const memoriesPromise = recallMemories(text || "Regarde.");
+        const recalled = await memoriesPromise;
+
         let full = "";
         let started = false;
         const assistantId = crypto.randomUUID();
@@ -422,13 +426,14 @@ export function useAPN() {
             );
           }
           hooks.onAssistantChunk?.(full);
-        }, reality);
+        }, reality, recalled);
         const m = inferMood(full);
         setMoodAndApply(m);
         setMessages((p) => p.map((mm) => (mm.id === assistantId ? { ...mm, mood: m } : mm)));
-        // Persist & profile update are background — don't await, keep dialogue snappy
+        // Persist + profile + memory extraction in background — keep dialogue snappy
         void persist(text || "Regarde.", full, m, null, reality, reality?.facing);
         void updateProfileAsync(text || "Regarde.", full);
+        void extractMemoriesAsync(text || "Regarde.", full);
         hooks.onAssistantEnd?.(full, m);
       } catch (e: any) {
         const msg = e?.message ?? "Erreur inconnue";
@@ -437,7 +442,7 @@ export function useAPN() {
         setCaption("Je suis prêt.");
       }
     },
-    [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync, userId],
+    [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync, recallMemories, extractMemoriesAsync, userId],
   );
 
   const setStandby = useCallback(() => {
