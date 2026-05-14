@@ -70,6 +70,9 @@ export default function Index() {
   const [shockKey, setShockKey] = useState(0);
   const [hasInteracted, setHasInteracted] = useState(false);
   const orbTapRef = useRef<{ ts: number; timer: number | null }>({ ts: 0, timer: null });
+  const pttRef = useRef<{ holdTimer: number | null; engaged: boolean; pointerId: number | null }>({
+    holdTimer: null, engaged: false, pointerId: null,
+  });
   const [ritual, setRitual] = useState<"open" | "close" | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const lastWakeGreetingAtRef = useRef<number>(0);
@@ -475,6 +478,18 @@ export default function Index() {
         <AmbientChars />
       </div>
 
+      {/* Journal shortcut — top-left, dark-matter water surface */}
+      <div className="absolute top-0 left-0 z-30 pt-safe pl-safe">
+        <button
+          onClick={() => { setHasInteracted(true); setLogOpen(true); }}
+          className="dark-matter m-3 w-9 h-9 rounded-full flex items-center justify-center text-foreground/70 hover:text-foreground/95 transition-colors"
+          aria-label="Ouvrir le journal"
+          title="Journal"
+        >
+          <Archive className="w-4 h-4" />
+        </button>
+      </div>
+
       {/* Floating menu (replaces TopBar) — discreet access to controls */}
       <div className="absolute top-0 right-0 z-30 pt-safe pr-safe">
         <button
@@ -556,15 +571,66 @@ export default function Index() {
               )}
 
               <div
-                className="absolute inset-0 cursor-pointer flex items-center justify-center"
+                className="absolute inset-0 cursor-pointer flex items-center justify-center select-none"
+                style={{ touchAction: "manipulation" }}
+                onPointerDown={(e) => {
+                  pttRef.current.engaged = false;
+                  pttRef.current.pointerId = e.pointerId;
+                  if (pttRef.current.holdTimer) window.clearTimeout(pttRef.current.holdTimer);
+                  pttRef.current.holdTimer = window.setTimeout(() => {
+                    // Long-press → push-to-talk
+                    pttRef.current.engaged = true;
+                    if (orbTapRef.current.timer) {
+                      window.clearTimeout(orbTapRef.current.timer);
+                      orbTapRef.current.timer = null;
+                    }
+                    setHasInteracted(true);
+                    tapMedium();
+                    markActivity();
+                    if (apn.state === "sleeping") apn.wake();
+                    if (!voice.listening && voice.sttSupported) {
+                      handleMicRef.current();
+                    }
+                  }, 380);
+                }}
+                onPointerUp={() => {
+                  if (pttRef.current.holdTimer) {
+                    window.clearTimeout(pttRef.current.holdTimer);
+                    pttRef.current.holdTimer = null;
+                  }
+                  if (pttRef.current.engaged) {
+                    pttRef.current.engaged = false;
+                    pttRef.current.pointerId = null;
+                    // Relâche → finalise l'écoute
+                    if (voice.listening) {
+                      tapLight();
+                      voice.stopListening();
+                      apn.setListeningState(false);
+                    }
+                  }
+                }}
+                onPointerCancel={() => {
+                  if (pttRef.current.holdTimer) {
+                    window.clearTimeout(pttRef.current.holdTimer);
+                    pttRef.current.holdTimer = null;
+                  }
+                  if (pttRef.current.engaged) {
+                    pttRef.current.engaged = false;
+                    if (voice.listening) {
+                      voice.stopListening();
+                      apn.setListeningState(false);
+                    }
+                  }
+                }}
                 onClick={() => {
+                  // Si on vient de relâcher un long-press, on ignore le click
+                  if (pttRef.current.engaged) { pttRef.current.engaged = false; return; }
                   setHasInteracted(true);
                   const now = Date.now();
                   const isDouble = now - orbTapRef.current.ts < 300;
                   orbTapRef.current.ts = now;
 
                   if (isDouble) {
-                    // Double-tap → ouvre le composer (mode écriture)
                     if (orbTapRef.current.timer) {
                       window.clearTimeout(orbTapRef.current.timer);
                       orbTapRef.current.timer = null;
@@ -574,7 +640,6 @@ export default function Index() {
                     return;
                   }
 
-                  // Single-tap : on attend 280ms pour distinguer du double
                   orbTapRef.current.timer = window.setTimeout(() => {
                     orbTapRef.current.timer = null;
                     tapMedium();
@@ -599,7 +664,7 @@ export default function Index() {
                   }, 280);
                 }}
                 role="button"
-                aria-label="Parler à Lucy (double-tap pour écrire)"
+                aria-label="Parler à Lucy (maintenir pour push-to-talk, double-tap pour écrire)"
               >
                 <div className="relative" style={{ width: "85%", height: "85%" }}>
                   <VolumetricFace
