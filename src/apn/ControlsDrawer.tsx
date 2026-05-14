@@ -104,6 +104,15 @@ interface Props {
   onOpenReport: () => void;
   faceFrequency: "off" | "rare" | "normal" | "often";
   setFaceFrequency: (v: "off" | "rare" | "normal" | "often") => void;
+  // Réalité
+  locEnabled: boolean;
+  setLocEnabled: (v: boolean) => void;
+  camEnabled: boolean;
+  setCamEnabled: (v: boolean) => void;
+  facing: "user" | "environment";
+  setFacing: (v: "user" | "environment") => void;
+  locationLabel?: string | null;
+  nowLabel?: string | null;
 }
 
 function AsciiSlider({
