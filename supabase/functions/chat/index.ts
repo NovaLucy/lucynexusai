@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, profile, persona, isFirstContact, localHour, hasImage, reality, isAmbientGlance, memories } = await req.json();
+    const { messages, profile, persona, isFirstContact, localHour, hasImage, reality, isAmbientGlance, memories, healthContext } = await req.json();
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages must be an array" }), {
         status: 400,
