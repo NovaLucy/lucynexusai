@@ -524,30 +524,48 @@ export default function Index() {
               <div
                 className="absolute inset-0 cursor-pointer flex items-center justify-center"
                 onClick={() => {
-                  tapMedium();
-                  triggerFace(5400, "reveal");
-                  if (apn.state === "sleeping") {
-                    playRitual("open");
-                    wakeWithGreeting();
-                    lastActivityRef.current = Date.now();
-                    // Start listening shortly after the greeting begins
-                    window.setTimeout(() => {
-                      if (!voice.listening && voice.sttSupported) handleMicRef.current();
-                    }, 1400);
+                  setHasInteracted(true);
+                  const now = Date.now();
+                  const isDouble = now - orbTapRef.current.ts < 300;
+                  orbTapRef.current.ts = now;
+
+                  if (isDouble) {
+                    // Double-tap → ouvre le composer (mode écriture)
+                    if (orbTapRef.current.timer) {
+                      window.clearTimeout(orbTapRef.current.timer);
+                      orbTapRef.current.timer = null;
+                    }
+                    tapMedium();
+                    setComposerOpen(true);
                     return;
                   }
-                  if (apn.state === "speaking" || apn.state === "thinking") {
-                    voice.stop();
-                    apn.setStandby();
-                    return;
-                  }
-                  // standby or listening — toggle mic
-                  markActivity();
-                  setShockKey((k) => k + 1);
-                  handleMicRef.current();
+
+                  // Single-tap : on attend 280ms pour distinguer du double
+                  orbTapRef.current.timer = window.setTimeout(() => {
+                    orbTapRef.current.timer = null;
+                    tapMedium();
+                    triggerFace(5400, "reveal");
+                    if (apn.state === "sleeping") {
+                      playRitual("open");
+                      wakeWithGreeting();
+                      lastActivityRef.current = Date.now();
+                      window.setTimeout(() => {
+                        if (!voice.listening && voice.sttSupported) handleMicRef.current();
+                      }, 1400);
+                      return;
+                    }
+                    if (apn.state === "speaking" || apn.state === "thinking") {
+                      voice.stop();
+                      apn.setStandby();
+                      return;
+                    }
+                    markActivity();
+                    setShockKey((k) => k + 1);
+                    handleMicRef.current();
+                  }, 280);
                 }}
                 role="button"
-                aria-label="Parler à Lucy"
+                aria-label="Parler à Lucy (double-tap pour écrire)"
               >
                 <div className="relative" style={{ width: "85%", height: "85%" }}>
                   <VolumetricFace
