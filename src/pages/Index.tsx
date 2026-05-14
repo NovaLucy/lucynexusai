@@ -20,7 +20,7 @@ import { matchCommand } from "@/apn/voiceCommands";
 import { useAPN } from "@/apn/useAPN";
 import { supabase } from "@/integrations/supabase/client";
 import { useVoice } from "@/apn/useVoice";
-import { tapLight, tapMedium } from "@/native";
+import { tapLight, tapMedium, tapMicro } from "@/native";
 import { cancelAllAPNNotifs, scheduleAPNFollowup } from "@/apn/notifications";
 
 const MEDICAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apn-medical`;
