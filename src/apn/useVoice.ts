@@ -215,6 +215,21 @@ export function useVoice() {
     },
   });
 
+  useEffect(() => {
+    if (isNative) return;
+    const connected = !!(scribe as any).isConnected;
+    if (wasConnectedRef.current && !connected && listening) {
+      const out = (finalRef.current || liveRef.current).trim();
+      finalRef.current = "";
+      liveRef.current = "";
+      setListening(false);
+      if (out) onResultRef.current?.(out);
+      else onErrorRef.current?.("Micro coupé — touche pour reprendre");
+    }
+    wasConnectedRef.current = connected;
+  }, [(scribe as any).isConnected, listening]);
+
+
   const startListening = useCallback(
     (
       onResult: (text: string) => void,
