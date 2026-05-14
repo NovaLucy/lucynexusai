@@ -195,8 +195,15 @@ export default function Index() {
 
   // (vision intégrée au composer : la photo est envoyée avec le message via handleSend)
 
+  const lastAssistantRef = useRef<string>("");
+  useEffect(() => {
+    const last = [...apn.messages].reverse().find((m) => m.role === "assistant");
+    if (last?.content) lastAssistantRef.current = last.content;
+  }, [apn.messages]);
+
   const runCommand = (cmd: ReturnType<typeof matchCommand>) => {
     if (!cmd) return false;
+    const ack = cmd.ack;
     switch (cmd.action.type) {
       case "medical": setMedicalMode(cmd.action.value); break;
       case "voice":   voice.setPrefs({ ...voice.prefs, enabled: cmd.action.value }); break;
@@ -204,6 +211,35 @@ export default function Index() {
       case "openLog": setLogOpen(true); break;
       case "openCfg": setCfgOpen(true); break;
       case "report":  setReportOpen(true); break;
+      case "wakeWord": setWakeWordEnabled(cmd.action.value); break;
+      case "rateDelta": {
+        const next = Math.max(0.6, Math.min(1.6, voice.prefs.rate + cmd.action.value));
+        voice.setPrefs({ ...voice.prefs, rate: next });
+        break;
+      }
+      case "pitchDelta": {
+        const next = Math.max(0.6, Math.min(1.6, voice.prefs.pitch + cmd.action.value));
+        voice.setPrefs({ ...voice.prefs, pitch: next });
+        break;
+      }
+      case "stopSpeaking": voice.stop(); apn.setStandby(); break;
+      case "repeat": {
+        if (lastAssistantRef.current) speakLineRef.current?.(lastAssistantRef.current);
+        break;
+      }
+      case "shorter": {
+        toast.info("Lucy parlera plus court");
+        // Le system prompt encourage déjà la concision ; flag éphémère côté UI suffit.
+        break;
+      }
+      case "clearChat": {
+        apn.clearSession();
+        break;
+      }
+    }
+    if (ack && voice.prefs.enabled) {
+      // Petit mot prononcé en confirmation
+      window.setTimeout(() => speakLineRef.current?.(ack), 80);
     }
     toast.success(`⌘ ${cmd.label}`);
     return true;
