@@ -50,6 +50,9 @@ export default function Index() {
   const [faceFrequency, setFaceFrequency] = useState<FaceFrequency>(() => {
     try { return (localStorage.getItem("apn:face") as FaceFrequency) ?? "normal"; } catch { return "normal"; }
   });
+  const [kbdAutoOpen, setKbdAutoOpen] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("lucy:kbdAutoOpen") ?? "true"); } catch { return true; }
+  });
   const speakingPinned = apn.state === "speaking" || apn.state === "thinking";
   const { trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
@@ -63,10 +66,7 @@ export default function Index() {
   const [currentSentence, setCurrentSentence] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Streaming assistant text (for live caption before first full sentence)
-  const lastAssistant = apn.messages.length > 0 && apn.messages[apn.messages.length - 1].role === "assistant"
-    ? apn.messages[apn.messages.length - 1].content
-    : "";
+  // (subtitles only show the currently-spoken sentence — no streamed/idle text)
 
   // Mark activity (resets sleep timer + wakes if sleeping)
   const wakeRef = useRef<() => void>(() => {});
@@ -97,8 +97,9 @@ export default function Index() {
     try { localStorage.setItem("lucy:composer", JSON.stringify(composerOpen)); } catch {}
   }, [composerOpen]);
 
-  // Auto-open composer when user starts typing on a physical keyboard
+  // Auto-open composer when user starts typing on a physical keyboard (opt-out via settings)
   useEffect(() => {
+    if (!kbdAutoOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (composerOpen) return;
       const t = e.target as HTMLElement | null;
@@ -110,7 +111,19 @@ export default function Index() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [composerOpen]);
+  }, [composerOpen, kbdAutoOpen]);
+
+  useEffect(() => {
+    try { localStorage.setItem("lucy:kbdAutoOpen", JSON.stringify(kbdAutoOpen)); } catch {}
+  }, [kbdAutoOpen]);
+
+  // Mute mic when Lucy is speaking — avoids self-listening / parasites
+  useEffect(() => {
+    if (speakingPinned && voice.listening) {
+      voice.stopListening();
+      apn.setListeningState(false);
+    }
+  }, [speakingPinned, voice, apn]);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
@@ -462,12 +475,7 @@ export default function Index() {
             </div>
           </div>
 
-          <Subtitles
-            streamingText={lastAssistant}
-            currentSentence={currentSentence}
-            idleCaption={apn.caption}
-            speaking={speakingPinned}
-          />
+          <Subtitles currentSentence={currentSentence} />
         </section>
       </div>
 
@@ -550,6 +558,8 @@ export default function Index() {
         setFacing={reality.setFacing}
         locationLabel={reality.location?.label ?? (reality.location ? `${reality.location.lat.toFixed(2)}, ${reality.location.lon.toFixed(2)}` : null)}
         nowLabel={`${reality.now.weekday} ${reality.now.dateLabel}, ${String(reality.now.hour).padStart(2, "0")}h${String(reality.now.minute).padStart(2, "0")}`}
+        kbdAutoOpen={kbdAutoOpen}
+        setKbdAutoOpen={setKbdAutoOpen}
       />
       <MedicalReport
         open={reportOpen}
