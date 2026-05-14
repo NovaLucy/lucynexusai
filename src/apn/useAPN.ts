@@ -262,7 +262,20 @@ export function useAPN() {
     } catch { return []; }
   }, []);
 
-  const extractMemoriesAsync = useCallback(async (userMsg: string, apnMsg: string) => {
+  const fetchHealthContext = useCallback(async (): Promise<any | null> => {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.access_token) return null;
+      const r = await fetch(MEDICAL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: await getAuthHeader() },
+        body: JSON.stringify({ action: "context" }),
+      });
+      if (!r.ok) return null;
+      const j = await r.json();
+      return j?.context ?? null;
+    } catch { return null; }
+  }, []);
     try {
       const { data: sess } = await supabase.auth.getSession();
       if (!sess.session?.access_token) return;
