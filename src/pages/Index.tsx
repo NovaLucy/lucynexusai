@@ -257,12 +257,10 @@ export default function Index() {
       <div className="relative z-10 flex-1 flex min-h-0">
         <section className="relative flex-1 flex flex-col min-w-0">
 
-          <div className="relative flex-1 flex items-center justify-center p-4 sm:p-6 z-10">
+          <div className="relative flex-1 flex items-center justify-center z-10">
             <div
-              className="relative"
+              className="relative w-full h-full"
               style={{
-                width: isMobile ? "min(86dvh, 98%)" : "min(92dvh, 96%)",
-                aspectRatio: "1 / 1",
                 maxHeight: "100%",
               }}
             >
