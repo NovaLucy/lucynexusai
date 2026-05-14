@@ -13,6 +13,7 @@ interface Props {
   state: AgentState;
   speaking?: boolean;
   intensity?: number;
+  medicalMode?: boolean;
 }
 
 function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0): THREE.Color {
