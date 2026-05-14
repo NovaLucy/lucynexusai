@@ -55,21 +55,22 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId }:
         )}
         <button onClick={onClose} className="bracket-btn shrink-0">[X]</button>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3 scrollbar-thin font-mono text-sm">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3 scrollbar-thin">
         {messages.length === 0 && (
-          <p className="text-foreground/40 italic text-xs">// no exchanges yet</p>
+          <p className="hud-label">// no exchanges yet</p>
         )}
         {messages.map((m) => {
           const c = m.mood ? MOOD_HSL[m.mood] : null;
-          const tag = m.role === "user" ? "[USR" : "[APN";
-          const sep = m.role === "user" ? ">" : "$";
+          const tag = m.role === "user" ? "USR" : "APN";
           return (
             <div
               key={m.id}
               className="dark-matter !border-0 relative rounded-xl p-3 mb-3"
             >
-              <div className="text-[10px] uppercase tracking-widest text-foreground/40 mb-0.5">
-                {tag} {fmt(m.ts)}] {sep}
+              <div className="hud-label mb-1.5 flex items-center gap-2">
+                <span>{tag}</span>
+                <span className="opacity-40">·</span>
+                <span className="opacity-70">{fmt(m.ts)}</span>
               </div>
               {m.imageDataUrl && (
                 <img
@@ -78,7 +79,7 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId }:
                   className="my-1 max-w-[220px] max-h-[160px] object-cover rounded-md"
                 />
               )}
-              <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{m.content}</div>
+              <div className="chat-text whitespace-pre-wrap text-sm">{m.content}</div>
             </div>
           );
         })}
