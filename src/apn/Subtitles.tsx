@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
-  /** Sentence currently being spoken by Lucy (synchronized with TTS). */
+  /** Sentence currently being spoken by Lucy. Null = fade out. */
   currentSentence?: string | null;
 }
 
 /**
  * Subtitles synchronized with Lucy's voice.
- * Only renders the sentence currently being spoken — word-by-word reveal.
- * When Lucy is silent, nothing shows: only the dark-matter orb stays visible.
+ * Word-by-word reveal while a sentence is active, soft fade-out when it clears.
  */
 export default function Subtitles({ currentSentence }: Props) {
   const reduced = useMemo(
@@ -18,36 +17,65 @@ export default function Subtitles({ currentSentence }: Props) {
     [],
   );
 
-  const text = (currentSentence && currentSentence.trim()) || "";
-  const words = useMemo(() => text.split(/(\s+)/), [text]);
+  // Hold the last non-empty sentence so we can fade it out gracefully.
+  const [held, setHeld] = useState<string>("");
+  const [visible, setVisible] = useState(false);
+  const fadeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const t = (currentSentence ?? "").trim();
+    if (t) {
+      if (fadeRef.current) {
+        window.clearTimeout(fadeRef.current);
+        fadeRef.current = null;
+      }
+      setHeld(t);
+      setVisible(true);
+    } else {
+      setVisible(false);
+      if (fadeRef.current) window.clearTimeout(fadeRef.current);
+      fadeRef.current = window.setTimeout(() => setHeld(""), 900);
+    }
+    return () => {
+      if (fadeRef.current) window.clearTimeout(fadeRef.current);
+    };
+  }, [currentSentence]);
+
+  const words = useMemo(() => held.split(/(\s+)/), [held]);
   const [revealed, setRevealed] = useState(0);
   const keyRef = useRef("");
 
   useEffect(() => {
-    keyRef.current = text;
-    if (!text || reduced) {
+    keyRef.current = held;
+    if (!held || reduced) {
       setRevealed(words.length);
       return;
     }
     setRevealed(0);
     let i = 0;
     const tick = () => {
-      if (keyRef.current !== text) return;
+      if (keyRef.current !== held) return;
       i += 1;
       setRevealed(i);
       if (i < words.length) window.setTimeout(tick, 38);
     };
     const id = window.setTimeout(tick, 30);
     return () => window.clearTimeout(id);
-  }, [text, words.length, reduced]);
+  }, [held, words.length, reduced]);
 
-  if (!text) return null;
+  if (!held) return null;
 
   return (
     <div
       className="px-6 pb-4 text-center relative z-20"
       aria-live="polite"
       aria-atomic="true"
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(6px)",
+        transition: "opacity 800ms ease, transform 800ms ease",
+        filter: visible ? "blur(0)" : "blur(2px)",
+      }}
     >
       <p
         className="font-light tracking-tight text-foreground/90 text-xl sm:text-2xl md:text-3xl leading-snug max-w-3xl mx-auto"

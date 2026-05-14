@@ -323,6 +323,8 @@ export default function Index() {
     tapMedium();
     apn.setListeningState(true);
     setComposerText("");
+    let lastBuzz = 0;
+    let lastLen = 0;
     const ok = voice.startListening(
       (text) => {
         apn.setListeningState(false);
@@ -331,6 +333,13 @@ export default function Index() {
       },
       (partial) => {
         setComposerText(partial);
+        // Soft micro-vibration on user voice activity (throttled, only on growth)
+        const now = Date.now();
+        if (partial.length > lastLen && now - lastBuzz > 110) {
+          lastBuzz = now;
+          lastLen = partial.length;
+          tapMicro();
+        }
       },
       (errMsg) => {
         apn.setListeningState(false);
