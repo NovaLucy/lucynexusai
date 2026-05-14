@@ -218,6 +218,7 @@ function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, 
     lines.push("\nUtilise ces infos avec naturel, jamais en les récitant. Ignore ce qui n'est pas pertinent maintenant.");
     p += lines.join("\n");
   }
+  p += buildHealthBlock(healthContext);
   return p;
 }
 
