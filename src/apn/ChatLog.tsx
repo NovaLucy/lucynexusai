@@ -45,24 +45,30 @@ export default function ChatLog({ messages, open, onClose }: Props) {
           return (
             <div
               key={m.id}
-              className="pl-3 border-l-2"
-              style={{
-                borderColor: m.role === "user"
-                  ? c ? `hsl(${c.h} ${c.s}% ${c.l}%)` : "hsl(var(--mood))"
-                  : "hsl(var(--fg))",
-              }}
+              className="dark-matter relative rounded-xl p-3 mb-3"
             >
-              <div className="text-[10px] uppercase tracking-widest text-foreground/40 mb-0.5">
+              <div
+                className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full"
+                style={{
+                  background: m.role === "user"
+                    ? c ? `hsl(${c.h} ${c.s}% ${c.l}%)` : "hsl(var(--mood))"
+                    : "hsl(var(--fg))",
+                  boxShadow: `0 0 8px ${m.role === "user"
+                    ? c ? `hsl(${c.h} ${c.s}% ${c.l}%)` : "hsl(var(--mood))"
+                    : "hsl(var(--fg))"}`,
+                }}
+              />
+              <div className="text-[10px] uppercase tracking-widest text-foreground/40 mb-0.5 pl-3">
                 {tag} {fmt(m.ts)}] {sep}
               </div>
               {m.imageDataUrl && (
                 <img
                   src={m.imageDataUrl}
                   alt="Vue partagée"
-                  className="my-1 max-w-[220px] max-h-[160px] object-cover rounded-md border border-foreground/10"
+                  className="my-1 max-w-[220px] max-h-[160px] object-cover rounded-md border border-foreground/10 ml-3"
                 />
               )}
-              <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{m.content}</div>
+              <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed pl-3">{m.content}</div>
             </div>
           );
         })}
