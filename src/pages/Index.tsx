@@ -558,6 +558,8 @@ export default function Index() {
         setFacing={reality.setFacing}
         locationLabel={reality.location?.label ?? (reality.location ? `${reality.location.lat.toFixed(2)}, ${reality.location.lon.toFixed(2)}` : null)}
         nowLabel={`${reality.now.weekday} ${reality.now.dateLabel}, ${String(reality.now.hour).padStart(2, "0")}h${String(reality.now.minute).padStart(2, "0")}`}
+        kbdAutoOpen={kbdAutoOpen}
+        setKbdAutoOpen={setKbdAutoOpen}
       />
       <MedicalReport
         open={reportOpen}
