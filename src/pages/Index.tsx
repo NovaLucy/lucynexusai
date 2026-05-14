@@ -419,6 +419,40 @@ export default function Index() {
 
   const loops = apn.profile?.open_loops?.length ?? 0;
 
+  // Swipe-up depuis le bas → ouvre le composer (geste mobile naturel)
+  useEffect(() => {
+    let startY = 0;
+    let startX = 0;
+    let active = false;
+    const onStart = (e: TouchEvent) => {
+      if (composerOpen) return;
+      const t = e.touches[0];
+      if (!t) return;
+      // ne déclenche que si le doigt part dans la moitié basse de l'écran
+      if (t.clientY < window.innerHeight * 0.55) return;
+      startY = t.clientY; startX = t.clientX; active = true;
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!active) return;
+      active = false;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dy = startY - t.clientY;
+      const dx = Math.abs(t.clientX - startX);
+      if (dy > 60 && dx < 50) {
+        setHasInteracted(true);
+        setComposerOpen(true);
+        tapLight();
+      }
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [composerOpen]);
+
   if (auth.status === "loading") {
     return (
       <main className="w-screen h-screen bg-background flex items-center justify-center">
