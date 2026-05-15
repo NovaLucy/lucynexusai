@@ -73,8 +73,8 @@ function PermissionsSection() {
   return (
     <section className="space-y-3">
       <h3 className="hud-label">PERMISSIONS</h3>
-      <PermRow label="MICROPHONE" hint="pour parler à APN à voix haute" state={mic} onRequest={askMic} />
-      <PermRow label="CAMÉRA" hint="pour qu'APN voie ce que tu regardes" state={cam} onRequest={askCam} />
+      <PermRow label="MICROPHONE" hint="pour parler à Lucy à voix haute" state={mic} onRequest={askMic} />
+      <PermRow label="CAMÉRA" hint="pour que Lucy voie ce que tu regardes" state={cam} onRequest={askCam} />
     </section>
   );
 }
@@ -209,7 +209,7 @@ export default function ControlsDrawer(p: Props) {
           <section className="space-y-3">
             <h3 className="hud-label">RÉALITÉ</h3>
             <p className="text-[10px] text-foreground/40">
-              // ancre APN dans ton temps, ton lieu, ton environnement
+              // ancre Lucy dans ton temps, ton lieu, ton environnement
             </p>
             <div className="text-[10px] text-foreground/60 font-mono">
               <div>⏱  {p.nowLabel ?? "—"}</div>
@@ -288,12 +288,12 @@ export default function ControlsDrawer(p: Props) {
               [📋 COMPTE-RENDU]
             </button>
             <p className="text-[10px] text-foreground/40 italic">
-              APN n'est pas un médecin. Aide à la préparation, pas un diagnostic.
+              Lucy n'est pas médecin. Elle aide à préparer, pas à diagnostiquer.
             </p>
           </section>
 
           <section className="space-y-3">
-            <h3 className="hud-label">VISAGE APN</h3>
+            <h3 className="hud-label">VISAGE DE LUCY</h3>
             <div className="grid grid-cols-4 gap-1">
               {(["off", "rare", "normal", "often"] as const).map((f) => (
                 <button
@@ -305,7 +305,7 @@ export default function ControlsDrawer(p: Props) {
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-foreground/40">// apparitions ASCII du visage d'APN dans l'orbe</p>
+            <p className="text-[10px] text-foreground/40">// apparitions ASCII du visage de Lucy dans l'orbe</p>
           </section>
 
           <section className="space-y-4">

@@ -151,7 +151,7 @@ export default function Lock({ onUnlock, onReset }: Props) {
     <div className="fixed inset-0 z-50 bg-black text-foreground flex items-center justify-center p-4">
       <div className="w-full max-w-md ascii-border-dashed p-5 space-y-4 font-mono">
         <div className="text-center">
-          <div className="text-xs uppercase tracking-widest mood-text">[APN] VERROUILLÉ</div>
+          <div className="text-xs uppercase tracking-widest mood-text">[LUCY] VERROUILLÉE</div>
           <div className="text-[10px] text-foreground/50 mt-1">
             Visage + voix + PIN
           </div>

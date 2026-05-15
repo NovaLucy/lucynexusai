@@ -160,7 +160,7 @@ export default function Index() {
     if (!topic) return;
     cancelAllAPNNotifs().then(() => {
       scheduleAPNFollowup({
-        title: "APN",
+        title: "Lucy",
         body: `Tu pensais à "${topic}". Tu en es où ?`,
         inMinutes: 60 * 4,
       });
@@ -459,7 +459,7 @@ export default function Index() {
   if (auth.status === "loading") {
     return (
       <main className="w-screen h-screen bg-background flex items-center justify-center">
-        <div className="font-mono text-xs text-foreground/40">[APN] init…</div>
+        <div className="font-mono text-xs text-foreground/40">[LUCY] init…</div>
       </main>
     );
   }
@@ -471,7 +471,7 @@ export default function Index() {
       data-state={apn.state}
       data-mood={apn.mood}
     >
-      <h1 className="sr-only">APN — Agent Personnel Numérique</h1>
+      <h1 className="sr-only">Lucy — Présence personnelle</h1>
 
       {/* Ambient floating chars background (subtle) */}
       <div className="absolute inset-0 pointer-events-none z-[1] opacity-[0.08]">
@@ -736,6 +736,7 @@ export default function Index() {
           toast.success("Session effacée");
         }}
         sessionId={apn.sessionId}
+        userName={apn.profile?.display_name ?? null}
       />
       <ControlsDrawer
         open={cfgOpen}
@@ -753,7 +754,7 @@ export default function Index() {
         setIntensity={setIntensity}
         pixelRatio={pixelRatio}
         setPixelRatio={setPixelRatio}
-        onTestVoice={() => voice.speak("Bonjour. Je suis APN. Je suis prêt à t'aider.")}
+        onTestVoice={() => voice.speak(`Bonjour${apn.profile?.display_name ? " " + apn.profile.display_name.split(/\s+/)[0] : ""}. Je suis Lucy. Je suis là.`)}
         onStopVoice={() => voice.stop()}
         polishEnabled={polishEnabled}
         setPolishEnabled={setPolishEnabled}
