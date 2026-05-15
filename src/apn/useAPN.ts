@@ -69,7 +69,7 @@ export function useAPN() {
   const [state, setState] = useState<AgentState>("standby");
   const [mood, setMood] = useState<Mood>("calm");
   const [error, setError] = useState<string | null>(null);
-  const [caption, setCaption] = useState<string>("Je suis prêt.");
+  const [caption, setCaption] = useState<string>("Je suis là.");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [persona, setPersona] = useState<Persona | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
@@ -465,7 +465,7 @@ export function useAPN() {
         const msg = e?.message ?? "Erreur inconnue";
         setError(msg);
         setState("standby");
-        setCaption("Je suis prêt.");
+        setCaption("Je suis là.");
       }
     },
     [messages, persist, setMoodAndApply, streamFromGateway, updateProfileAsync, recallMemories, extractMemoriesAsync, fetchHealthContext, userId],
@@ -473,11 +473,11 @@ export function useAPN() {
 
   const setStandby = useCallback(() => {
     setState("standby");
-    setCaption("Je suis prêt.");
+    setCaption("Je suis là.");
   }, []);
   const setListeningState = useCallback((on: boolean) => {
     setState(on ? "listening" : "standby");
-    setCaption(on ? "Je t'écoute…" : "Je suis prêt.");
+    setCaption(on ? "Je t'écoute…" : "Je suis là.");
   }, []);
   const setSleeping = useCallback(() => {
     setState("sleeping");
