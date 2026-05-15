@@ -196,7 +196,7 @@ export default function Face({
         className={`pointer-events-${onClick ? "auto" : "none"} flex items-center justify-center ${interactive} ${className}`}
         onClick={onClick}
         role={onClick ? "button" : undefined}
-        aria-label={onClick ? "APN" : undefined}
+        aria-label={onClick ? "Lucy" : undefined}
         style={breathStyle}
       >
         <span className={wrapperBase} style={{ filter: "drop-shadow(0 0 12px hsl(var(--mood) / 0.55))" }}>
@@ -211,7 +211,7 @@ export default function Face({
       className={`inline-flex items-center ${wrapperBase} ${interactive} ${className}`}
       onClick={onClick}
       role={onClick ? "button" : undefined}
-      aria-label={onClick ? "APN" : undefined}
+      aria-label={onClick ? "Lucy" : undefined}
       style={breathStyle}
     >
       {inner}

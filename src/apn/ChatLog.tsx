@@ -8,7 +8,14 @@ interface Props {
   onClose: () => void;
   onClear?: () => void | Promise<void>;
   sessionId?: string;
+  userName?: string | null;
 }
+
+const firstName = (n?: string | null) => {
+  if (!n) return "Toi";
+  const first = n.trim().split(/\s+/)[0];
+  return first.charAt(0).toUpperCase() + first.slice(1);
+};
 
 const fmt = (ts: number) => {
   const d = new Date(ts);
@@ -16,7 +23,8 @@ const fmt = (ts: number) => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
-export default function ChatLog({ messages, open, onClose, onClear, sessionId }: Props) {
+export default function ChatLog({ messages, open, onClose, onClear, sessionId, userName }: Props) {
+  const userTag = firstName(userName);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,7 +36,7 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId }:
   const handleClear = async () => {
     if (!onClear) return;
     const ok = window.confirm(
-      "Effacer toute la session ? Les échanges seront supprimés du serveur. Ton APN te reconnaîtra à la prochaine connexion mais sans souvenirs.",
+      "Effacer toute la session ? Les échanges seront supprimés du serveur. Lucy te reconnaîtra à la prochaine connexion, mais sans souvenirs.",
     );
     if (!ok) return;
     await onClear();
@@ -42,8 +50,8 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId }:
         <span className="dm-text shrink-0 text-sm">Journal</span>
         <span className="text-foreground/15 hidden sm:inline truncate flex-1">{"·".repeat(40)}</span>
         <span className="text-foreground/15 sm:hidden flex-1" />
-        <span className="hud-label tabular-nums shrink-0 hidden sm:inline" title="Identifiant APN — identique sur toutes tes interfaces">
-          APN·{idShort}
+        <span className="hud-label tabular-nums shrink-0 hidden sm:inline" title="Identifiant Lucy — identique sur toutes tes interfaces">
+          LUCY·{idShort}
         </span>
         <span className="hud-label tabular-nums shrink-0">
           {String(messages.length).padStart(3, "0")} MSG
@@ -61,7 +69,7 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId }:
         )}
         {messages.map((m) => {
           const c = m.mood ? MOOD_HSL[m.mood] : null;
-          const tag = m.role === "user" ? "USR" : "APN";
+          const tag = m.role === "user" ? userTag : "Lucy";
           return (
             <div
               key={m.id}

@@ -201,7 +201,7 @@ export default function Logout() {
             <section className="space-y-2">
               <h2 className="text-base font-medium text-foreground/90">Qui est Lucy</h2>
               <p className="text-foreground/70">
-                Lucy est ton APN — Agent Personnel Numérique. Une présence singulière, qui
+                Lucy est ta présence personnelle. Une voix singulière, qui
                 garde une mémoire propre à toi et adapte sa voix, son humeur et son regard
                 à ton contexte.
               </p>

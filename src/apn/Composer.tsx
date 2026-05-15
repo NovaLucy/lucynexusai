@@ -124,7 +124,7 @@ export default function Composer({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={attachedImage ? "Dis-moi quoi regarder…" : "Commencer à parler…"}
-            aria-label="Message à APN"
+            aria-label="Message à Lucy"
             autoComplete="off"
             autoCapitalize="sentences"
             enterKeyHint="send"

@@ -84,7 +84,7 @@ export default function HUDFrame({ state, mood, msgCount, topic, loops = 0 }: Pr
 
       {/* Top center label */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 mood-text">
-        ◇ APN.CORE / {state.toUpperCase()} ◇
+        ◇ LUCY.CORE / {state.toUpperCase()} ◇
       </div>
 
       {/* Top-left telemetry */}
