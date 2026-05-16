@@ -117,6 +117,8 @@ interface Props {
   setKbdAutoOpen: (v: boolean) => void;
   wakeWordEnabled: boolean;
   setWakeWordEnabled: (v: boolean) => void;
+  turnTakingEnabled: boolean;
+  setTurnTakingEnabled: (v: boolean) => void;
 }
 
 function AsciiSlider({
