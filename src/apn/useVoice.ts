@@ -363,6 +363,7 @@ export function useVoice() {
     prefs, setPrefs,
     voices, supported,
     speak, stop, speakSentence,
+    speaking, setOnSpeechEnd,
     sttSupported, listening, startListening, stopListening,
   };
 }
