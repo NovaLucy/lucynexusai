@@ -273,6 +273,13 @@ export default function ControlsDrawer(p: Props) {
               [{p.wakeWordEnabled ? "X" : " "}] MOT D'ÉVEIL « LUCY »
             </button>
             <p className="text-[10px] text-foreground/40">// dis "Lucy" en veille pour la réveiller (micro toujours à l'écoute)</p>
+            <button
+              onClick={() => p.setTurnTakingEnabled(!p.turnTakingEnabled)}
+              className={`bracket-btn w-full text-left ${p.turnTakingEnabled ? "bracket-btn-active" : ""}`}
+            >
+              [{p.turnTakingEnabled ? "X" : " "}] CONVERSATION CONTINUE
+            </button>
+            <p className="text-[10px] text-foreground/40">// après chaque réponse, Lucy reste à l'écoute ~6s pour ta réplique</p>
           </section>
 
           <section className="space-y-3">
