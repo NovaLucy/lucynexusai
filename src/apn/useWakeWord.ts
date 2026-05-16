@@ -25,9 +25,11 @@ type Options = {
   patterns?: RegExp[];
   /** ms de cool-down entre deux déclenchements pour éviter les rebonds */
   cooldownMs?: number;
+  /** Quand Lucy parle, on suspend l'écoute du wake-word (évite l'auto-déclenchement). */
+  muteWhileSpeaking?: boolean;
 };
 
-export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 4000 }: Options) {
+export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 2200, muteWhileSpeaking = false }: Options) {
   const recRef = useRef<any>(null);
   const lastFireRef = useRef<number>(0);
   const restartTimerRef = useRef<number | null>(null);
