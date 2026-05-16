@@ -113,8 +113,16 @@ export function useVoice() {
     try { window.speechSynthesis.cancel(); } catch {}
     const chunks = chunkText(text);
     let i = 0;
+    bumpSpeak(+1);
+    let ended = false;
+    const finish = () => {
+      if (ended) return;
+      ended = true;
+      bumpSpeak(-1);
+      onEnd?.();
+    };
     const sayNext = () => {
-      if (i >= chunks.length) { onEnd?.(); return; }
+      if (i >= chunks.length) { finish(); return; }
       const u = new SpeechSynthesisUtterance(chunks[i++]);
       u.lang = "fr-FR";
       u.rate = prefs.rate;
@@ -128,7 +136,7 @@ export function useVoice() {
       window.speechSynthesis.speak(u);
     };
     sayNext();
-  }, [supported, prefs, voices]);
+  }, [supported, prefs, voices, bumpSpeak]);
 
   /**
    * Speak a single sentence without stopping previous speech.
@@ -137,6 +145,7 @@ export function useVoice() {
   const speakSentence = useCallback(
     (text: string): void => {
       if (!prefs.enabled || !text.trim() || !supported) return;
+      bumpSpeak(+1);
       const u = new SpeechSynthesisUtterance(text.trim());
       u.lang = "fr-FR";
       u.rate = prefs.rate;
@@ -145,9 +154,13 @@ export function useVoice() {
         ?? voices.find((v) => v.lang?.toLowerCase().startsWith("fr"))
         ?? voices[0];
       if (v) u.voice = v;
+      let ended = false;
+      const finish = () => { if (ended) return; ended = true; bumpSpeak(-1); };
+      u.onend = finish;
+      u.onerror = finish;
       window.speechSynthesis.speak(u);
     },
-    [supported, prefs, voices],
+    [supported, prefs, voices, bumpSpeak],
   );
 
   const speak = useCallback(
@@ -157,11 +170,18 @@ export function useVoice() {
         return;
       }
       if (isNative) {
-        nativeSpeak(text, { rate: prefs.rate, pitch: prefs.pitch }).then(() => onEnd?.());
+        bumpSpeak(+1);
+        nativeSpeak(text, { rate: prefs.rate, pitch: prefs.pitch }).then(() => {
+          bumpSpeak(-1);
+          onEnd?.();
+        });
         return;
       }
       // Web: try ElevenLabs (high quality). Fallback to speechSynthesis.
       stop();
+      bumpSpeak(+1);
+      let settled = false;
+      const finish = () => { if (settled) return; settled = true; bumpSpeak(-1); onEnd?.(); };
       (async () => {
         try {
           const resp = await fetch(TTS_URL, {
@@ -175,6 +195,8 @@ export function useVoice() {
           if (!resp.ok) throw new Error(`tts ${resp.status}`);
           const ct = resp.headers.get("content-type") || "";
           if (ct.includes("application/json")) {
+            // Fallback path will manage its own speak counter
+            bumpSpeak(-1); settled = true;
             speakWebFallback(text, onEnd);
             return;
           }
@@ -184,16 +206,20 @@ export function useVoice() {
           const a = new Audio(url);
           a.preload = "auto";
           audioRef.current = a;
-          a.onended = () => { onEnd?.(); };
-          a.onerror = () => { speakWebFallback(text, onEnd); };
+          a.onended = finish;
+          a.onerror = () => {
+            bumpSpeak(-1); settled = true;
+            speakWebFallback(text, onEnd);
+          };
           await a.play();
         } catch (e) {
           console.warn("ElevenLabs TTS failed, falling back", e);
+          bumpSpeak(-1); settled = true;
           speakWebFallback(text, onEnd);
         }
       })();
     },
-    [prefs, stop, speakWebFallback],
+    [prefs, stop, speakWebFallback, bumpSpeak],
   );
 
   // STT — ElevenLabs Scribe Realtime (web), native plugin on mobile
