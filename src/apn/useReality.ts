@@ -239,5 +239,6 @@ export function useReality() {
     facing, setFacing,
     captureAmbient,
     snapshot,
+    recentlyChanged,
   };
 }
