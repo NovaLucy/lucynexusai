@@ -319,10 +319,17 @@ export default function Index() {
   }, [voice]);
   speakLineRef.current = speakLine;
 
-  const wakeWithGreeting = useCallback(() => {
+  const wakeWithGreeting = useCallback((opts?: { skipGreeting?: boolean; thenListen?: boolean }) => {
     apn.wake();
+    if (opts?.skipGreeting) {
+      if (opts.thenListen) handleMicRef.current();
+      return;
+    }
     const now = Date.now();
-    if (now - lastWakeGreetingAtRef.current < 30_000) return;
+    if (now - lastWakeGreetingAtRef.current < 30_000) {
+      if (opts?.thenListen) handleMicRef.current();
+      return;
+    }
     lastWakeGreetingAtRef.current = now;
     const line = pickWakeGreeting({
       lastInteractionAt: lastActivityRef.current,
@@ -330,19 +337,33 @@ export default function Index() {
       lastTopic: apn.profile?.last_topic ?? null,
     });
     speakLine(line);
-  }, [apn, speakLine]);
-  wakeRef.current = wakeWithGreeting;
+    if (opts?.thenListen) {
+      // Chaîne sur la fin de TTS (au lieu d'un setTimeout fragile)
+      voice.setOnSpeechEnd?.(() => {
+        if (!voice.listening && voice.sttSupported) handleMicRef.current();
+      });
+    }
+  }, [apn, speakLine, voice]);
+  wakeRef.current = () => wakeWithGreeting();
 
-  // Wake-word "Lucy" — n'écoute qu'en veille / sommeil pour éviter les conflits micro
+  // Wake-word "Lucy" — peut aussi servir de barge-in pendant que Lucy parle.
   const wakeWordActive =
     wakeWordEnabled &&
-    (apn.state === "standby" || apn.state === "sleeping") &&
-    !voice.listening;
+    !voice.listening &&
+    (apn.state === "standby" || apn.state === "sleeping" || voice.speaking);
   useWakeWord({
     enabled: wakeWordActive,
+    muteWhileSpeaking: false, // on veut l'inverse : écouter pendant qu'elle parle pour le barge-in
     onWake: () => {
       tapLight();
-      wakeWithGreeting();
+      if (voice.speaking) {
+        // Barge-in : couper Lucy + ouvrir le micro tout de suite
+        voice.stop();
+        apn.setStandby();
+        if (!voice.listening && voice.sttSupported) handleMicRef.current();
+        return;
+      }
+      wakeWithGreeting({ thenListen: true });
     },
   });
 
