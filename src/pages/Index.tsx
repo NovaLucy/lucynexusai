@@ -227,6 +227,7 @@ export default function Index() {
       case "openCfg": setCfgOpen(true); break;
       case "report":  setReportOpen(true); break;
       case "wakeWord": setWakeWordEnabled(cmd.action.value); break;
+      case "turnTaking": setTurnTakingEnabled(cmd.action.value); break;
       case "rateDelta": {
         const next = Math.max(0.6, Math.min(1.6, voice.prefs.rate + cmd.action.value));
         voice.setPrefs({ ...voice.prefs, rate: next });
@@ -244,7 +245,6 @@ export default function Index() {
       }
       case "shorter": {
         toast.info("Lucy parlera plus court");
-        // Le system prompt encourage déjà la concision ; flag éphémère côté UI suffit.
         break;
       }
       case "clearChat": {
@@ -252,8 +252,9 @@ export default function Index() {
         break;
       }
     }
+    // Trace dans le journal local — Lucy a entendu
+    apn.appendLocalAssistant?.(`(${cmd.label.toLowerCase()})`);
     if (ack && voice.prefs.enabled) {
-      // Petit mot prononcé en confirmation
       window.setTimeout(() => speakLineRef.current?.(ack), 80);
     }
     toast.success(`⌘ ${cmd.label}`);
