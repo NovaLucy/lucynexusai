@@ -506,11 +506,20 @@ export function useAPN() {
     }
   }, [userId]);
 
+  const appendLocalAssistant = useCallback((text: string, m?: Mood) => {
+    if (!text.trim()) return;
+    setMessages((p) => [
+      ...p,
+      { id: crypto.randomUUID(), role: "assistant", content: text.trim(), ts: Date.now(), mood: m },
+    ]);
+  }, []);
+
   return {
     sessionId: sessionId.current,
     messages, state, mood, caption, error, profile, persona,
     syncStatus, lastSyncAt,
     send, setStandby, setListeningState, setSleeping, wake,
     clearSession, setMedicalContext,
+    setMoodAndApply, appendLocalAssistant,
   };
 }
