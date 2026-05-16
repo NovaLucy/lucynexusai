@@ -344,6 +344,9 @@ export function useAPN() {
             vision: !!(reality?.ambientImageDataUrl || reality?.facing || imageDataUrl),
             location: !!reality?.location,
             mic: !!reality?.micActive,
+            recentlyChanged: reality?.recentlyChanged ?? undefined,
+            turnTaking: !!reality?.turnTaking,
+            bargedIn: !!reality?.bargedIn,
           },
         }),
       });
