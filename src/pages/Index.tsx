@@ -62,6 +62,13 @@ export default function Index() {
   useEffect(() => {
     try { localStorage.setItem("lucy:wakeWord", JSON.stringify(wakeWordEnabled)); } catch {}
   }, [wakeWordEnabled]);
+  const [turnTakingEnabled, setTurnTakingEnabled] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("lucy:turnTaking") ?? "true"); } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("lucy:turnTaking", JSON.stringify(turnTakingEnabled)); } catch {}
+  }, [turnTakingEnabled]);
+  const [turnTakingActive, setTurnTakingActive] = useState(false);
   const speakingPinned = apn.state === "speaking" || apn.state === "thinking";
   const { trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
