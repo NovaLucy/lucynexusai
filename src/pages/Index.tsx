@@ -62,6 +62,13 @@ export default function Index() {
   useEffect(() => {
     try { localStorage.setItem("lucy:wakeWord", JSON.stringify(wakeWordEnabled)); } catch {}
   }, [wakeWordEnabled]);
+  const [turnTakingEnabled, setTurnTakingEnabled] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem("lucy:turnTaking") ?? "true"); } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("lucy:turnTaking", JSON.stringify(turnTakingEnabled)); } catch {}
+  }, [turnTakingEnabled]);
+  const [turnTakingActive, setTurnTakingActive] = useState(false);
   const speakingPinned = apn.state === "speaking" || apn.state === "thinking";
   const { trigger: triggerFace } = useFaceApparition(faceFrequency, {
     pinned: speakingPinned && faceFrequency !== "off",
@@ -220,6 +227,7 @@ export default function Index() {
       case "openCfg": setCfgOpen(true); break;
       case "report":  setReportOpen(true); break;
       case "wakeWord": setWakeWordEnabled(cmd.action.value); break;
+      case "turnTaking": setTurnTakingEnabled(cmd.action.value); break;
       case "rateDelta": {
         const next = Math.max(0.6, Math.min(1.6, voice.prefs.rate + cmd.action.value));
         voice.setPrefs({ ...voice.prefs, rate: next });
@@ -237,7 +245,6 @@ export default function Index() {
       }
       case "shorter": {
         toast.info("Lucy parlera plus court");
-        // Le system prompt encourage déjà la concision ; flag éphémère côté UI suffit.
         break;
       }
       case "clearChat": {
@@ -245,8 +252,9 @@ export default function Index() {
         break;
       }
     }
+    // Trace dans le journal local — Lucy a entendu
+    apn.appendLocalAssistant?.(`(${cmd.label.toLowerCase()})`);
     if (ack && voice.prefs.enabled) {
-      // Petit mot prononcé en confirmation
       window.setTimeout(() => speakLineRef.current?.(ack), 80);
     }
     toast.success(`⌘ ${cmd.label}`);
@@ -311,10 +319,17 @@ export default function Index() {
   }, [voice]);
   speakLineRef.current = speakLine;
 
-  const wakeWithGreeting = useCallback(() => {
+  const wakeWithGreeting = useCallback((opts?: { skipGreeting?: boolean; thenListen?: boolean }) => {
     apn.wake();
+    if (opts?.skipGreeting) {
+      if (opts.thenListen) handleMicRef.current();
+      return;
+    }
     const now = Date.now();
-    if (now - lastWakeGreetingAtRef.current < 30_000) return;
+    if (now - lastWakeGreetingAtRef.current < 30_000) {
+      if (opts?.thenListen) handleMicRef.current();
+      return;
+    }
     lastWakeGreetingAtRef.current = now;
     const line = pickWakeGreeting({
       lastInteractionAt: lastActivityRef.current,
@@ -322,19 +337,33 @@ export default function Index() {
       lastTopic: apn.profile?.last_topic ?? null,
     });
     speakLine(line);
-  }, [apn, speakLine]);
-  wakeRef.current = wakeWithGreeting;
+    if (opts?.thenListen) {
+      // Chaîne sur la fin de TTS (au lieu d'un setTimeout fragile)
+      voice.setOnSpeechEnd?.(() => {
+        if (!voice.listening && voice.sttSupported) handleMicRef.current();
+      });
+    }
+  }, [apn, speakLine, voice]);
+  wakeRef.current = () => wakeWithGreeting();
 
-  // Wake-word "Lucy" — n'écoute qu'en veille / sommeil pour éviter les conflits micro
+  // Wake-word "Lucy" — peut aussi servir de barge-in pendant que Lucy parle.
   const wakeWordActive =
     wakeWordEnabled &&
-    (apn.state === "standby" || apn.state === "sleeping") &&
-    !voice.listening;
+    !voice.listening &&
+    (apn.state === "standby" || apn.state === "sleeping" || voice.speaking);
   useWakeWord({
     enabled: wakeWordActive,
+    muteWhileSpeaking: false, // on veut l'inverse : écouter pendant qu'elle parle pour le barge-in
     onWake: () => {
       tapLight();
-      wakeWithGreeting();
+      if (voice.speaking) {
+        // Barge-in : couper Lucy + ouvrir le micro tout de suite
+        voice.stop();
+        apn.setStandby();
+        if (!voice.listening && voice.sttSupported) handleMicRef.current();
+        return;
+      }
+      wakeWithGreeting({ thenListen: true });
     },
   });
 
@@ -352,6 +381,8 @@ export default function Index() {
     if (text) extractHealth(text);
     const realitySnap = await reality.snapshot(!imageDataUrl);
     (realitySnap as any).micActive = !!(voice.prefs?.enabled && voice.sttSupported);
+    (realitySnap as any).recentlyChanged = reality.recentlyChanged;
+    (realitySnap as any).turnTaking = turnTakingEnabled;
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantChunk: (fullSoFar) => {
@@ -359,20 +390,34 @@ export default function Index() {
       },
       onAssistantEnd: (full) => {
         flushTTS(full, true);
+        const finishTurn = () => {
+          apn.setStandby();
+          playRitual("close");
+          // Tour de parole : laisse une fenêtre courte d'écoute
+          if (turnTakingEnabled && voice.sttSupported && !voice.listening) {
+            setTurnTakingActive(true);
+            const open = window.setTimeout(() => {
+              setTurnTakingActive(false);
+              if (!voice.listening && apn.state !== "speaking") {
+                handleMicRef.current();
+              }
+            }, 350);
+            // si l'utilisateur tape avant, on annule
+            window.setTimeout(() => { window.clearTimeout(open); setTurnTakingActive(false); }, 6500);
+          }
+        };
         if (voice.prefs.enabled) {
           if (ttsSpokenRef.current === 0) {
             voice.speak(full, () => {
-              apn.setStandby();
-              playRitual("close");
               scheduleSubtitleFade(full, Math.max(3500, full.length * 80));
+              finishTurn();
             });
           } else {
-            apn.setStandby();
-            playRitual("close");
+            // Chaîne sur la fin de la file TTS streamée
+            voice.setOnSpeechEnd?.(finishTurn);
           }
         } else {
-          apn.setStandby();
-          playRitual("close");
+          finishTurn();
         }
         setBusy(false);
       },

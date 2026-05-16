@@ -344,6 +344,9 @@ export function useAPN() {
             vision: !!(reality?.ambientImageDataUrl || reality?.facing || imageDataUrl),
             location: !!reality?.location,
             mic: !!reality?.micActive,
+            recentlyChanged: reality?.recentlyChanged ?? undefined,
+            turnTaking: !!reality?.turnTaking,
+            bargedIn: !!reality?.bargedIn,
           },
         }),
       });
@@ -506,11 +509,20 @@ export function useAPN() {
     }
   }, [userId]);
 
+  const appendLocalAssistant = useCallback((text: string, m?: Mood) => {
+    if (!text.trim()) return;
+    setMessages((p) => [
+      ...p,
+      { id: crypto.randomUUID(), role: "assistant", content: text.trim(), ts: Date.now(), mood: m },
+    ]);
+  }, []);
+
   return {
     sessionId: sessionId.current,
     messages, state, mood, caption, error, profile, persona,
     syncStatus, lastSyncAt,
     send, setStandby, setListeningState, setSleeping, wake,
     clearSession, setMedicalContext,
+    setMoodAndApply, appendLocalAssistant,
   };
 }

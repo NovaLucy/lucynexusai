@@ -14,7 +14,8 @@ export type CommandAction =
   | { type: "stopSpeaking" }
   | { type: "repeat" }
   | { type: "shorter" }
-  | { type: "clearChat" };
+  | { type: "clearChat" }
+  | { type: "turnTaking"; value: boolean };
 
 export interface MatchedCommand {
   action: CommandAction;
@@ -37,10 +38,16 @@ export function matchCommand(input: string): MatchedCommand | null {
   if (!t) return null;
   const s = t.replace(/^(apn|hey apn|ok apn|lucy|lucie|hey lucy|ok lucy)\s*/i, "");
 
-  // Stop / silence immédiat
-  if (/^(tais\s*toi|chut|silence|stop|arrete|arrete\s+toi)\b/.test(s) ||
+  // Stop / silence / barge-in
+  if (/^(tais\s*toi|chut|silence|stop|arrete|arrete\s+toi|interromps\s*toi|interromp)\b/.test(s) ||
       /(coupe|stop)\s+(ta\s+)?voix/.test(s))
     return { action: { type: "stopSpeaking" }, label: "Silence", ack: "ok" };
+
+  // Tour de parole continu
+  if (/(ne\s+m['e]?\s*attends\s+pas|arrete\s+d['e]?\s*attendre|ne\s+reste\s+pas\s+a\s+l['e]coute)/.test(s))
+    return { action: { type: "turnTaking", value: false }, label: "Conversation continue désactivée", ack: "ok" };
+  if (/(reste\s+a\s+l['e]coute|continue\s+a\s+m['e]?\s*ecouter|ecoute\s+moi\s+encore|on\s+continue\s+a\s+parler)/.test(s))
+    return { action: { type: "turnTaking", value: true }, label: "Conversation continue activée", ack: "ok" };
 
   // Voix on/off
   if (/(coupe|desactive|enleve|mute).*(voix|son)|parle\s+plus|parle\s+pas/.test(s))

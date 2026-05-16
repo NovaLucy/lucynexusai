@@ -98,12 +98,27 @@ export function useReality() {
   const [location, setLocation] = useState<RealityLocation | null>(null);
   const [now, setNow] = useState<RealityNow>(() => computeNow());
 
+  // Track capability toggles → "vient juste de changer" signal pour Lucy
+  const [recentlyChanged, setRecentlyChanged] = useState<{ loc?: number; cam?: number }>({});
+  const markChange = useCallback((k: "loc" | "cam") => {
+    setRecentlyChanged((p) => ({ ...p, [k]: Date.now() }));
+    window.setTimeout(() => {
+      setRecentlyChanged((p) => {
+        const v = p[k];
+        if (v && Date.now() - v >= 60_000) {
+          const n = { ...p }; delete n[k]; return n;
+        }
+        return p;
+      });
+    }, 65_000);
+  }, []);
+
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Persist
-  useEffect(() => { try { localStorage.setItem(LS_LOC, JSON.stringify(locEnabled)); } catch {} }, [locEnabled]);
-  useEffect(() => { try { localStorage.setItem(LS_CAM, JSON.stringify(camEnabled)); } catch {} }, [camEnabled]);
+  useEffect(() => { try { localStorage.setItem(LS_LOC, JSON.stringify(locEnabled)); } catch {} markChange("loc"); }, [locEnabled, markChange]);
+  useEffect(() => { try { localStorage.setItem(LS_CAM, JSON.stringify(camEnabled)); } catch {} markChange("cam"); }, [camEnabled, markChange]);
   useEffect(() => { try { localStorage.setItem(LS_FACING, facing); } catch {} }, [facing]);
 
   // Tick clock every 30s
@@ -224,5 +239,6 @@ export function useReality() {
     facing, setFacing,
     captureAmbient,
     snapshot,
+    recentlyChanged,
   };
 }

@@ -25,9 +25,11 @@ type Options = {
   patterns?: RegExp[];
   /** ms de cool-down entre deux déclenchements pour éviter les rebonds */
   cooldownMs?: number;
+  /** Quand Lucy parle, on suspend l'écoute du wake-word (évite l'auto-déclenchement). */
+  muteWhileSpeaking?: boolean;
 };
 
-export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 4000 }: Options) {
+export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 2200, muteWhileSpeaking = false }: Options) {
   const recRef = useRef<any>(null);
   const lastFireRef = useRef<number>(0);
   const restartTimerRef = useRef<number | null>(null);
@@ -38,7 +40,7 @@ export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 4000 }: Op
   useEffect(() => { patternsRef.current = patterns ?? DEFAULT_PATTERNS; }, [patterns]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || muteWhileSpeaking) return;
     const SR: any =
       (typeof window !== "undefined" &&
         ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
@@ -105,5 +107,5 @@ export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 4000 }: Op
       try { recRef.current?.abort?.(); } catch {}
       recRef.current = null;
     };
-  }, [enabled, cooldownMs]);
+  }, [enabled, cooldownMs, muteWhileSpeaking]);
 }

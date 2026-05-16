@@ -6,13 +6,17 @@ interface Props {
   micActive: boolean;
   /** Hide once the user has interacted at least once. */
   hide?: boolean;
+  /** Fenêtre de tour de parole ouverte (auto-listen passif). */
+  turnTakingActive?: boolean;
+  /** Lucy parle en ce moment — l'utilisateur peut l'interrompre. */
+  speaking?: boolean;
 }
 
 /**
  * Contextual one-line hint shown softly under the orb.
  * Tells the user what they can do *right now*.
  */
-export default function HintLine({ state, micActive, hide }: Props) {
+export default function HintLine({ state, micActive, hide, turnTakingActive, speaking }: Props) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -26,10 +30,12 @@ export default function HintLine({ state, micActive, hide }: Props) {
   if (!visible) return null;
 
   let text = "";
-  if (micActive) text = "je t'écoute…";
-  else if (state === "sleeping") text = "touche pour me réveiller";
+  if (speaking) text = "parle, je m'arrête";
+  else if (micActive) text = "je t'écoute…";
+  else if (turnTakingActive) text = "je t'écoute encore…";
+  else if (state === "sleeping") text = "touche l'orbe ou dis « Lucy »";
   else if (state === "speaking" || state === "thinking") text = "";
-  else text = "touche pour parler · tape pour écrire";
+  else text = "touche pour parler · maintiens pour push-to-talk";
 
   if (!text) return null;
 
