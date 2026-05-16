@@ -381,6 +381,8 @@ export default function Index() {
     if (text) extractHealth(text);
     const realitySnap = await reality.snapshot(!imageDataUrl);
     (realitySnap as any).micActive = !!(voice.prefs?.enabled && voice.sttSupported);
+    (realitySnap as any).recentlyChanged = reality.recentlyChanged;
+    (realitySnap as any).turnTaking = turnTakingEnabled;
     await apn.send(text, {
       onAssistantStart: () => {},
       onAssistantChunk: (fullSoFar) => {
@@ -388,20 +390,34 @@ export default function Index() {
       },
       onAssistantEnd: (full) => {
         flushTTS(full, true);
+        const finishTurn = () => {
+          apn.setStandby();
+          playRitual("close");
+          // Tour de parole : laisse une fenêtre courte d'écoute
+          if (turnTakingEnabled && voice.sttSupported && !voice.listening) {
+            setTurnTakingActive(true);
+            const open = window.setTimeout(() => {
+              setTurnTakingActive(false);
+              if (!voice.listening && apn.state !== "speaking") {
+                handleMicRef.current();
+              }
+            }, 350);
+            // si l'utilisateur tape avant, on annule
+            window.setTimeout(() => { window.clearTimeout(open); setTurnTakingActive(false); }, 6500);
+          }
+        };
         if (voice.prefs.enabled) {
           if (ttsSpokenRef.current === 0) {
             voice.speak(full, () => {
-              apn.setStandby();
-              playRitual("close");
               scheduleSubtitleFade(full, Math.max(3500, full.length * 80));
+              finishTurn();
             });
           } else {
-            apn.setStandby();
-            playRitual("close");
+            // Chaîne sur la fin de la file TTS streamée
+            voice.setOnSpeechEnd?.(finishTurn);
           }
         } else {
-          apn.setStandby();
-          playRitual("close");
+          finishTurn();
         }
         setBusy(false);
       },
