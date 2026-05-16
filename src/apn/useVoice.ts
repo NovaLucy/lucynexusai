@@ -66,6 +66,28 @@ export function useVoice() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
 
+  // Speaking state — global indicator that Lucy is currently producing audio.
+  // Increments for each in-flight utterance; decrements on end. > 0 ⇒ speaking.
+  const speakingCountRef = useRef(0);
+  const [speaking, setSpeaking] = useState(false);
+  const onSpeechEndRef = useRef<(() => void) | undefined>();
+  const bumpSpeak = useCallback((delta: number) => {
+    speakingCountRef.current = Math.max(0, speakingCountRef.current + delta);
+    const now = speakingCountRef.current > 0;
+    setSpeaking((prev) => (prev !== now ? now : prev));
+    if (!now) {
+      // fire once when fully idle
+      const cb = onSpeechEndRef.current;
+      if (cb) {
+        onSpeechEndRef.current = undefined;
+        try { cb(); } catch {}
+      }
+    }
+  }, []);
+  const setOnSpeechEnd = useCallback((cb?: () => void) => {
+    onSpeechEndRef.current = cb;
+  }, []);
+
   const stop = useCallback(() => {
     nativeStopTTS();
     if (supported) {
@@ -80,6 +102,10 @@ export function useVoice() {
       try { URL.revokeObjectURL(audioUrlRef.current); } catch {}
       audioUrlRef.current = null;
     }
+    // Hard reset speaking state
+    speakingCountRef.current = 0;
+    setSpeaking(false);
+    onSpeechEndRef.current = undefined;
   }, [supported]);
 
   const speakWebFallback = useCallback((text: string, onEnd?: () => void) => {
