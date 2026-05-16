@@ -40,7 +40,7 @@ export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 2200, mute
   useEffect(() => { patternsRef.current = patterns ?? DEFAULT_PATTERNS; }, [patterns]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || muteWhileSpeaking) return;
     const SR: any =
       (typeof window !== "undefined" &&
         ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
