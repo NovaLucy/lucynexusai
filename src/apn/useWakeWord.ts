@@ -107,5 +107,5 @@ export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 2200, mute
       try { recRef.current?.abort?.(); } catch {}
       recRef.current = null;
     };
-  }, [enabled, cooldownMs]);
+  }, [enabled, cooldownMs, muteWhileSpeaking]);
 }
