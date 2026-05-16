@@ -14,7 +14,8 @@ export type CommandAction =
   | { type: "stopSpeaking" }
   | { type: "repeat" }
   | { type: "shorter" }
-  | { type: "clearChat" };
+  | { type: "clearChat" }
+  | { type: "turnTaking"; value: boolean };
 
 export interface MatchedCommand {
   action: CommandAction;
