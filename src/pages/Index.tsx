@@ -138,13 +138,13 @@ export default function Index() {
     try { localStorage.setItem("lucy:kbdAutoOpen", JSON.stringify(kbdAutoOpen)); } catch {}
   }, [kbdAutoOpen]);
 
-  // Mute mic when Lucy is speaking — avoids self-listening / parasites
+  // Mute mic while Lucy is producing audio (state OR streaming TTS queue still draining).
   useEffect(() => {
-    if (speakingPinned && voice.listening) {
+    if ((speakingPinned || voice.speaking) && voice.listening) {
       voice.stopListening();
       apn.setListeningState(false);
     }
-  }, [speakingPinned, voice, apn]);
+  }, [speakingPinned, voice.speaking, voice, apn]);
 
   useEffect(() => {
     try { localStorage.setItem("apn:polish", JSON.stringify(polishEnabled)); } catch {}
@@ -393,17 +393,26 @@ export default function Index() {
         const finishTurn = () => {
           apn.setStandby();
           playRitual("close");
-          // Tour de parole : laisse une fenêtre courte d'écoute
+          // Tour de parole : fenêtre 6s d'écoute passive. Le micro ne s'ouvre QUE si
+          // rien d'autre n'arrive entre-temps (utilisateur tape, Lucy repart en thinking…).
           if (turnTakingEnabled && voice.sttSupported && !voice.listening) {
             setTurnTakingActive(true);
-            const open = window.setTimeout(() => {
+            const cancel = () => {
+              window.clearTimeout(openTimer);
+              window.clearTimeout(closeTimer);
               setTurnTakingActive(false);
-              if (!voice.listening && apn.state !== "speaking") {
+              document.removeEventListener("keydown", cancel);
+              document.removeEventListener("pointerdown", cancel);
+            };
+            const openTimer = window.setTimeout(() => {
+              cancel();
+              if (!voice.listening && apn.state !== "speaking" && apn.state !== "thinking") {
                 handleMicRef.current();
               }
-            }, 350);
-            // si l'utilisateur tape avant, on annule
-            window.setTimeout(() => { window.clearTimeout(open); setTurnTakingActive(false); }, 6500);
+            }, 900);
+            const closeTimer = window.setTimeout(cancel, 6000);
+            document.addEventListener("keydown", cancel, { once: true });
+            document.addEventListener("pointerdown", cancel, { once: true });
           }
         };
         if (voice.prefs.enabled) {
@@ -729,6 +738,8 @@ export default function Index() {
             state={apn.state}
             micActive={voice.listening}
             hide={hasInteracted || composerOpen}
+            turnTakingActive={turnTakingActive}
+            speaking={voice.speaking}
           />
         </section>
       </div>
