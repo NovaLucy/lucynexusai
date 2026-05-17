@@ -140,27 +140,60 @@ export function useVoice() {
 
   /**
    * Speak a single sentence without stopping previous speech.
-   * Designed for streaming dialogue — queues utterances sequentially.
+   * Designed for streaming dialogue — queues utterances sequentially via ElevenLabs,
+   * with a graceful fallback to the browser SpeechSynthesis if TTS is unavailable.
    */
+  const ttsQueueRef = useRef<Promise<void>>(Promise.resolve());
   const speakSentence = useCallback(
     (text: string): void => {
-      if (!prefs.enabled || !text.trim() || !supported) return;
+      const sentence = text.trim();
+      if (!prefs.enabled || !sentence) return;
+
+      if (isNative) {
+        bumpSpeak(+1);
+        ttsQueueRef.current = ttsQueueRef.current
+          .then(() => nativeSpeak(sentence, { rate: prefs.rate, pitch: prefs.pitch }))
+          .catch(() => {})
+          .finally(() => bumpSpeak(-1));
+        return;
+      }
+
       bumpSpeak(+1);
-      const u = new SpeechSynthesisUtterance(text.trim());
-      u.lang = "fr-FR";
-      u.rate = prefs.rate;
-      u.pitch = prefs.pitch;
-      const v = voices.find((v) => v.voiceURI === prefs.voiceURI)
-        ?? voices.find((v) => v.lang?.toLowerCase().startsWith("fr"))
-        ?? voices[0];
-      if (v) u.voice = v;
-      let ended = false;
-      const finish = () => { if (ended) return; ended = true; bumpSpeak(-1); };
-      u.onend = finish;
-      u.onerror = finish;
-      window.speechSynthesis.speak(u);
+      ttsQueueRef.current = ttsQueueRef.current
+        .then(async () => {
+          try {
+            const resp = await fetch(TTS_URL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({ text: sentence, speed: prefs.rate }),
+            });
+            if (!resp.ok) throw new Error(`tts ${resp.status}`);
+            const ct = resp.headers.get("content-type") || "";
+            if (ct.includes("application/json")) {
+              await new Promise<void>((res) => speakWebFallback(sentence, () => res()));
+              return;
+            }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = new Audio(url);
+            audioRef.current = a;
+            audioUrlRef.current = url;
+            await new Promise<void>((res) => {
+              a.onended = () => res();
+              a.onerror = () => res();
+              a.play().catch(() => res());
+            });
+            try { URL.revokeObjectURL(url); } catch {}
+          } catch {
+            await new Promise<void>((res) => speakWebFallback(sentence, () => res()));
+          }
+        })
+        .finally(() => bumpSpeak(-1));
     },
-    [supported, prefs, voices, bumpSpeak],
+    [prefs, bumpSpeak, speakWebFallback],
   );
 
   const speak = useCallback(
