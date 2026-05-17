@@ -152,7 +152,7 @@ export function useVoice() {
       if (isNative) {
         bumpSpeak(+1);
         ttsQueueRef.current = ttsQueueRef.current
-          .then(() => nativeSpeak(sentence, { rate: prefs.rate, pitch: prefs.pitch }))
+          .then(async () => { await nativeSpeak(sentence, { rate: prefs.rate, pitch: prefs.pitch }); })
           .catch(() => {})
           .finally(() => bumpSpeak(-1));
         return;
