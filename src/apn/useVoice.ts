@@ -88,7 +88,11 @@ export function useVoice() {
     onSpeechEndRef.current = cb;
   }, []);
 
+  // Generation token — bumped on stop() to invalidate any queued/in-flight TTS work.
+  const genRef = useRef(0);
+
   const stop = useCallback(() => {
+    genRef.current += 1;
     nativeStopTTS();
     if (supported) {
       try { window.speechSynthesis.cancel(); } catch {}
@@ -102,6 +106,8 @@ export function useVoice() {
       try { URL.revokeObjectURL(audioUrlRef.current); } catch {}
       audioUrlRef.current = null;
     }
+    // Reset the queue so future speakSentence calls start from a fresh chain.
+    ttsQueueRef.current = Promise.resolve();
     // Hard reset speaking state
     speakingCountRef.current = 0;
     setSpeaking(false);
@@ -149,10 +155,16 @@ export function useVoice() {
       const sentence = text.trim();
       if (!prefs.enabled || !sentence) return;
 
+      const myGen = genRef.current;
+      const stillValid = () => myGen === genRef.current;
+
       if (isNative) {
         bumpSpeak(+1);
         ttsQueueRef.current = ttsQueueRef.current
-          .then(async () => { await nativeSpeak(sentence, { rate: prefs.rate, pitch: prefs.pitch }); })
+          .then(async () => {
+            if (!stillValid()) return;
+            await nativeSpeak(sentence, { rate: prefs.rate, pitch: prefs.pitch });
+          })
           .catch(() => {})
           .finally(() => bumpSpeak(-1));
         return;
@@ -161,6 +173,7 @@ export function useVoice() {
       bumpSpeak(+1);
       ttsQueueRef.current = ttsQueueRef.current
         .then(async () => {
+          if (!stillValid()) return;
           try {
             const resp = await fetch(TTS_URL, {
               method: "POST",
@@ -170,6 +183,7 @@ export function useVoice() {
               },
               body: JSON.stringify({ text: sentence, speed: prefs.rate }),
             });
+            if (!stillValid()) return;
             if (!resp.ok) throw new Error(`tts ${resp.status}`);
             const ct = resp.headers.get("content-type") || "";
             if (ct.includes("application/json")) {
@@ -177,6 +191,7 @@ export function useVoice() {
               return;
             }
             const blob = await resp.blob();
+            if (!stillValid()) return;
             const url = URL.createObjectURL(blob);
             const a = new Audio(url);
             audioRef.current = a;
@@ -188,6 +203,7 @@ export function useVoice() {
             });
             try { URL.revokeObjectURL(url); } catch {}
           } catch {
+            if (!stillValid()) return;
             await new Promise<void>((res) => speakWebFallback(sentence, () => res()));
           }
         })
