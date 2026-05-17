@@ -820,6 +820,8 @@ export default function Index() {
         setKbdAutoOpen={setKbdAutoOpen}
         wakeWordEnabled={wakeWordEnabled}
         setWakeWordEnabled={setWakeWordEnabled}
+        turnTakingEnabled={turnTakingEnabled}
+        setTurnTakingEnabled={setTurnTakingEnabled}
       />
       <MedicalReport
         open={reportOpen}
