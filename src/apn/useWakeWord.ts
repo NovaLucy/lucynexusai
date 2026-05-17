@@ -35,12 +35,15 @@ export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 2200, mute
   const restartTimerRef = useRef<number | null>(null);
   const onWakeRef = useRef(onWake);
   const patternsRef = useRef(patterns ?? DEFAULT_PATTERNS);
+  const pausedRef = useRef(muteWhileSpeaking);
 
   useEffect(() => { onWakeRef.current = onWake; }, [onWake]);
   useEffect(() => { patternsRef.current = patterns ?? DEFAULT_PATTERNS; }, [patterns]);
+  // Keep paused flag fresh without restarting the recognizer.
+  useEffect(() => { pausedRef.current = muteWhileSpeaking; }, [muteWhileSpeaking]);
 
   useEffect(() => {
-    if (!enabled || muteWhileSpeaking) return;
+    if (!enabled) return;
     const SR: any =
       (typeof window !== "undefined" &&
         ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
@@ -58,6 +61,7 @@ export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 2200, mute
         r.maxAlternatives = 1;
 
         r.onresult = (ev: any) => {
+          if (pausedRef.current) return;
           const now = Date.now();
           if (now - lastFireRef.current < cooldownMs) return;
           for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -107,5 +111,5 @@ export function useWakeWord({ enabled, onWake, patterns, cooldownMs = 2200, mute
       try { recRef.current?.abort?.(); } catch {}
       recRef.current = null;
     };
-  }, [enabled, cooldownMs, muteWhileSpeaking]);
+  }, [enabled, cooldownMs]);
 }

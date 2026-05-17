@@ -116,9 +116,19 @@ export function useReality() {
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Persist
-  useEffect(() => { try { localStorage.setItem(LS_LOC, JSON.stringify(locEnabled)); } catch {} markChange("loc"); }, [locEnabled, markChange]);
-  useEffect(() => { try { localStorage.setItem(LS_CAM, JSON.stringify(camEnabled)); } catch {} markChange("cam"); }, [camEnabled, markChange]);
+  // Persist (skip first run to avoid false "recently changed" signal on boot)
+  const firstLocRef = useRef(true);
+  const firstCamRef = useRef(true);
+  useEffect(() => {
+    try { localStorage.setItem(LS_LOC, JSON.stringify(locEnabled)); } catch {}
+    if (firstLocRef.current) { firstLocRef.current = false; return; }
+    markChange("loc");
+  }, [locEnabled, markChange]);
+  useEffect(() => {
+    try { localStorage.setItem(LS_CAM, JSON.stringify(camEnabled)); } catch {}
+    if (firstCamRef.current) { firstCamRef.current = false; return; }
+    markChange("cam");
+  }, [camEnabled, markChange]);
   useEffect(() => { try { localStorage.setItem(LS_FACING, facing); } catch {} }, [facing]);
 
   // Tick clock every 30s
