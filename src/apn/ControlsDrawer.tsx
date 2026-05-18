@@ -173,8 +173,15 @@ export default function ControlsDrawer(p: Props) {
           </div>
 
           <div className="p-4 space-y-6 overflow-y-auto flex-1">
-          <section className="space-y-4">
-            <h3 className="hud-label">VOICE</h3>
+          <section className="space-y-3">
+            <h3 className="hud-label">TON PROFIL</h3>
+            <button onClick={p.onOpenProfile} className="bracket-btn w-full text-left">
+              [👤 PERSONNALISER LUCY]
+            </button>
+            <p className="text-[10px] text-foreground/40">// prénom, ton, intérêts, contexte, à éviter — conditionne Lucy.</p>
+          </section>
+
+
             <button
               onClick={() => p.setVoiceEnabled(!p.voiceEnabled)}
               className={`bracket-btn w-full text-left ${p.voiceEnabled ? "bracket-btn-active" : ""}`}
