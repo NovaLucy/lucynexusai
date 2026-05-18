@@ -232,11 +232,14 @@ function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, 
   if (profile?.display_name) lines.push(`- Prénom : ${profile.display_name}`);
   if (profile?.traits && Object.keys(profile.traits).length > 0) {
     const t = profile.traits;
+    if (t.pronouns) lines.push(`- Pronoms : ${t.pronouns} (utilise-les)`);
+    if (t.age) lines.push(`- Âge : ${t.age}`);
+    if (t.language && t.language !== "fr") lines.push(`- Langue préférée : ${t.language} — réponds dans cette langue.`);
+    if (t.tone) lines.push(`- Ton qu'elle/il préfère : ${t.tone} — adapte ta voix à ça en priorité.`);
     if (t.interests?.length) lines.push(`- Centres d'intérêt : ${t.interests.join(", ")}`);
-    if (t.values?.length) lines.push(`- Ce qui compte pour elle : ${t.values.join(", ")}`);
-    if (t.tone) lines.push(`- Ton préféré : ${t.tone}`);
-    if (t.context) lines.push(`- Contexte : ${t.context}`);
-    if (t.notes) lines.push(`- Notes : ${t.notes}`);
+    if (t.values?.length) lines.push(`- Ce qui compte pour elle/lui : ${t.values.join(", ")}`);
+    if (t.context) lines.push(`- Contexte de vie : ${t.context}`);
+    if (t.notes) lines.push(`- À garder à l'esprit : ${t.notes}`);
   }
   if (profile?.last_topic) lines.push(`- Dernier sujet : ${profile.last_topic}`);
   if (Array.isArray(profile?.open_loops) && profile.open_loops.length > 0) {
@@ -254,6 +257,12 @@ function buildSystemPrompt(profile: any, persona: any, isFirstContact: boolean, 
     lines.push("\nUtilise ces infos avec naturel, jamais en les récitant. Ignore ce qui n'est pas pertinent maintenant.");
     p += lines.join("\n");
   }
+
+  // Limites strictes définies par l'utilisateur
+  if (profile?.traits?.avoid && typeof profile.traits.avoid === "string" && profile.traits.avoid.trim()) {
+    p += `\n\n## À ÉVITER ABSOLUMENT (limites posées par cette personne)\n${profile.traits.avoid.trim()}\n\nCes limites sont non-négociables. Tu les respectes en silence, sans les mentionner.`;
+  }
+
   p += buildHealthBlock(healthContext);
   return p;
 }
