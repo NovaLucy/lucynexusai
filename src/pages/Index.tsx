@@ -40,6 +40,7 @@ export default function Index() {
   const [logOpen, setLogOpen] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
   const [composerOpen, setComposerOpen] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem("lucy:composer") ?? "false"); } catch { return false; }
