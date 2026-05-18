@@ -69,25 +69,48 @@ export default function ChatLog({ messages, open, onClose, onClear, sessionId, u
         )}
         {messages.map((m) => {
           const c = m.mood ? MOOD_HSL[m.mood] : null;
-          const tag = m.role === "user" ? userTag : "Lucy";
+          const isUser = m.role === "user";
+          const tag = isUser ? userTag : "Lucy";
+          const moodColor = c ? `hsl(${c.h} ${c.s}% ${c.l}%)` : "hsl(var(--mood))";
           return (
             <div
               key={m.id}
-              className="dark-matter !border-0 relative rounded-xl p-3 mb-3"
+              className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}
             >
-              <div className="hud-label mb-1.5 flex items-center gap-2">
-                <span>{tag}</span>
-                <span className="opacity-40">·</span>
-                <span className="opacity-70">{fmt(m.ts)}</span>
+              <div
+                className={`relative rounded-xl p-3 max-w-[78%] ${
+                  isUser
+                    ? "bg-foreground/[0.06] border-r-2"
+                    : "dark-matter !border-0 border-l-2"
+                }`}
+                style={
+                  isUser
+                    ? { borderRightColor: "hsl(var(--foreground) / 0.35)" }
+                    : { borderLeftColor: moodColor, boxShadow: `inset 2px 0 0 0 ${moodColor}` }
+                }
+              >
+                <div className="hud-label mb-1.5 flex items-center gap-2">
+                  {!isUser && (
+                    <span
+                      className="inline-block w-1.5 h-1.5 rounded-full"
+                      style={{ background: moodColor }}
+                    />
+                  )}
+                  <span style={!isUser ? { color: moodColor } : undefined}>
+                    {isUser ? `[${tag.toUpperCase()}]` : "[LUCY]"}
+                  </span>
+                  <span className="opacity-40">·</span>
+                  <span className="opacity-70">{fmt(m.ts)}</span>
+                </div>
+                {m.imageDataUrl && (
+                  <img
+                    src={m.imageDataUrl}
+                    alt="Vue partagée"
+                    className="my-1 max-w-[220px] max-h-[160px] object-cover rounded-md"
+                  />
+                )}
+                <div className="chat-text whitespace-pre-wrap text-sm">{m.content}</div>
               </div>
-              {m.imageDataUrl && (
-                <img
-                  src={m.imageDataUrl}
-                  alt="Vue partagée"
-                  className="my-1 max-w-[220px] max-h-[160px] object-cover rounded-md"
-                />
-              )}
-              <div className="chat-text whitespace-pre-wrap text-sm">{m.content}</div>
             </div>
           );
         })}

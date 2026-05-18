@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import Composer from "@/apn/Composer";
 import ChatLog from "@/apn/ChatLog";
 import ControlsDrawer from "@/apn/ControlsDrawer";
+import ProfileEditor from "@/apn/ProfileEditor";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
@@ -40,6 +41,7 @@ export default function Index() {
   const [logOpen, setLogOpen] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
   const [composerOpen, setComposerOpen] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem("lucy:composer") ?? "false"); } catch { return false; }
@@ -833,6 +835,16 @@ export default function Index() {
         setWakeWordEnabled={setWakeWordEnabled}
         turnTakingEnabled={turnTakingEnabled}
         setTurnTakingEnabled={setTurnTakingEnabled}
+        onOpenProfile={() => { setCfgOpen(false); setProfileOpen(true); }}
+      />
+      <ProfileEditor
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        userId={apn.userId ?? null}
+        sessionId={apn.sessionId}
+        initialDisplayName={apn.profile?.display_name ?? null}
+        initialTraits={apn.profile?.traits ?? {}}
+        onSaved={() => apn.refreshProfile()}
       />
       <MedicalReport
         open={reportOpen}
