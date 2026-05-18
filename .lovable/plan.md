@@ -1,58 +1,92 @@
-# Vérification complète — Lucy
+## Objectif
 
-## Failles trouvées (réelles, vérifiées dans le code)
+1. Rendre Lucy et toi visuellement distincts dans le journal de conversation.
+2. Ajouter un éditeur de profil complet pour conditionner Lucy (ton, intérêts, valeurs, contexte, ce qu'elle doit savoir/éviter).
 
-### 1. Tour de parole cassé (`src/pages/Index.tsx` l.396-407)
-Aujourd'hui le code dit "fenêtre 6s d'écoute" mais en pratique :
-- `setTimeout(open, 350)` ouvre le micro 350 ms après la fin TTS, **quoi qu'il arrive**.
-- Le `setTimeout` de 6500 ms ne fait que vider `turnTakingActive`, il ne ferme jamais rien et **ne peut pas être annulé** si l'utilisateur tape entre-temps.
-- Résultat : le micro s'ouvre toujours, la conversation "continue" est en fait une auto-écoute systématique, et le hint "je t'écoute encore" ne s'affiche jamais.
+---
 
-→ Réécrire : `turnTakingActive = true` pendant 6 s, ouvrir le micro **uniquement après ce délai si rien ne s'est passé**, annuler proprement si l'utilisateur écrit, parle, ou si Lucy repart en thinking/speaking.
+## 1. Différencier Lucy vs Utilisateur dans `ChatLog`
 
-### 2. `voice.stop()` ne vide pas la file TTS (`src/apn/useVoice.ts` l.91-109 + l.146-197)
-`ttsQueueRef` est une chaîne de promesses. Quand on appelle `stop()` (barge-in, "tais-toi"), l'audio en cours est coupé, **mais les phrases déjà en queue continuent d'être fetch puis jouées** une fois la requête revenue.
+Fichier : `src/apn/ChatLog.tsx`
 
-→ Ajouter un token d'invalidation (`genRef`) capturé à chaque `speakSentence` : à `stop()`, on bump le token, et chaque maillon de la queue vérifie qu'il est encore valide avant de jouer / fetcher. Idem pour `nativeSpeak`.
+Actuellement chaque message a la même bulle `dark-matter`. On va :
 
-### 3. Hint contextuel non câblé (`src/pages/Index.tsx` l.728-732)
-`HintLine` accepte `turnTakingActive` et `speaking` mais Index ne les passe pas. Les messages "parle, je m'arrête" et "je t'écoute encore…" sont morts.
+- Aligner les messages **utilisateur à droite** et **Lucy à gauche**.
+- Bulle utilisateur : fond subtil teinté `--mood`, bordure droite accentuée, label `[TOI]` / prénom en couleur neutre.
+- Bulle Lucy : fond `dark-matter` actuel, bordure gauche en couleur `--mood` dynamique selon `m.mood`, label `[LUCY]` en couleur d'humeur, petit point d'humeur coloré devant l'horodatage.
+- Largeur max `~75%` pour créer le rythme visuel.
+- Conserver l'image et le texte tels quels.
 
-→ Passer `turnTakingActive={turnTakingActive}` et `speaking={voice.speaking}`.
+Aucune logique modifiée, purement présentationnel.
 
-### 4. Wake-word qui se redémarre en boucle (`src/pages/Index.tsx` l.350-353 + `useWakeWord.ts`)
-`wakeWordActive` dépend de `voice.speaking`, qui flip à chaque phrase TTS streamée. L'effet de `useWakeWord` se ré-exécute à chaque flip → `recognition.stop()` puis `new SR()` plusieurs fois par tour. Sur Chrome ça finit par renvoyer "aborted" et le wake-word meurt silencieusement.
+---
 
-→ Découpler : démarrer la recognition une seule fois quand `enabled` change, gérer la pause interne via un `pausedRef` mis à jour par un second effet sur `muteWhileSpeaking`.
+## 2. Personnalisation complète du profil
 
-### 5. `recentlyChanged` faux-positifs au boot (`src/apn/useReality.ts` l.120-121)
-`markChange("loc")` et `markChange("cam")` sont appelés au tout premier render des effets de persistance, donc Lucy reçoit "la caméra vient d'être activée" à chaque démarrage, même si rien n'a changé.
+### 2a. Nouveau composant `ProfileEditor`
 
-→ Sauter le premier run avec un `firstRunRef` par toggle.
+Fichier : `src/apn/ProfileEditor.tsx` (nouveau)
 
-### 6. Mute micro pendant TTS trop étroit (`src/pages/Index.tsx` l.142-147)
-Le mute se base sur `apn.state === "speaking"/"thinking"`, mais la voix peut encore jouer après que l'état soit repassé en `standby` (file TTS qui draine). Le micro peut alors s'allumer et capturer la fin de la propre voix de Lucy.
+Sheet plein écran (même style que `ControlsDrawer`) avec sections :
 
-→ Aussi suspendre tant que `voice.speaking` est vrai.
+- **Identité** : prénom (`display_name`), pronoms, âge approx.
+- **Comment Lucy te parle** : ton préféré (chips : direct / chaleureux / concis / réflexif / joueur / posé), tutoiement, langue.
+- **Ce qui compte pour toi** : intérêts (tags éditables), valeurs (tags), contexte de vie (textarea court).
+- **Ce que Lucy doit savoir** : notes libres (textarea, ex : « je travaille de nuit », « je traverse un deuil »).
+- **Ce que Lucy doit éviter** : sujets/comportements à éviter (textarea).
+- **Bouton « Effacer mon profil »** (reset des champs édités, garde les souvenirs).
 
-## Détails techniques (pour info)
+Persistance : upsert direct dans `apn_user_profile` (champs `display_name` + `traits` JSONB enrichi avec `pronouns`, `age`, `tone`, `language`, `interests`, `values`, `context`, `notes`, `avoid`).
 
-```text
-useVoice.stop()      ─┐
-                      ├──► bump genRef
-ttsQueueRef chain ────┘    chaque .then() : if (gen !== myGen) return
+### 2b. Brancher dans le chat système
+
+Fichier : `supabase/functions/chat/index.ts`
+
+Étendre la section « Ce que tu sais de cette personne » pour exposer les nouveaux champs (`pronouns`, `language`, `avoid`, etc.) — l'enveloppe `buildSystemPrompt` lit déjà `profile.traits`, il suffit d'ajouter quelques lignes pour les rendre explicites. Ajouter une consigne forte : « Respecte ABSOLUMENT la liste 'à éviter'. »
+
+### 2c. Accès UI
+
+Fichier : `src/pages/Index.tsx`
+
+- Ajouter un bouton `[👤 PROFIL]` dans `ControlsDrawer` (section nouvelle « TON PROFIL ») qui ouvre le `ProfileEditor`.
+- État local `profileEditorOpen` géré dans `Index.tsx`.
+- Après save, appeler `apn.refreshProfile()` (nouvelle méthode légère à ajouter dans `useAPN.ts` qui relit la ligne `apn_user_profile` et met à jour `profileRef` + `setProfile`).
+
+### 2d. Mise à jour `useAPN.ts`
+
+- Exposer `refreshProfile: () => Promise<void>`.
+- Préserver la fusion : `profile-update` (background) ne doit pas écraser les champs édités à la main — déjà géré côté edge function (« fusionne avec l'existant sans dupliquer »), mais on s'assure que le payload `currentProfile` envoyé contient bien les champs récents.
+
+---
+
+## Détails techniques
+
+Schéma `apn_user_profile.traits` (JSONB libre) — aucune migration nécessaire, on stocke :
+```json
+{
+  "pronouns": "elle",
+  "age": 34,
+  "tone": "direct",
+  "language": "fr",
+  "interests": ["musique", "philo"],
+  "values": ["honnêteté", "calme"],
+  "context": "freelance, vit seule",
+  "notes": "je suis en deuil depuis mars",
+  "avoid": "pas de blagues sur la mort"
+}
 ```
 
-```text
-TurnTaking timeline correct :
-  TTS end ─► turnTakingActive = true ─┐
-                                       ├─ 6000 ms ─► si idle: open mic
-  user typing / Lucy thinking ─cancel ─┘
-```
+Tous ces champs sont optionnels et déjà tolérés par le système prompt (qui ignore les champs vides).
 
-## Hors scope (volontairement)
-- Pas de refonte UI/visuel.
-- Pas de changement de modèle IA ni du prompt système.
-- Pas de migration BDD.
+---
 
-Tous les changements restent dans 4 fichiers : `useVoice.ts`, `useReality.ts`, `useWakeWord.ts`, `pages/Index.tsx`.
+## Fichiers touchés
+
+- `src/apn/ChatLog.tsx` (présentation)
+- `src/apn/ProfileEditor.tsx` (nouveau)
+- `src/apn/ControlsDrawer.tsx` (ajout entrée « TON PROFIL »)
+- `src/apn/useAPN.ts` (ajout `refreshProfile`)
+- `src/pages/Index.tsx` (état + montage de `ProfileEditor`)
+- `supabase/functions/chat/index.ts` (afficher pronouns/language/avoid dans le prompt)
+
+Aucune migration DB, aucune nouvelle dépendance.
