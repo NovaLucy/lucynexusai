@@ -517,12 +517,32 @@ export function useAPN() {
     ]);
   }, []);
 
+  const refreshProfile = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const { data, error } = await supabase
+        .from("apn_user_profile")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) {
+        const p = data as UserProfile;
+        profileRef.current = p;
+        setProfile(p);
+      }
+    } catch (e) {
+      console.warn("refreshProfile failed", e);
+    }
+  }, [userId]);
+
   return {
     sessionId: sessionId.current,
+    userId,
     messages, state, mood, caption, error, profile, persona,
     syncStatus, lastSyncAt,
     send, setStandby, setListeningState, setSleeping, wake,
     clearSession, setMedicalContext,
-    setMoodAndApply, appendLocalAssistant,
+    setMoodAndApply, appendLocalAssistant, refreshProfile,
   };
 }
