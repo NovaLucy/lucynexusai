@@ -835,6 +835,16 @@ export default function Index() {
         setWakeWordEnabled={setWakeWordEnabled}
         turnTakingEnabled={turnTakingEnabled}
         setTurnTakingEnabled={setTurnTakingEnabled}
+        onOpenProfile={() => { setCfgOpen(false); setProfileOpen(true); }}
+      />
+      <ProfileEditor
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        userId={apn.userId ?? null}
+        sessionId={apn.sessionId}
+        initialDisplayName={apn.profile?.display_name ?? null}
+        initialTraits={apn.profile?.traits ?? {}}
+        onSaved={() => apn.refreshProfile()}
       />
       <MedicalReport
         open={reportOpen}
