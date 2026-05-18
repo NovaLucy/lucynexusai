@@ -181,7 +181,8 @@ export default function ControlsDrawer(p: Props) {
             <p className="text-[10px] text-foreground/40">// prénom, ton, intérêts, contexte, à éviter — conditionne Lucy.</p>
           </section>
 
-
+          <section className="space-y-4">
+            <h3 className="hud-label">VOICE</h3>
             <button
               onClick={() => p.setVoiceEnabled(!p.voiceEnabled)}
               className={`bracket-btn w-full text-left ${p.voiceEnabled ? "bracket-btn-active" : ""}`}
