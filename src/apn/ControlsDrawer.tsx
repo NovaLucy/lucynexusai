@@ -119,6 +119,7 @@ interface Props {
   setWakeWordEnabled: (v: boolean) => void;
   turnTakingEnabled: boolean;
   setTurnTakingEnabled: (v: boolean) => void;
+  onOpenProfile: () => void;
 }
 
 function AsciiSlider({
