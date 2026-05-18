@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import Composer from "@/apn/Composer";
 import ChatLog from "@/apn/ChatLog";
 import ControlsDrawer from "@/apn/ControlsDrawer";
+import ProfileEditor from "@/apn/ProfileEditor";
 import AmbientChars from "@/apn/AmbientChars";
 import MedicalReport from "@/apn/MedicalReport";
 import VolumetricFace from "@/apn/agi/MoodBubble";
