@@ -41,11 +41,12 @@ export default function HintLine({ state, micActive, hide, turnTakingActive, spe
 
   return (
     <div
-      className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-24 sm:bottom-28 z-20 select-none"
+      className="pointer-events-none absolute left-0 right-0 bottom-20 sm:bottom-28 z-20 select-none flex justify-center px-16"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-hidden
     >
       <div
-        className="hud-label transition-opacity duration-700"
+        className="hud-label transition-opacity duration-700 text-center max-w-full"
         style={{ opacity: hide ? 0 : 1 }}
       >
         {text}
