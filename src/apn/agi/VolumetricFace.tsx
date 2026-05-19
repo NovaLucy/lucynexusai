@@ -116,6 +116,9 @@ function NeuralCore({ mood, state, speaking, intensity = 1, gazeX = 0, gazeY = 0
     if (meshRef.current) {
       meshRef.current.rotation.y += dt * (sp ? 0.32 : thinking ? 0.55 : 0.1);
       meshRef.current.rotation.x = Math.sin(uniforms.uTime.value * 0.3) * 0.18;
+      // Subtle parallax of the whole core toward the user
+      meshRef.current.position.x = gx * 0.12;
+      meshRef.current.position.y = -gy * 0.10;
     }
     if (veilRef.current) {
       veilRef.current.rotation.y -= dt * 0.08;
@@ -130,6 +133,12 @@ function NeuralCore({ mood, state, speaking, intensity = 1, gazeX = 0, gazeY = 0
     if (innerRef.current) {
       const breath = 1 + Math.sin(uniforms.uTime.value * (sp ? 5 : 1.4)) * (sp ? 0.09 : 0.035);
       innerRef.current.scale.setScalar(0.55 * breath);
+      // The heart/nucleus tracks the user more strongly — like a pupil
+      innerRef.current.position.x = gx * 0.55;
+      innerRef.current.position.y = -gy * 0.45;
+      innerRef.current.position.z = 0.25 * g.p;
+      const mat = innerRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.35 + 0.4 * g.p;
     }
     if (ring1.current) ring1.current.rotation.z += dt * 0.35;
     if (ring2.current) {
