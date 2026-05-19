@@ -17,6 +17,7 @@ import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut, Keyboard } from
 
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useReality } from "@/apn/useReality";
+import { usePresence } from "@/apn/usePresence";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/apn/auth/useAuth";
 import { matchCommand } from "@/apn/voiceCommands";
@@ -35,6 +36,7 @@ export default function Index() {
   const voice = useVoice();
   const isMobile = useIsMobile();
   const reality = useReality();
+  const presence = usePresence();
   const [intensity, setIntensity] = useState(1.0);
   const [pixelRatio, setPixelRatio] = useState(() => (typeof window !== "undefined" && window.innerWidth < 768 ? 1.25 : 1.5));
   const [busy, setBusy] = useState(false);
@@ -729,6 +731,9 @@ export default function Index() {
                     speaking={speakingPinned}
                     intensity={intensity}
                     medicalMode={medicalMode}
+                    gazeX={presence.gazeX}
+                    gazeY={presence.gazeY}
+                    present={presence.enabled ? presence.present : true}
                   />
                 </div>
               </div>
