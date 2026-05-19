@@ -419,9 +419,12 @@ interface Props {
   state: AgentState;
   speaking?: boolean;
   intensity?: number;
+  gazeX?: number;
+  gazeY?: number;
+  present?: boolean;
 }
 
-export default function VolumetricFace({ mood, state, speaking, intensity = 1 }: Props) {
+export default function VolumetricFace({ mood, state, speaking, intensity = 1, gazeX = 0, gazeY = 0, present = true }: Props) {
   return (
     <Canvas
       dpr={[1, 1.75]}
@@ -431,7 +434,7 @@ export default function VolumetricFace({ mood, state, speaking, intensity = 1 }:
     >
       <ambientLight intensity={0.3} />
       <pointLight position={[3, 3, 3]} intensity={0.8} />
-      <NeuralCore mood={mood} state={state} speaking={speaking} intensity={intensity} />
+      <NeuralCore mood={mood} state={state} speaking={speaking} intensity={intensity} gazeX={gazeX} gazeY={gazeY} present={present} />
     </Canvas>
   );
 }
