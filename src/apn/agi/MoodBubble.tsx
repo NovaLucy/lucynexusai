@@ -75,6 +75,13 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false, gaz
   }, [intensity, uniforms]);
 
   useFrame((_, dt) => {
+    // Smooth gaze target → look-at offset
+    const gx = gazeRef.current;
+    gx.x += ((gazeX ?? 0) - gx.x) * 0.12;
+    gx.y += ((gazeY ?? 0) - gx.y) * 0.12;
+    const presentTarget = present ? 1 : 0;
+    gx.present += (presentTarget - gx.present) * 0.05;
+
     uniforms.uTime.value += dt;
     const t = uniforms.uTime.value;
 
