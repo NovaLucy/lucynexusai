@@ -98,6 +98,14 @@ function NeuralCore({ mood, state, speaking, intensity = 1, gazeX = 0, gazeY = 0
     const thinking = state === "thinking";
     const listening = state === "listening";
 
+    // Smooth gaze tracking — the heart of the orb follows the user
+    const g = gazeRef.current;
+    g.x += ((gazeX ?? 0) - g.x) * 0.14;
+    g.y += ((gazeY ?? 0) - g.y) * 0.14;
+    g.p += ((present ? 1 : 0) - g.p) * 0.06;
+    const gx = g.x * g.p;
+    const gy = g.y * g.p;
+
     const targetDist = sp ? 0.95 : thinking ? 0.7 : listening ? 0.55 : 0.42;
     uniforms.uDistortion.value += (targetDist - uniforms.uDistortion.value) * 0.06;
 
