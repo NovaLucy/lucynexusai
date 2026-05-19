@@ -14,6 +14,9 @@ interface CoreProps {
   state: AgentState;
   speaking?: boolean;
   intensity?: number; // 0..1.5
+  gazeX?: number;
+  gazeY?: number;
+  present?: boolean;
 }
 
 function moodColor(mood: Mood, lightOffset = 0.1): THREE.Color {
