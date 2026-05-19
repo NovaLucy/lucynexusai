@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import type { AgentState } from "./types";
 
 interface Props {
@@ -17,25 +16,15 @@ interface Props {
  * Tells the user what they can do *right now*.
  */
 export default function HintLine({ state, micActive, hide, turnTakingActive, speaking }: Props) {
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    if (hide) {
-      const t = window.setTimeout(() => setVisible(false), 600);
-      return () => window.clearTimeout(t);
-    }
-    setVisible(true);
-  }, [hide]);
-
-  if (!visible) return null;
-
+  // Indice toujours visible — il s'efface en douceur seulement quand le composer
+  // est ouvert (les actions sont alors évidentes via l'input bar).
   let text = "";
   if (speaking) text = "parle, je m'arrête";
   else if (micActive) text = "je t'écoute…";
   else if (turnTakingActive) text = "je t'écoute encore…";
   else if (state === "sleeping") text = "touche l'orbe ou dis « Lucy »";
   else if (state === "speaking" || state === "thinking") text = "";
-  else text = "touche pour parler · maintiens pour push-to-talk";
+  else text = "touche l'orbe pour parler · maintiens pour push-to-talk";
 
   if (!text) return null;
 

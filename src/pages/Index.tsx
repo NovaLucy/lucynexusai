@@ -46,7 +46,11 @@ export default function Index() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [composerText, setComposerText] = useState("");
   const [composerOpen, setComposerOpen] = useState<boolean>(() => {
-    try { return JSON.parse(localStorage.getItem("lucy:composer") ?? "false"); } catch { return false; }
+    // Par défaut visible : nouvel utilisateur voit comment écrire dès l'arrivée.
+    try {
+      const raw = localStorage.getItem("lucy:composer");
+      return raw === null ? true : JSON.parse(raw);
+    } catch { return true; }
   });
   const [polishEnabled, setPolishEnabled] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem("apn:polish") ?? "true"); } catch { return true; }
@@ -775,14 +779,14 @@ export default function Index() {
       <div className="absolute bottom-0 right-0 z-30 pb-safe pr-safe pointer-events-none">
         <button
           onClick={() => { setHasInteracted(true); setComposerOpen((v) => !v); }}
-          className="ghost-btn m-3 pointer-events-auto inline-flex items-center gap-2 rounded-full px-3 py-2"
+          className="ghost-btn m-3 pointer-events-auto inline-flex items-center gap-2 rounded-full px-4 py-2.5"
           data-active={composerOpen ? "true" : "false"}
           style={{ opacity: speakingPinned && !composerOpen ? 0.4 : 1 }}
           aria-label={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
           title={composerOpen ? "Masquer le clavier" : "Écrire à Lucy"}
         >
           <Keyboard className="w-4 h-4" />
-          {!composerOpen && <span className="hud-label hidden sm:inline">Écrire</span>}
+          <span className="hud-label">{composerOpen ? "Masquer" : "Écrire"}</span>
         </button>
       </div>
 
