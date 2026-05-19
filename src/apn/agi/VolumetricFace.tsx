@@ -32,7 +32,7 @@ function complementColor(mood: Mood): THREE.Color {
   return c;
 }
 
-function NeuralCore({ mood, state, speaking, intensity = 1 }: CoreProps) {
+function NeuralCore({ mood, state, speaking, intensity = 1, gazeX = 0, gazeY = 0, present = true }: CoreProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const veilRef = useRef<THREE.Mesh>(null);
   const shellRef = useRef<THREE.Mesh>(null);
@@ -41,6 +41,7 @@ function NeuralCore({ mood, state, speaking, intensity = 1 }: CoreProps) {
   const ring2 = useRef<THREE.Mesh>(null);
   const disc = useRef<THREE.Mesh>(null);
   const particlesRef = useRef<THREE.Points>(null);
+  const gazeRef = useRef({ x: 0, y: 0, p: 1 });
 
   const uniforms = useMemo(
     () => ({
