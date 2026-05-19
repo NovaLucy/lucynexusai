@@ -14,6 +14,9 @@ interface CoreProps {
   state: AgentState;
   speaking?: boolean;
   intensity?: number; // 0..1.5
+  gazeX?: number;
+  gazeY?: number;
+  present?: boolean;
 }
 
 function moodColor(mood: Mood, lightOffset = 0.1): THREE.Color {
@@ -29,7 +32,7 @@ function complementColor(mood: Mood): THREE.Color {
   return c;
 }
 
-function NeuralCore({ mood, state, speaking, intensity = 1 }: CoreProps) {
+function NeuralCore({ mood, state, speaking, intensity = 1, gazeX = 0, gazeY = 0, present = true }: CoreProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const veilRef = useRef<THREE.Mesh>(null);
   const shellRef = useRef<THREE.Mesh>(null);
@@ -38,6 +41,7 @@ function NeuralCore({ mood, state, speaking, intensity = 1 }: CoreProps) {
   const ring2 = useRef<THREE.Mesh>(null);
   const disc = useRef<THREE.Mesh>(null);
   const particlesRef = useRef<THREE.Points>(null);
+  const gazeRef = useRef({ x: 0, y: 0, p: 1 });
 
   const uniforms = useMemo(
     () => ({
@@ -94,6 +98,14 @@ function NeuralCore({ mood, state, speaking, intensity = 1 }: CoreProps) {
     const thinking = state === "thinking";
     const listening = state === "listening";
 
+    // Smooth gaze tracking — the heart of the orb follows the user
+    const g = gazeRef.current;
+    g.x += ((gazeX ?? 0) - g.x) * 0.14;
+    g.y += ((gazeY ?? 0) - g.y) * 0.14;
+    g.p += ((present ? 1 : 0) - g.p) * 0.06;
+    const gx = g.x * g.p;
+    const gy = g.y * g.p;
+
     const targetDist = sp ? 0.95 : thinking ? 0.7 : listening ? 0.55 : 0.42;
     uniforms.uDistortion.value += (targetDist - uniforms.uDistortion.value) * 0.06;
 
@@ -104,6 +116,9 @@ function NeuralCore({ mood, state, speaking, intensity = 1 }: CoreProps) {
     if (meshRef.current) {
       meshRef.current.rotation.y += dt * (sp ? 0.32 : thinking ? 0.55 : 0.1);
       meshRef.current.rotation.x = Math.sin(uniforms.uTime.value * 0.3) * 0.18;
+      // Subtle parallax of the whole core toward the user
+      meshRef.current.position.x = gx * 0.12;
+      meshRef.current.position.y = -gy * 0.10;
     }
     if (veilRef.current) {
       veilRef.current.rotation.y -= dt * 0.08;
@@ -118,6 +133,12 @@ function NeuralCore({ mood, state, speaking, intensity = 1 }: CoreProps) {
     if (innerRef.current) {
       const breath = 1 + Math.sin(uniforms.uTime.value * (sp ? 5 : 1.4)) * (sp ? 0.09 : 0.035);
       innerRef.current.scale.setScalar(0.55 * breath);
+      // The heart/nucleus tracks the user more strongly — like a pupil
+      innerRef.current.position.x = gx * 0.55;
+      innerRef.current.position.y = -gy * 0.45;
+      innerRef.current.position.z = 0.25 * g.p;
+      const mat = innerRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.35 + 0.4 * g.p;
     }
     if (ring1.current) ring1.current.rotation.z += dt * 0.35;
     if (ring2.current) {
@@ -398,9 +419,12 @@ interface Props {
   state: AgentState;
   speaking?: boolean;
   intensity?: number;
+  gazeX?: number;
+  gazeY?: number;
+  present?: boolean;
 }
 
-export default function VolumetricFace({ mood, state, speaking, intensity = 1 }: Props) {
+export default function VolumetricFace({ mood, state, speaking, intensity = 1, gazeX = 0, gazeY = 0, present = true }: Props) {
   return (
     <Canvas
       dpr={[1, 1.75]}
@@ -410,7 +434,7 @@ export default function VolumetricFace({ mood, state, speaking, intensity = 1 }:
     >
       <ambientLight intensity={0.3} />
       <pointLight position={[3, 3, 3]} intensity={0.8} />
-      <NeuralCore mood={mood} state={state} speaking={speaking} intensity={intensity} />
+      <NeuralCore mood={mood} state={state} speaking={speaking} intensity={intensity} gazeX={gazeX} gazeY={gazeY} present={present} />
     </Canvas>
   );
 }
