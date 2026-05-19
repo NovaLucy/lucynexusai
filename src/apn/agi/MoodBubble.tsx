@@ -41,11 +41,12 @@ function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0, medical = false
   return c;
 }
 
-function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: Props) {
+function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false, gazeX = 0, gazeY = 0, present = true }: Props) {
   const meshRef = useRef<THREE.Mesh>(null);
   const innerRef = useRef<THREE.Mesh>(null);
   const haloRef = useRef<THREE.Mesh>(null);
   const matRef = useRef<THREE.ShaderMaterial>(null);
+  const gazeRef = useRef({ x: 0, y: 0, present: 1 });
 
   const uniforms = useMemo(
     () => ({
