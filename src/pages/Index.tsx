@@ -111,6 +111,19 @@ export default function Index() {
     return () => window.clearInterval(id);
   }, [apn.state, apn]);
 
+  // Présence détectée → réveille Lucy automatiquement (yeux qui s'ouvrent).
+  const lastPresenceRef = useRef(false);
+  useEffect(() => {
+    if (!presence.enabled) return;
+    const wasPresent = lastPresenceRef.current;
+    lastPresenceRef.current = presence.present;
+    if (presence.present && !wasPresent) {
+      lastActivityRef.current = Date.now();
+      if (apn.state === "sleeping") apn.wake();
+    }
+  }, [presence.enabled, presence.present, apn]);
+
+
   // Trigger ritual on activity transitions
   const playRitual = useCallback((kind: "open" | "close") => {
     setRitual(kind);
@@ -841,6 +854,10 @@ export default function Index() {
         turnTakingEnabled={turnTakingEnabled}
         setTurnTakingEnabled={setTurnTakingEnabled}
         onOpenProfile={() => { setCfgOpen(false); setProfileOpen(true); }}
+        presenceEnabled={presence.enabled}
+        setPresenceEnabled={presence.setEnabled}
+        presencePresent={presence.present}
+        presenceFaceApi={presence.faceApiAvailable}
       />
       <ProfileEditor
         open={profileOpen}
