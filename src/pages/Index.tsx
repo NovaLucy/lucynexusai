@@ -737,7 +737,14 @@ export default function Index() {
                 role="button"
                 aria-label="Parler à Lucy (maintenir pour push-to-talk, double-tap pour écrire)"
               >
-                <div className="relative" style={{ width: "85%", height: "85%" }}>
+                <div
+                  className="relative aspect-square"
+                  style={{
+                    width: "min(85vw, 70vh)",
+                    height: "min(85vw, 70vh)",
+                    maxWidth: "100%",
+                  }}
+                >
                   <VolumetricFace
                     mood={apn.mood}
                     state={apn.state}
