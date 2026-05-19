@@ -120,6 +120,10 @@ interface Props {
   turnTakingEnabled: boolean;
   setTurnTakingEnabled: (v: boolean) => void;
   onOpenProfile: () => void;
+  presenceEnabled: boolean;
+  setPresenceEnabled: (v: boolean) => void;
+  presencePresent: boolean;
+  presenceFaceApi: boolean;
 }
 
 function AsciiSlider({
@@ -257,6 +261,25 @@ export default function ControlsDrawer(p: Props) {
             <p className="text-[10px] text-foreground/40">
               // capture furtive d'un frame caméra à chaque message — analyse en direct
             </p>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="hud-label">REGARD DE LUCY</h3>
+            <button
+              onClick={() => p.setPresenceEnabled(!p.presenceEnabled)}
+              className={`bracket-btn w-full text-left ${p.presenceEnabled ? "bracket-btn-active" : ""}`}
+            >
+              [{p.presenceEnabled ? "X" : " "}] LUCY TE SUIT DU REGARD
+            </button>
+            <p className="text-[10px] text-foreground/40">
+              // caméra frontale silencieuse — Lucy ouvre les yeux quand elle te voit, les ferme quand tu pars.
+              {!p.presenceFaceApi && " (mode dégradé : présence par mouvement, pas de suivi précis sur ce navigateur)"}
+            </p>
+            {p.presenceEnabled && (
+              <div className="text-[10px] font-mono text-foreground/60">
+                {p.presencePresent ? "👁  visage détecté" : "🌙  yeux fermés (personne en vue)"}
+              </div>
+            )}
           </section>
 
           <section className="space-y-3">

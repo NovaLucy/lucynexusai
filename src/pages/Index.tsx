@@ -17,6 +17,7 @@ import { MoreHorizontal, Archive, Settings, Stethoscope, LogOut, Keyboard } from
 
 import { useFaceApparition, type FaceFrequency } from "@/apn/useFaceApparition";
 import { useReality } from "@/apn/useReality";
+import { usePresence } from "@/apn/usePresence";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/apn/auth/useAuth";
 import { matchCommand } from "@/apn/voiceCommands";
@@ -35,6 +36,7 @@ export default function Index() {
   const voice = useVoice();
   const isMobile = useIsMobile();
   const reality = useReality();
+  const presence = usePresence();
   const [intensity, setIntensity] = useState(1.0);
   const [pixelRatio, setPixelRatio] = useState(() => (typeof window !== "undefined" && window.innerWidth < 768 ? 1.25 : 1.5));
   const [busy, setBusy] = useState(false);
@@ -108,6 +110,19 @@ export default function Index() {
     }, 5_000);
     return () => window.clearInterval(id);
   }, [apn.state, apn]);
+
+  // Présence détectée → réveille Lucy automatiquement (yeux qui s'ouvrent).
+  const lastPresenceRef = useRef(false);
+  useEffect(() => {
+    if (!presence.enabled) return;
+    const wasPresent = lastPresenceRef.current;
+    lastPresenceRef.current = presence.present;
+    if (presence.present && !wasPresent) {
+      lastActivityRef.current = Date.now();
+      if (apn.state === "sleeping") apn.wake();
+    }
+  }, [presence.enabled, presence.present, apn]);
+
 
   // Trigger ritual on activity transitions
   const playRitual = useCallback((kind: "open" | "close") => {
@@ -729,6 +744,9 @@ export default function Index() {
                     speaking={speakingPinned}
                     intensity={intensity}
                     medicalMode={medicalMode}
+                    gazeX={presence.gazeX}
+                    gazeY={presence.gazeY}
+                    present={presence.enabled ? presence.present : true}
                   />
                 </div>
               </div>
@@ -836,6 +854,10 @@ export default function Index() {
         turnTakingEnabled={turnTakingEnabled}
         setTurnTakingEnabled={setTurnTakingEnabled}
         onOpenProfile={() => { setCfgOpen(false); setProfileOpen(true); }}
+        presenceEnabled={presence.enabled}
+        setPresenceEnabled={presence.setEnabled}
+        presencePresent={presence.present}
+        presenceFaceApi={presence.faceApiAvailable}
       />
       <ProfileEditor
         open={profileOpen}

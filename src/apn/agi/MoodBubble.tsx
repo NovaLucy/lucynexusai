@@ -14,6 +14,11 @@ interface Props {
   speaking?: boolean;
   intensity?: number;
   medicalMode?: boolean;
+  /** Position normalisée du visage de l'utilisateur (-1..1). */
+  gazeX?: number;
+  gazeY?: number;
+  /** True si un visage est actuellement détecté. */
+  present?: boolean;
 }
 
 function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0, medical = false): THREE.Color {
@@ -36,11 +41,12 @@ function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0, medical = false
   return c;
 }
 
-function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: Props) {
+function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false, gazeX = 0, gazeY = 0, present = true }: Props) {
   const meshRef = useRef<THREE.Mesh>(null);
   const innerRef = useRef<THREE.Mesh>(null);
   const haloRef = useRef<THREE.Mesh>(null);
   const matRef = useRef<THREE.ShaderMaterial>(null);
+  const gazeRef = useRef({ x: 0, y: 0, present: 1 });
 
   const uniforms = useMemo(
     () => ({
@@ -69,6 +75,13 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: P
   }, [intensity, uniforms]);
 
   useFrame((_, dt) => {
+    // Smooth gaze target → look-at offset
+    const gx = gazeRef.current;
+    gx.x += ((gazeX ?? 0) - gx.x) * 0.12;
+    gx.y += ((gazeY ?? 0) - gx.y) * 0.12;
+    const presentTarget = present ? 1 : 0;
+    gx.present += (presentTarget - gx.present) * 0.05;
+
     uniforms.uTime.value += dt;
     const t = uniforms.uTime.value;
 
@@ -98,8 +111,9 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: P
     uniforms.uSpeed.value += (speedTarget - uniforms.uSpeed.value) * 0.018;
     uniforms.uPulse.value += (pulseTarget + heartBeat * 2.0 - uniforms.uPulse.value) * 0.018;
 
-    // Effective intensity dims when sleeping; pulses strongly in medical mode
-    const intTarget = sleeping ? intensity * 0.25 : intensity * (1.0 + heartBeat * 0.35);
+    // Effective intensity dims when sleeping or when no user detected (yeux fermés)
+    const presenceFactor = sleeping ? 0.25 : (0.35 + 0.65 * gx.present);
+    const intTarget = intensity * presenceFactor * (1.0 + heartBeat * 0.35);
     uniforms.uIntensity.value += (intTarget - uniforms.uIntensity.value) * 0.04;
 
     if (meshRef.current) {
@@ -112,8 +126,10 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false }: P
       const vibrato    = sp ? Math.sin(t * 8) * 0.0016 : 0;
       const heartScale = medicalMode && !sleeping ? heartBeat * 0.065 : 0;
       meshRef.current.scale.setScalar(1 + Math.sin(t * breathFreq) * breathAmp + vibrato + heartScale);
-      // Sleeping → slight downward sag
-      meshRef.current.position.y = sleeping ? -0.04 : 0;
+      // Sleeping → slight downward sag. Gaze → bubble subtly turns toward user.
+      meshRef.current.position.x = gx.x * 0.18 * gx.present;
+      meshRef.current.position.y = (sleeping ? -0.04 : 0) - gx.y * 0.14 * gx.present;
+      meshRef.current.rotation.y += gx.x * 0.005 * gx.present;
     }
     if (innerRef.current) {
       // Thinking → inner whorl spins (mental agitation, slowed)
