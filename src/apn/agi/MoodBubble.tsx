@@ -14,6 +14,11 @@ interface Props {
   speaking?: boolean;
   intensity?: number;
   medicalMode?: boolean;
+  /** Position normalisée du visage de l'utilisateur (-1..1). */
+  gazeX?: number;
+  gazeY?: number;
+  /** True si un visage est actuellement détecté. */
+  present?: boolean;
 }
 
 function moodColor(mood: Mood, lOff = 0, hShift = 0, sBoost = 0, medical = false): THREE.Color {
