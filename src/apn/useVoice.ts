@@ -241,6 +241,10 @@ export function useVoice() {
       }
       // Web: try ElevenLabs (high quality). Fallback to speechSynthesis.
       stop();
+      if (FORCE_WEB_FALLBACK) {
+        speakWebFallback(text, onEnd);
+        return;
+      }
       bumpSpeak(+1);
       let settled = false;
       const finish = () => { if (settled) return; settled = true; bumpSpeak(-1); onEnd?.(); };
