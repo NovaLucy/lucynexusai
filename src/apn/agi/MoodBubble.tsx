@@ -127,9 +127,9 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false, gaz
       const heartScale = medicalMode && !sleeping ? heartBeat * 0.065 : 0;
       meshRef.current.scale.setScalar(1 + Math.sin(t * breathFreq) * breathAmp + vibrato + heartScale);
       // Sleeping → slight downward sag. Gaze → bubble subtly turns toward user.
-      meshRef.current.position.x = gx.x * 0.18 * gx.present;
-      meshRef.current.position.y = (sleeping ? -0.04 : 0) - gx.y * 0.14 * gx.present;
-      meshRef.current.rotation.y += gx.x * 0.005 * gx.present;
+      meshRef.current.position.x = gx.x * 0.40 * gx.present;
+      meshRef.current.position.y = (sleeping ? -0.04 : 0) - gx.y * 0.32 * gx.present;
+      meshRef.current.rotation.y += gx.x * 0.018 * gx.present;
     }
     if (innerRef.current) {
       // Thinking → inner whorl spins (mental agitation, slowed)
