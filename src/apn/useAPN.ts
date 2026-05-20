@@ -376,44 +376,50 @@ export function useAPN() {
       const decoder = new TextDecoder();
       let buf = "";
       let done = false;
-      while (!done) {
-        const { value, done: d } = await reader.read();
-        if (d) break;
-        buf += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf("\n")) !== -1) {
-          let line = buf.slice(0, nl);
-          buf = buf.slice(nl + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line || line.startsWith(":")) continue;
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6).trim();
-          if (json === "[DONE]") { done = true; break; }
-          try {
-            const parsed = JSON.parse(json);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) onDelta(content);
-          } catch {
-            buf = line + "\n" + buf;
-            break;
+      try {
+        while (!done) {
+          const { value, done: d } = await reader.read();
+          if (d) break;
+          bumpStall();
+          buf += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buf.indexOf("\n")) !== -1) {
+            let line = buf.slice(0, nl);
+            buf = buf.slice(nl + 1);
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (!line || line.startsWith(":")) continue;
+            if (!line.startsWith("data: ")) continue;
+            const json = line.slice(6).trim();
+            if (json === "[DONE]") { done = true; break; }
+            try {
+              const parsed = JSON.parse(json);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) onDelta(content);
+            } catch {
+              buf = line + "\n" + buf;
+              break;
+            }
           }
         }
-      }
-      if (buf.trim()) {
-        for (let raw of buf.split("\n")) {
-          if (!raw || raw.startsWith(":") || !raw.startsWith("data: ")) continue;
-          const json = raw.slice(6).trim();
-          if (json === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(json);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) onDelta(content);
-          } catch {}
+        if (buf.trim()) {
+          for (let raw of buf.split("\n")) {
+            if (!raw || raw.startsWith(":") || !raw.startsWith("data: ")) continue;
+            const json = raw.slice(6).trim();
+            if (json === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(json);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) onDelta(content);
+            } catch {}
+          }
         }
+      } finally {
+        window.clearTimeout(stallTimer);
       }
     },
     [],
   );
+
 
   const send = useCallback(
     async (
