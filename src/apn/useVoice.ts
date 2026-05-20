@@ -172,6 +172,17 @@ export function useVoice() {
         return;
       }
 
+      if (FORCE_WEB_FALLBACK) {
+        bumpSpeak(+1);
+        ttsQueueRef.current = ttsQueueRef.current
+          .then(() => new Promise<void>((res) => {
+            if (!stillValid()) return res();
+            speakWebFallback(sentence, () => res());
+          }))
+          .finally(() => bumpSpeak(-1));
+        return;
+      }
+
       bumpSpeak(+1);
       ttsQueueRef.current = ttsQueueRef.current
         .then(async () => {
