@@ -317,8 +317,17 @@ export function useAPN() {
 
       const isFirstContact = !profileRef.current && history.length === 0;
 
+      const ac = new AbortController();
+      // Si rien n'arrive pendant 25s, on coupe pour éviter de rester bloqué en "thinking".
+      let stallTimer = window.setTimeout(() => ac.abort(new Error("stall")), 25_000);
+      const bumpStall = () => {
+        window.clearTimeout(stallTimer);
+        stallTimer = window.setTimeout(() => ac.abort(new Error("stall")), 25_000);
+      };
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
+        signal: ac.signal,
         headers: {
           "Content-Type": "application/json",
           Authorization: await getAuthHeader(),
@@ -352,6 +361,7 @@ export function useAPN() {
       });
 
       if (!resp.ok) {
+        window.clearTimeout(stallTimer);
         let msg = "Erreur de la passerelle IA.";
         try {
           const j = await resp.json();
@@ -359,7 +369,8 @@ export function useAPN() {
         } catch {}
         throw new Error(msg);
       }
-      if (!resp.body) throw new Error("Réponse vide");
+      if (!resp.body) { window.clearTimeout(stallTimer); throw new Error("Réponse vide"); }
+
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
