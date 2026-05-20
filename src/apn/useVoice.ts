@@ -150,6 +150,8 @@ export function useVoice() {
    * with a graceful fallback to the browser SpeechSynthesis if TTS is unavailable.
    */
   const ttsQueueRef = useRef<Promise<void>>(Promise.resolve());
+  // ElevenLabs key is currently blocked → bypass and use browser voice directly.
+  const FORCE_WEB_FALLBACK = true;
   const speakSentence = useCallback(
     (text: string): void => {
       const sentence = text.trim();
@@ -166,6 +168,17 @@ export function useVoice() {
             await nativeSpeak(sentence, { rate: prefs.rate, pitch: prefs.pitch });
           })
           .catch(() => {})
+          .finally(() => bumpSpeak(-1));
+        return;
+      }
+
+      if (FORCE_WEB_FALLBACK) {
+        bumpSpeak(+1);
+        ttsQueueRef.current = ttsQueueRef.current
+          .then(() => new Promise<void>((res) => {
+            if (!stillValid()) return res();
+            speakWebFallback(sentence, () => res());
+          }))
           .finally(() => bumpSpeak(-1));
         return;
       }
@@ -228,6 +241,10 @@ export function useVoice() {
       }
       // Web: try ElevenLabs (high quality). Fallback to speechSynthesis.
       stop();
+      if (FORCE_WEB_FALLBACK) {
+        speakWebFallback(text, onEnd);
+        return;
+      }
       bumpSpeak(+1);
       let settled = false;
       const finish = () => { if (settled) return; settled = true; bumpSpeak(-1); onEnd?.(); };
