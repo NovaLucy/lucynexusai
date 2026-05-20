@@ -317,8 +317,17 @@ export function useAPN() {
 
       const isFirstContact = !profileRef.current && history.length === 0;
 
+      const ac = new AbortController();
+      // Si rien n'arrive pendant 25s, on coupe pour éviter de rester bloqué en "thinking".
+      let stallTimer = window.setTimeout(() => ac.abort(new Error("stall")), 25_000);
+      const bumpStall = () => {
+        window.clearTimeout(stallTimer);
+        stallTimer = window.setTimeout(() => ac.abort(new Error("stall")), 25_000);
+      };
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
+        signal: ac.signal,
         headers: {
           "Content-Type": "application/json",
           Authorization: await getAuthHeader(),
@@ -352,6 +361,7 @@ export function useAPN() {
       });
 
       if (!resp.ok) {
+        window.clearTimeout(stallTimer);
         let msg = "Erreur de la passerelle IA.";
         try {
           const j = await resp.json();
@@ -359,50 +369,57 @@ export function useAPN() {
         } catch {}
         throw new Error(msg);
       }
-      if (!resp.body) throw new Error("Réponse vide");
+      if (!resp.body) { window.clearTimeout(stallTimer); throw new Error("Réponse vide"); }
+
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
       let done = false;
-      while (!done) {
-        const { value, done: d } = await reader.read();
-        if (d) break;
-        buf += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf("\n")) !== -1) {
-          let line = buf.slice(0, nl);
-          buf = buf.slice(nl + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line || line.startsWith(":")) continue;
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6).trim();
-          if (json === "[DONE]") { done = true; break; }
-          try {
-            const parsed = JSON.parse(json);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) onDelta(content);
-          } catch {
-            buf = line + "\n" + buf;
-            break;
+      try {
+        while (!done) {
+          const { value, done: d } = await reader.read();
+          if (d) break;
+          bumpStall();
+          buf += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buf.indexOf("\n")) !== -1) {
+            let line = buf.slice(0, nl);
+            buf = buf.slice(nl + 1);
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (!line || line.startsWith(":")) continue;
+            if (!line.startsWith("data: ")) continue;
+            const json = line.slice(6).trim();
+            if (json === "[DONE]") { done = true; break; }
+            try {
+              const parsed = JSON.parse(json);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) onDelta(content);
+            } catch {
+              buf = line + "\n" + buf;
+              break;
+            }
           }
         }
-      }
-      if (buf.trim()) {
-        for (let raw of buf.split("\n")) {
-          if (!raw || raw.startsWith(":") || !raw.startsWith("data: ")) continue;
-          const json = raw.slice(6).trim();
-          if (json === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(json);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) onDelta(content);
-          } catch {}
+        if (buf.trim()) {
+          for (let raw of buf.split("\n")) {
+            if (!raw || raw.startsWith(":") || !raw.startsWith("data: ")) continue;
+            const json = raw.slice(6).trim();
+            if (json === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(json);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) onDelta(content);
+            } catch {}
+          }
         }
+      } finally {
+        window.clearTimeout(stallTimer);
       }
     },
     [],
   );
+
 
   const send = useCallback(
     async (
