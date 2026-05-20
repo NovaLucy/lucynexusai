@@ -100,8 +100,8 @@ function NeuralCore({ mood, state, speaking, intensity = 1, gazeX = 0, gazeY = 0
 
     // Smooth gaze tracking — the heart of the orb follows the user
     const g = gazeRef.current;
-    g.x += ((gazeX ?? 0) - g.x) * 0.14;
-    g.y += ((gazeY ?? 0) - g.y) * 0.14;
+    g.x += ((gazeX ?? 0) - g.x) * 0.22;
+    g.y += ((gazeY ?? 0) - g.y) * 0.22;
     g.p += ((present ? 1 : 0) - g.p) * 0.06;
     const gx = g.x * g.p;
     const gy = g.y * g.p;
@@ -116,27 +116,33 @@ function NeuralCore({ mood, state, speaking, intensity = 1, gazeX = 0, gazeY = 0
     if (meshRef.current) {
       meshRef.current.rotation.y += dt * (sp ? 0.32 : thinking ? 0.55 : 0.1);
       meshRef.current.rotation.x = Math.sin(uniforms.uTime.value * 0.3) * 0.18;
-      // Subtle parallax of the whole core toward the user
-      meshRef.current.position.x = gx * 0.12;
-      meshRef.current.position.y = -gy * 0.10;
+      // Stronger parallax + "head turn" toward the user
+      meshRef.current.position.x = gx * 0.30;
+      meshRef.current.position.y = -gy * 0.25;
+      meshRef.current.rotation.y += gx * 0.35;
+      meshRef.current.rotation.x += -gy * 0.25;
     }
     if (veilRef.current) {
       veilRef.current.rotation.y -= dt * 0.08;
       veilRef.current.rotation.z += dt * 0.04;
       const breath = 1 + Math.sin(uniforms.uTime.value * 0.7) * 0.04;
       veilRef.current.scale.setScalar(breath);
+      veilRef.current.position.x = gx * 0.15;
+      veilRef.current.position.y = -gy * 0.15;
     }
     if (shellRef.current) {
       shellRef.current.rotation.y -= dt * 0.16;
       shellRef.current.rotation.z += dt * 0.05;
+      shellRef.current.position.x = gx * 0.15;
+      shellRef.current.position.y = -gy * 0.15;
     }
     if (innerRef.current) {
       const breath = 1 + Math.sin(uniforms.uTime.value * (sp ? 5 : 1.4)) * (sp ? 0.09 : 0.035);
       innerRef.current.scale.setScalar(0.55 * breath);
-      // The heart/nucleus tracks the user more strongly — like a pupil
-      innerRef.current.position.x = gx * 0.55;
-      innerRef.current.position.y = -gy * 0.45;
-      innerRef.current.position.z = 0.25 * g.p;
+      // Pupil-like tracking — strongly follows the user
+      innerRef.current.position.x = gx * 1.10;
+      innerRef.current.position.y = -gy * 0.90;
+      innerRef.current.position.z = 0.45 * g.p;
       const mat = innerRef.current.material as THREE.MeshBasicMaterial;
       mat.opacity = 0.35 + 0.4 * g.p;
     }
