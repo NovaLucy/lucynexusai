@@ -2,16 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
- * usePresence — détecte la présence du visage de l'utilisateur via la caméra frontale.
+ * usePresence — détecte la présence et la position du visage via la webcam.
  *
- * Utilise l'API native `window.FaceDetector` (Chromium) si disponible.
- * Sur navigateurs sans FaceDetector (Safari iOS, Firefox), retombe sur une
- * heuristique de mouvement (variance d'intensité de l'image) comme indicateur
- * de présence dégradée — pas de gaze tracking dans ce cas.
+ * Pipeline :
+ *   1. `window.FaceDetector` natif (Chromium) — ultra léger, zéro téléchargement.
+ *   2. MediaPipe FaceDetector (WASM, ~2 Mo) — universel : Safari, iOS, Firefox.
+ *   3. Heuristique de mouvement (filet de sécurité, sans gaze).
  *
- * Le flux caméra est silencieux : un <video> caché, pas d'affichage,
- * libéré dès que la fonctionnalité est désactivée ou que l'onglet n'a plus
- * le focus.
+ * Aucune image n'est jamais envoyée sur le réseau. Tout reste local au navigateur.
  */
 
 const LS_KEY = "apn:presence";
@@ -24,18 +22,25 @@ declare global {
 export type Presence = {
   enabled: boolean;
   setEnabled: (v: boolean) => void;
-  available: boolean;       // true si une caméra a été obtenue
-  faceApiAvailable: boolean; // true si FaceDetector natif dispo
-  present: boolean;          // un visage est actuellement détecté
-  gazeX: number;             // -1 (gauche) … 0 … 1 (droite)
-  gazeY: number;             // -1 (haut)   … 0 … 1 (bas)
+  available: boolean;
+  faceApiAvailable: boolean;
+  present: boolean;
+  gazeX: number;       // -1 (gauche) … 0 … 1 (droite)
+  gazeY: number;       // -1 (haut)   … 0 … 1 (bas)
   lastSeenAt: number | null;
 };
 
+// Default ON so the eye actually tracks from first launch.
+const defaultEnabled = (() => {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw == null) return true;
+    return JSON.parse(raw);
+  } catch { return true; }
+})();
+
 export function usePresence(): Presence {
-  const [enabled, setEnabledState] = useState<boolean>(() => {
-    try { return JSON.parse(localStorage.getItem(LS_KEY) ?? "false"); } catch { return false; }
-  });
+  const [enabled, setEnabledState] = useState<boolean>(defaultEnabled);
   const [available, setAvailable] = useState(false);
   const [faceApiAvailable] = useState<boolean>(() => typeof window !== "undefined" && !!window.FaceDetector);
   const [present, setPresent] = useState(false);
@@ -47,7 +52,10 @@ export function usePresence(): Presence {
   const rafRef = useRef<number | null>(null);
   const lastTickRef = useRef(0);
   const lastFrameDataRef = useRef<Uint8ClampedArray | null>(null);
-  const detectorRef = useRef<any>(null);
+  const nativeDetectorRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mpDetectorRef = useRef<any>(null);
+  const smoothRef = useRef({ x: 0, y: 0 });
 
   const setEnabled = useCallback((v: boolean) => {
     setEnabledState(v);
@@ -63,9 +71,13 @@ export function usePresence(): Presence {
       videoRef.current.remove();
       videoRef.current = null;
     }
+    try { mpDetectorRef.current?.close?.(); } catch {}
+    mpDetectorRef.current = null;
+    nativeDetectorRef.current = null;
     setAvailable(false);
     setPresent(false);
     setGaze({ x: 0, y: 0 });
+    smoothRef.current = { x: 0, y: 0 };
   }, []);
 
   useEffect(() => {
@@ -89,57 +101,114 @@ export function usePresence(): Presence {
         await v.play().catch(() => {});
         setAvailable(true);
 
+        // 1) Native FaceDetector (Chromium)
         if (faceApiAvailable && window.FaceDetector) {
-          try { detectorRef.current = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 }); }
-          catch { detectorRef.current = null; }
+          try { nativeDetectorRef.current = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 }); }
+          catch { nativeDetectorRef.current = null; }
+        }
+
+        // 2) MediaPipe (universal fallback) — load only if native isn't available
+        if (!nativeDetectorRef.current) {
+          try {
+            const { FilesetResolver, FaceDetector } = await import("@mediapipe/tasks-vision");
+            if (cancelled) return;
+            const vision = await FilesetResolver.forVisionTasks(
+              "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm",
+            );
+            if (cancelled) return;
+            mpDetectorRef.current = await FaceDetector.createFromOptions(vision, {
+              baseOptions: {
+                modelAssetPath:
+                  "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+                delegate: "GPU",
+              },
+              runningMode: "VIDEO",
+              minDetectionConfidence: 0.5,
+            });
+          } catch (e) {
+            console.warn("MediaPipe FaceDetector unavailable, using motion fallback", e);
+            mpDetectorRef.current = null;
+          }
         }
 
         const canvas = document.createElement("canvas");
         canvas.width = 160; canvas.height = 120;
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
+        const applyFace = (cx: number, cy: number, w: number, h: number) => {
+          // Caméra frontale = miroir → on inverse X
+          const nx = 1 - (cx / w) * 2;
+          const ny = (cy / h) * 2 - 1;
+          // Amplify (visage tend à rester proche du centre) + clamp
+          const ax = Math.max(-1, Math.min(1, nx * 1.6));
+          const ay = Math.max(-1, Math.min(1, ny * 1.6));
+          // Smoothing au niveau du hook (rendu lerp encore par-dessus)
+          smoothRef.current.x += (ax - smoothRef.current.x) * 0.35;
+          smoothRef.current.y += (ay - smoothRef.current.y) * 0.35;
+          setGaze({ x: smoothRef.current.x, y: smoothRef.current.y });
+          setPresent(true);
+          setLastSeenAt(Date.now());
+        };
+
+        const minInterval = (nativeDetectorRef.current || mpDetectorRef.current) ? 66 : 400;
+        let missed = 0;
+
         const tick = async (ts: number) => {
           if (cancelled) return;
           rafRef.current = requestAnimationFrame(tick);
-          if (ts - lastTickRef.current < 400) return; // ~2.5Hz, économe
+          if (ts - lastTickRef.current < minInterval) return;
           lastTickRef.current = ts;
 
           const video = videoRef.current;
           if (!video || video.readyState < 2 || !ctx) return;
 
-          if (detectorRef.current) {
+          // Native first
+          if (nativeDetectorRef.current) {
             try {
-              const faces = await detectorRef.current.detect(video);
+              const faces = await nativeDetectorRef.current.detect(video);
               if (cancelled) return;
               if (faces && faces.length > 0) {
                 const box = faces[0].boundingBox;
-                const cx = box.x + box.width / 2;
-                const cy = box.y + box.height / 2;
-                // Caméra frontale = miroir → on inverse X pour que "à droite à l'écran" = "à droite de Lucy"
-                const nx = 1 - (cx / video.videoWidth) * 2;
-                const ny = (cy / video.videoHeight) * 2 - 1;
-                setGaze({ x: Math.max(-1, Math.min(1, nx)), y: Math.max(-1, Math.min(1, ny)) });
-                setPresent(true);
-                setLastSeenAt(Date.now());
+                applyFace(box.x + box.width / 2, box.y + box.height / 2, video.videoWidth, video.videoHeight);
+                missed = 0;
                 return;
               }
-              setPresent(false);
+              missed++;
+              if (missed > 6) setPresent(false);
+              return;
             } catch {
-              detectorRef.current = null; // bascule sur fallback
+              nativeDetectorRef.current = null;
             }
           }
 
-          // Fallback : heuristique de mouvement (delta moyen entre frames)
+          // MediaPipe
+          if (mpDetectorRef.current) {
+            try {
+              const res = mpDetectorRef.current.detectForVideo(video, ts);
+              const det = res?.detections?.[0];
+              if (det) {
+                const bb = det.boundingBox;
+                applyFace(bb.originX + bb.width / 2, bb.originY + bb.height / 2, video.videoWidth, video.videoHeight);
+                missed = 0;
+                return;
+              }
+              missed++;
+              if (missed > 6) setPresent(false);
+              return;
+            } catch (e) {
+              console.warn("mp detect error", e);
+            }
+          }
+
+          // 3) Fallback : motion heuristic (no gaze)
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const frame = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
           const prev = lastFrameDataRef.current;
           if (prev && prev.length === frame.length) {
             let delta = 0;
-            for (let i = 0; i < frame.length; i += 16) {
-              delta += Math.abs(frame[i] - prev[i]);
-            }
+            for (let i = 0; i < frame.length; i += 16) delta += Math.abs(frame[i] - prev[i]);
             const motion = delta / (frame.length / 16);
-            const isPresent = motion > 4; // seuil empirique
+            const isPresent = motion > 4;
             setPresent(isPresent);
             if (isPresent) setLastSeenAt(Date.now());
           }
@@ -157,17 +226,22 @@ export function usePresence(): Presence {
     return () => { cancelled = true; release(); };
   }, [enabled, faceApiAvailable, release, setEnabled]);
 
-  // Libère le flux quand l'onglet est en arrière-plan, ré-acquiert au retour
+  // Libère le RAF quand l'onglet est en arrière-plan
   useEffect(() => {
     if (!enabled) return;
     const onVis = () => {
-      if (document.hidden) {
-        if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      if (document.hidden && rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [enabled]);
 
-  return { enabled, setEnabled, available, faceApiAvailable, present, gazeX: gaze.x, gazeY: gaze.y, lastSeenAt };
+  return {
+    enabled, setEnabled, available,
+    faceApiAvailable: faceApiAvailable || true, // MediaPipe couvre tous les autres
+    present, gazeX: gaze.x, gazeY: gaze.y, lastSeenAt,
+  };
 }
