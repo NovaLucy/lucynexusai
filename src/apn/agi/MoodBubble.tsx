@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { MOOD_HSL, type AgentState, type Mood } from "@/apn/types";
@@ -301,6 +301,22 @@ function Bubble({ mood, state, speaking, intensity = 1, medicalMode = false, gaz
   );
 }
 
+/** Keeps the bubble visually the same size whether the canvas is square or wide. */
+function FitCamera() {
+  const { camera, size } = useThree();
+  useEffect(() => {
+    const aspect = size.width / Math.max(1, size.height);
+    // Reference: square viewport at z=3.4 → bubble fills nicely.
+    // For wider viewports, push camera back proportionally so vertical fit is preserved
+    // and the bubble doesn't shrink visually relative to height.
+    const base = 3.4;
+    const z = aspect > 1 ? base * Math.min(1.6, Math.sqrt(aspect)) : base;
+    (camera as THREE.PerspectiveCamera).position.set(0, 0, z);
+    (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+  }, [camera, size.width, size.height]);
+  return null;
+}
+
 export default function MoodBubble(props: Props) {
   return (
     <Canvas
@@ -309,6 +325,7 @@ export default function MoodBubble(props: Props) {
       gl={{ antialias: true, alpha: true, premultipliedAlpha: false }}
       style={{ background: "transparent" }}
     >
+      <FitCamera />
       <ambientLight intensity={0.6} />
       <Bubble {...props} />
     </Canvas>

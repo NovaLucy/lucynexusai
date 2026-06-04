@@ -104,16 +104,21 @@ export default function Index() {
     if (apn.state === "sleeping") wakeRef.current();
   }, [apn.state]);
 
-  // Auto-sleep after 90s of inactivity (only from standby)
+  // Auto-sleep after 90s of inactivity — or 25s after the user leaves the frame
   useEffect(() => {
     const id = window.setInterval(() => {
       if (apn.state !== "standby") return;
-      if (Date.now() - lastActivityRef.current > 90_000) {
-        apn.setSleeping();
-      }
+      const inactiveFor = Date.now() - lastActivityRef.current;
+      const presenceWatching = presence.enabled;
+      const absent = presenceWatching && !presence.present;
+      const absenceFor = presenceWatching && presence.lastSeenAt
+        ? Date.now() - presence.lastSeenAt
+        : Infinity;
+      if (inactiveFor > 90_000) apn.setSleeping();
+      else if (absent && absenceFor > 25_000 && inactiveFor > 20_000) apn.setSleeping();
     }, 5_000);
     return () => window.clearInterval(id);
-  }, [apn.state, apn]);
+  }, [apn.state, apn, presence.enabled, presence.present, presence.lastSeenAt]);
 
   // Présence détectée → réveille Lucy automatiquement (yeux qui s'ouvrent).
   const lastPresenceRef = useRef(false);
@@ -742,12 +747,7 @@ export default function Index() {
                 aria-label="Parler à Lucy (maintenir pour push-to-talk, double-tap pour écrire)"
               >
                 <div
-                  className="relative aspect-square"
-                  style={{
-                    width: "min(85vw, 70vh)",
-                    height: "min(85vw, 70vh)",
-                    maxWidth: "100%",
-                  }}
+                  className="absolute inset-0"
                 >
                   <VolumetricFace
                     mood={apn.mood}
