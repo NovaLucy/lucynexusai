@@ -742,12 +742,7 @@ export default function Index() {
                 aria-label="Parler à Lucy (maintenir pour push-to-talk, double-tap pour écrire)"
               >
                 <div
-                  className="relative aspect-square"
-                  style={{
-                    width: "min(85vw, 70vh)",
-                    height: "min(85vw, 70vh)",
-                    maxWidth: "100%",
-                  }}
+                  className="absolute inset-0"
                 >
                   <VolumetricFace
                     mood={apn.mood}
