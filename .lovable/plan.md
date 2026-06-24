@@ -1,48 +1,49 @@
+# Export complet du projet Lucy
+
 ## Objectif
+Produire une archive autonome contenant **tout le code source utile** + une **documentation d'architecture** pour reprendre le travail sur Claude (ou tout autre IDE/IA) sans dépendre de Lovable.
 
-Faire en sorte que l'œil de Lucy suive **réellement** la position du visage de l'utilisateur, capté par la webcam, et plus seulement la souris ou une heuristique de mouvement.
+## Livrables (dans `/mnt/documents/lucy-export/`)
 
-## État actuel
+1. **`lucy-source.zip`** — archive du code complet, hors bruit
+   - Inclus : `src/`, `supabase/functions/`, `supabase/migrations/`, `public/`, `index.html`, `package.json`, `bun.lockb`, `vite.config.ts`, `tailwind.config.ts`, `tsconfig*.json`, `postcss.config.js`, `eslint.config.js`, `components.json`, `capacitor.config.ts`, `.env.example` (clés publiques uniquement, secrets masqués), `README.md`.
+   - Exclus : `node_modules/`, `.git/`, `.lovable/`, `.workspace/`, `dist/`, `.env` réel.
 
-- `usePresence.ts` ouvre déjà la caméra frontale et calcule un `gazeX/gazeY`.
-- Mais il ne fonctionne **vraiment** que sur Chrome desktop (API native `window.FaceDetector`). Sur Safari, iOS, Firefox → simple détection de mouvement, **sans coordonnées de visage**, donc l'œil ne suit pas.
-- Le suivi est aussi désactivé par défaut (toggle dans les Réglages).
-- `VolumetricFace.tsx` consomme déjà `gazeX/gazeY` correctement — rien à toucher côté rendu.
+2. **`ARCHITECTURE.md`** — carte mentale du projet
+   - Stack (React 18 + Vite + TS + Tailwind + shadcn + R3F + Supabase).
+   - Arborescence commentée de `src/apn/` (rôle de chaque fichier : `useAPN`, `useVoice`, `usePresence`, `useWakeWord`, `useReality`, `MoodBubble`, `VolumetricFace`, etc.).
+   - Schéma de flux : Webcam → `usePresence` → `gazeX/Y` → `MoodBubble`. Mic → `nativeVoice`/`useVoice` → `useAPN` → Edge `chat` → TTS.
+   - Liste des Edge Functions (`chat`, `apn-medical`, `memory-extract`, `memory-recall`, `text-polish`, `elevenlabs-*`, `profile-update`) avec rôle et entrées/sorties.
+   - Tables DB + RLS (extrait des migrations).
 
-## Ce qu'on va faire
+3. **`FEATURES.md`** — état actuel des fonctionnalités
+   - Orbe matière noire (humeurs, états, mode médical, suivi visage).
+   - Voix : STT natif + fallback, TTS forcé Web (ElevenLabs bloqué).
+   - Wake-word "Lucy", push-to-talk long-press, turn-taking 6s.
+   - Mémoire vivante (embeddings/recall), Pré-médecin V2, profil utilisateur.
+   - Auth désactivée (routes `/auth` et `/welcome` redirigent vers `/`).
 
-### 1. Détection de visage universelle via MediaPipe
-- Ajouter `@mediapipe/tasks-vision` (léger, WebAssembly, fonctionne sur tous les navigateurs modernes y compris Safari iOS).
-- Charger le modèle `FaceLandmarker` (ou `FaceDetector` plus léger) une seule fois, depuis le CDN officiel.
-- Cible : ~15 fps de détection (largement suffisant pour un regard fluide), GPU si disponible.
+4. **`KNOWN_ISSUES.md`** — points à reprendre
+   - `usePresence.ts` : `faceApiAvailable || true` à nettoyer.
+   - `Index.tsx` importe `MoodBubble` sous l'alias `VolumetricFace` (fichier `VolumetricFace.tsx` non utilisé).
+   - Clé ElevenLabs bloquée → `FORCE_WEB_FALLBACK = true`.
+   - Auto-sleep 25s absence + 20s inactivité à valider.
 
-### 2. Réécriture de `usePresence.ts`
-- Pipeline unifié :
-  1. `FaceDetector` natif si dispo (rapide, zéro téléchargement).
-  2. Sinon MediaPipe (fallback robuste partout).
-  3. Sinon heuristique de mouvement (filet de sécurité).
-- Calcule un `gazeX/gazeY` normalisé `-1..1` à partir du centre du visage relatif au cadre, en miroir (caméra frontale).
-- Léger smoothing au niveau du hook pour absorber le bruit de détection.
-
-### 3. Activation par défaut + UX
-- Activer le suivi automatiquement au premier lancement (avec demande de permission caméra propre).
-- Si refusé → l'œil retombe doucement au centre, pas d'erreur bloquante.
-- Garder le toggle dans `ControlsDrawer` pour pouvoir le couper.
-- Pause auto quand l'onglet est en arrière-plan (déjà fait, à conserver).
-
-### 4. Performance
-- Vidéo cachée 320×240, downscale à 192×144 pour la détection.
-- Détection en `requestVideoFrameCallback` quand dispo, sinon `requestAnimationFrame` throttlé à 60 ms.
-- Libération complète du stream et du modèle quand désactivé.
+5. **`SETUP.md`** — démarrage hors Lovable
+   - `bun install` / `npm install`.
+   - Variables à fournir dans `.env` (VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, VITE_SUPABASE_PROJECT_ID).
+   - Secrets Edge Functions à recréer côté Supabase (LOVABLE_API_KEY, ELEVENLABS_API_KEY).
+   - `bun run dev`.
 
 ## Détails techniques
 
-- Dépendance : `@mediapipe/tasks-vision` (≈ 2 Mo WASM chargé à la demande).
-- Aucun changement nécessaire dans `VolumetricFace.tsx` / `MoodBubble.tsx` : ils reçoivent déjà `gazeX/gazeY`.
-- Aucun appel réseau côté backend, aucune image n'est envoyée — tout reste local dans le navigateur.
+- Génération via un script bash unique exécuté dans la sandbox : `zip -r` avec liste d'exclusions, puis écriture des `.md` à partir d'une lecture ciblée des fichiers clés.
+- L'archive sera mise à disposition sous `/mnt/documents/lucy-export/lucy-source.zip` + dossier `docs/` lisible directement.
+- Aucune modification du code projet — opération en lecture seule + écriture hors repo.
 
-## Hors scope
+## Question avant de lancer
+Veux-tu que j'inclue aussi :
+- (a) un dump SQL du schéma actuel via `supabase--read_query` (utile si tu veux migrer la DB ailleurs), ou
+- (b) seulement les fichiers de migration tels quels (plus léger) ?
 
-- Pas de eye-tracking pupillaire (trop lourd, pas nécessaire).
-- Pas de reconnaissance d'identité.
-- Pas de capture/stockage d'images.
+Par défaut je pars sur **(b)**.
